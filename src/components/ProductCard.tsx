@@ -31,7 +31,7 @@ const ProductCard = ({ product }: ProductCardProps) => {
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true, margin: "0px 0px 50px 0px" }}
       transition={{ duration: 0.4 }}
-      className="group bg-card rounded-lg overflow-hidden border border-border shadow-md hover:shadow-xl hover:-translate-y-1 hover:border-primary/30 transition-all duration-300"
+      className="group bg-white rounded-xl overflow-hidden shadow-[0_4px_15px_rgba(0,0,0,0.1)] hover:shadow-[0_8px_25px_rgba(0,0,0,0.15)] hover:-translate-y-1 transition-all duration-300"
     >
       <Link to={`/product/${product.id}`} className="block">
         <div className="relative aspect-square overflow-hidden bg-background">

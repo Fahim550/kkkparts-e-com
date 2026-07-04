@@ -382,7 +382,7 @@ const Index = () => {
                 {categoryRow1.map((cat, i) => (
                   <div key={cat.id} className="w-[85px] sm:w-[100px] md:w-[120px] lg:w-[140px] shrink-0" style={{ scrollSnapAlign: 'start' }}>
                     <Link to={`/parts?category=${cat.slug}`} className="flex flex-col items-center group text-center w-full">
-                      <div className="w-full aspect-square overflow-hidden rounded-lg bg-gradient-to-b from-[#eaf6ff] to-[#dbf0ff] transition-all duration-300 mb-2 relative shadow-md group-hover:shadow-xl group-hover:-translate-y-1 border border-border/50">
+                      <div className="w-full aspect-square overflow-hidden rounded-xl bg-white transition-all duration-300 mb-2 relative shadow-[0_4px_15px_rgba(0,0,0,0.1)] group-hover:shadow-[0_8px_25px_rgba(0,0,0,0.15)] group-hover:-translate-y-1">
                         <img src={getCategoryImage(cat.slug, cat.image_url)} alt={cat.name} width="200" height="200" className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" loading="lazy" />
                       </div>
                       <h3 className="font-body text-[11px] sm:text-[12px] md:text-[14px] font-medium text-foreground group-hover:text-primary transition-colors truncate w-full text-center leading-tight px-1">{cat.name}</h3>
@@ -398,7 +398,7 @@ const Index = () => {
                   {categoryRow2.map((cat, i) => (
                     <div key={cat.id} className="w-[85px] sm:w-[100px] md:w-[120px] lg:w-[140px] shrink-0" style={{ scrollSnapAlign: 'start' }}>
                       <Link to={`/parts?category=${cat.slug}`} className="flex flex-col items-center group text-center w-full">
-                        <div className="w-full aspect-square overflow-hidden rounded-lg bg-gradient-to-b from-[#eaf6ff] to-[#dbf0ff] transition-all duration-300 mb-2 relative shadow-md group-hover:shadow-xl group-hover:-translate-y-1 border border-border/50">
+                        <div className="w-full aspect-square overflow-hidden rounded-xl bg-white transition-all duration-300 mb-2 relative shadow-[0_4px_15px_rgba(0,0,0,0.1)] group-hover:shadow-[0_8px_25px_rgba(0,0,0,0.15)] group-hover:-translate-y-1">
                           <img src={getCategoryImage(cat.slug, cat.image_url)} alt={cat.name} width="200" height="200" className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" loading="lazy" />
                         </div>
                         <h3 className="font-body text-[11px] sm:text-[12px] md:text-[14px] font-medium text-foreground group-hover:text-primary transition-colors truncate w-full text-center leading-tight px-1">{cat.name}</h3>
