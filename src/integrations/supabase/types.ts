@@ -361,6 +361,7 @@ export type Database = {
           is_new: boolean | null
           is_offer: boolean | null
           is_trending: boolean | null
+          location: string | null
           name: string
           original_price: number | null
           price: number
@@ -386,6 +387,7 @@ export type Database = {
           is_new?: boolean | null
           is_offer?: boolean | null
           is_trending?: boolean | null
+          location?: string | null
           name: string
           original_price?: number | null
           price: number
@@ -411,6 +413,7 @@ export type Database = {
           is_new?: boolean | null
           is_offer?: boolean | null
           is_trending?: boolean | null
+          location?: string | null
           name?: string
           original_price?: number | null
           price?: number

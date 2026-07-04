@@ -21,7 +21,7 @@ interface VariationRow {
 const emptyForm = {
   name: '', brand: '', price: 0, original_price: null as number | null, dealer_price: null as number | null, dealer_original_price: null as number | null, category: 'running',
   image: '', images: [] as string[], sku: '',
-  sizes: '', colors: '', description: '', stock: 50,
+  sizes: '', colors: '', description: '', stock: 50, location: '',
   is_active: true, is_trending: false, is_new: false, is_offer: false,
 };
 
@@ -105,7 +105,7 @@ const ProductsManager = () => {
       category: p.category, image: p.image, images: p.images || [],
       sku: (p as any).sku || '',
       sizes: (p.sizes || []).join(', '), colors: (p.colors || []).join(', '),
-      description: p.description || '', stock: p.stock || 50,
+      description: p.description || '', stock: p.stock || 50, location: p.location || '',
       is_active: p.is_active ?? true, is_trending: p.is_trending ?? false, is_new: p.is_new ?? false, is_offer: (p as any).is_offer ?? false,
     });
     setDealerDiscountPct(p.dealer_price && p.price ? String(Math.round((1 - Number(p.dealer_price) / Number(p.price)) * 100)) : '');
@@ -209,6 +209,7 @@ const ProductsManager = () => {
       image: form.image || '/assets/shoe-runner-1.jpg',
       images: form.images.length > 0 ? form.images : [form.image || '/assets/shoe-runner-1.jpg'],
       sku: form.sku,
+      location: form.location,
       sizes: sizesFinal,
       colors: colorsFinal,
       description: form.description, stock: form.stock,
@@ -354,6 +355,10 @@ const ProductsManager = () => {
                         : ['running','basketball','football','training','lifestyle','trail','women'].map(c => <option key={c} value={c}>{c.charAt(0).toUpperCase() + c.slice(1)}</option>)
                       }
                     </select>
+                  </div>
+                  <div>
+                    <label className="block font-body text-xs uppercase tracking-wider text-muted-foreground mb-1">Location</label>
+                    <Input value={form.location} onChange={e => setForm({ ...form, location: e.target.value })} placeholder="e.g. Muscat, Salalah..." />
                   </div>
                 </div>
                 <div>

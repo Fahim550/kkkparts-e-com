@@ -1,11 +1,12 @@
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/lib/supabase';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import { useCustomerOrders, useProducts, useDealerDeleteOrder } from '@/hooks/useDatabase';
-import { Package, Phone, Mail, ShieldCheck, Clock, CheckCircle2, XCircle, MapPin, Trash2, Lock } from 'lucide-react';
+import { uploadProductImage } from '@/lib/image-upload';
+import { Package, Phone, Mail, ShieldCheck, Clock, CheckCircle2, XCircle, MapPin, Trash2, Lock, Camera, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import DirhamIcon from '@/components/DirhamIcon';
 
@@ -17,6 +18,8 @@ const DealerDashboard = () => {
   const { data: products = [] } = useProducts();
   const [profile, setProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (!user) {
@@ -49,6 +52,30 @@ const DealerDashboard = () => {
       toast.success('Order removed from your history');
     } catch {
       toast.error('Failed to remove order');
+    }
+  };
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !user) return;
+    
+    setUploadingImage(true);
+    try {
+      const url = await uploadProductImage(file, 'dealers');
+      const { error } = await supabase.from('dealers').update({ profile_image: url }).eq('id', user.id);
+      
+      if (error) throw error;
+      
+      setProfile(prev => ({ ...prev, profile_image: url }));
+      toast.success('Profile image updated');
+    } catch (err) {
+      console.error('Image upload error:', err);
+      toast.error('Failed to upload profile image');
+    } finally {
+      setUploadingImage(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
     }
   };
 
@@ -101,8 +128,31 @@ const DealerDashboard = () => {
             {/* Profile Card */}
             <div className="md:col-span-1 bg-white p-5 md:p-6 rounded-2xl shadow-sm border border-gray-100 h-fit md:sticky md:top-24">
               <div className="flex items-center gap-4 mb-6 pb-6 border-b border-gray-100">
-                <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center text-primary">
-                  <ShieldCheck className="w-8 h-8" />
+                <div 
+                  className="relative cursor-pointer"
+                  onClick={() => !uploadingImage && fileInputRef.current?.click()}
+                >
+                  <div className="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center text-primary overflow-hidden border-2 border-primary/20 hover:border-primary/50 transition-colors">
+                    {uploadingImage ? (
+                      <Loader2 className="w-8 h-8 animate-spin" />
+                    ) : profile?.profile_image ? (
+                      <img src={profile.profile_image} alt="Profile" className="w-full h-full object-cover" />
+                    ) : (
+                      <ShieldCheck className="w-8 h-8" />
+                    )}
+                  </div>
+                  {!uploadingImage && (
+                    <div className="absolute bottom-0 right-0 bg-primary text-white p-1.5 rounded-full border-2 border-white shadow-sm hover:scale-105 transition-transform">
+                      <Camera className="w-3.5 h-3.5" />
+                    </div>
+                  )}
+                  <input 
+                    type="file" 
+                    accept="image/*" 
+                    className="hidden" 
+                    ref={fileInputRef}
+                    onChange={handleImageUpload}
+                  />
                 </div>
                 <div>
                   <h2 className="font-bold text-lg text-gray-900">{profile?.full_name || user?.user_metadata?.full_name || 'Dealer'}</h2>
