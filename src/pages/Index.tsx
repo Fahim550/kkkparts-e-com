@@ -317,54 +317,6 @@ const Index = () => {
         </div>
       </section>
 
-      {/* Trust Badges */}
-      {/* <section className="py-6 border-b border-border/50 bg-background/50">
-        <div className="container mx-auto px-4 lg:px-8">
-          <div className="grid grid-cols-2 md:flex md:flex-wrap md:justify-center gap-y-6 gap-x-2 md:gap-12 lg:gap-20">
-            <div className="flex items-center justify-center md:justify-start gap-2 md:gap-3">
-              <Shield className="w-6 h-6 md:w-8 md:h-8 text-neon shrink-0" />
-              <div className="text-left">
-                <h4 className="font-heading font-bold text-[11px] sm:text-sm uppercase text-foreground leading-tight">100% Genuine Parts</h4>
-                <p className="font-body text-[9px] sm:text-xs text-muted-foreground mt-0.5">Direct from manufacturers</p>
-              </div>
-            </div>
-            <div className="flex items-center justify-center md:justify-start gap-2 md:gap-3">
-              <Truck className="w-6 h-6 md:w-8 md:h-8 text-neon shrink-0" />
-              <div className="text-left">
-                <h4 className="font-heading font-bold text-[11px] sm:text-sm uppercase text-foreground leading-tight">Fast Delivery</h4>
-                <p className="font-body text-[9px] sm:text-xs text-muted-foreground mt-0.5">All across Oman</p>
-              </div>
-            </div>
-            <div className="col-span-2 flex justify-center md:block">
-              <div className="flex items-center justify-center md:justify-start gap-2 md:gap-3">
-                <Zap className="w-6 h-6 md:w-8 md:h-8 text-neon shrink-0" />
-                <div className="text-left">
-                  <h4 className="font-heading font-bold text-[11px] sm:text-sm uppercase text-foreground leading-tight">Best Price Match</h4>
-                  <p className="font-body text-[9px] sm:text-xs text-muted-foreground mt-0.5">Guaranteed lowest prices</p>
-                </div>
-              </div>
-            </div>
-            <div className="hidden sm:flex col-span-2 md:col-span-1 items-center justify-center md:justify-start gap-2 md:gap-3">
-              <RefreshCw className="w-6 h-6 md:w-8 md:h-8 text-neon shrink-0" />
-              <div className="text-left">
-                <h4 className="font-heading font-bold text-[11px] sm:text-sm uppercase text-foreground leading-tight">Easy Returns</h4>
-                <p className="font-body text-[9px] sm:text-xs text-muted-foreground mt-0.5">14-day return policy</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section> */}
-
-      {/* Brand Ticker
-      <section className="py-5 border-b border-border bg-card overflow-hidden">
-        <div className="flex items-center gap-12 animate-marquee whitespace-nowrap">
-          {[...dynamicBrands, ...dynamicBrands, ...dynamicBrands].map((brand, i) => (
-            <span key={i} className="font-heading text-2xl font-bold text-muted-foreground/30 uppercase tracking-wider">{brand}</span>
-          ))}
-        </div>
-      </section>
-      */}
-
       {/* Categories Grid */}
       <section className="py-12 lg:py-16 bg-pink-50/30">
         <div className="container mx-auto px-4 lg:px-8">
