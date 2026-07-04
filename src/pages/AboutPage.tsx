@@ -9,7 +9,6 @@ const AboutPage = () => {
   const [activeTab, setActiveTab] = useState('quality');
 
   useEffect(() => {
-    document.title = "About Us | Oman Auto Parts";
     window.scrollTo(0, 0);
   }, []);
 

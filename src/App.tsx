@@ -14,6 +14,7 @@ import ProtectedAdminRoute from "@/components/ProtectedAdminRoute";
 import VisitorTracker from "@/components/VisitorTracker";
 import ScrollToTop from "@/components/ScrollToTop";
 import LanguagePopup from "@/components/LanguagePopup";
+import PageTitleUpdater from "@/components/PageTitleUpdater";
 import { Loader2 } from "lucide-react";
 
 // Eager load homepage for better LCP performance
@@ -77,6 +78,7 @@ const App = () => (
               <LanguageProvider>
               <ScrollToTop />
               <LanguagePopup />
+              <PageTitleUpdater />
               <Suspense fallback={<PageLoader />}>
                 <Routes>
                   <Route path="/" element={<Index />} />
