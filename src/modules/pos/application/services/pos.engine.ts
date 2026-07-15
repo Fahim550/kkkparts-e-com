@@ -1,0 +1,33 @@
+import { PosCheckoutRepository } from "../../infrastructure/repositories/pos-checkout.repository";
+import { CheckoutPayload, PosReceipt } from "../../domain/types";
+import { InventoryEngine } from "../../../inventory/application/services/inventory.engine";
+
+export class PosEngine {
+  /**
+   * Processes a POS checkout:
+   * 1. Creates the receipt and payment records.
+   * 2. Consumes inventory using FIFO rules.
+   */
+  static async checkout(payload: CheckoutPayload): Promise<PosReceipt> {
+    // 1. Create Receipt and Payments
+    const receipt = await PosCheckoutRepository.createReceipt(payload);
+
+    // 2. Consume Inventory
+    // Note: The POS items are in base UOM or their respective UOMs. 
+    // The Inventory Engine expects base UOM quantities. We assume cart items hold the correct quantity multiplier if needed,
+    // or we pass it exactly as is if the cart handles base uom conversion.
+    
+    for (const item of payload.items) {
+      await InventoryEngine.processMovement({
+        reference_type: "pos_receipt",
+        reference_id: receipt.id,
+        warehouse_id: payload.warehouse_id,
+        variation_id: item.variation_id,
+        quantity: -item.quantity, // Negative for outbound
+        unit_cost: 0, // Outbound unit cost is determined by FIFO engine, pass 0
+      });
+    }
+
+    return receipt;
+  }
+}

@@ -76,6 +76,15 @@ const CustomersManager = lazy(
 const CustomerProfilePage = lazy(
   () => import("./modules/customer/presentation/pages/CustomerProfilePage.tsx"),
 );
+const PosDashboard = lazy(
+  () => import("./modules/pos/presentation/pages/PosDashboard.tsx"),
+);
+const PosTerminal = lazy(
+  () => import("./modules/pos/presentation/pages/PosTerminal.tsx"),
+);
+const PosReceiptViewer = lazy(
+  () => import("./modules/pos/presentation/pages/PosReceiptViewer.tsx"),
+);
 const PriceListsManager = lazy(
   () => import("./modules/pricing/presentation/pages/PriceListsManager.tsx"),
 );
@@ -220,6 +229,9 @@ const App = () => (
                       <Route path="suppliers" element={<SuppliersManager />} />
                       <Route path="customers" element={<CustomersManager />} />
                       <Route path="customers/:id" element={<CustomerProfilePage />} />
+                      <Route path="pos" element={<PosDashboard />} />
+                      <Route path="pos/terminal" element={<PosTerminal />} />
+                      <Route path="pos/receipt/:id" element={<PosReceiptViewer />} />
                       <Route path="price-lists" element={<PriceListsManager />} />
                       <Route path="discount-rules" element={<DiscountRulesManager />} />
                       <Route path="purchase-orders" element={<PurchaseOrdersPage />} />
