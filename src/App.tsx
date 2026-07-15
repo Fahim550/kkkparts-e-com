@@ -76,6 +76,12 @@ const CustomersManager = lazy(
 const CustomerProfilePage = lazy(
   () => import("./modules/customer/presentation/pages/CustomerProfilePage.tsx"),
 );
+const PriceListsManager = lazy(
+  () => import("./modules/pricing/presentation/pages/PriceListsManager.tsx"),
+);
+const DiscountRulesManager = lazy(
+  () => import("./modules/pricing/presentation/pages/DiscountRulesManager.tsx"),
+);
 const PurchaseOrdersPage = lazy(
   () => import("./modules/purchase/presentation/pages/PurchaseOrdersPage.tsx"),
 );
@@ -214,6 +220,8 @@ const App = () => (
                       <Route path="suppliers" element={<SuppliersManager />} />
                       <Route path="customers" element={<CustomersManager />} />
                       <Route path="customers/:id" element={<CustomerProfilePage />} />
+                      <Route path="price-lists" element={<PriceListsManager />} />
+                      <Route path="discount-rules" element={<DiscountRulesManager />} />
                       <Route path="purchase-orders" element={<PurchaseOrdersPage />} />
                       <Route path="goods-receive" element={<GoodsReceivePage />} />
                       <Route path="supplier-due" element={<SupplierDuePage />} />

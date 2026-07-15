@@ -27,6 +27,7 @@ import {
   Database,
   Settings2,
   Layers,
+  Percent,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useAdminAuth } from "@/hooks/useAdminAuth";
@@ -58,6 +59,8 @@ const navItems = [
   { path: "/admin/fifo-layers", label: "FIFO Cost Layers", icon: Layers },
   { path: "/admin/customers", label: "Customers", icon: Users },
   { path: "/admin/suppliers", label: "Suppliers", icon: Users },
+  { path: "/admin/price-lists", label: "Price Lists", icon: Tag },
+  { path: "/admin/discount-rules", label: "Discount Rules", icon: Percent },
   { path: "/admin/purchase-orders", label: "Purchase Orders", icon: ShoppingCart },
   { path: "/admin/goods-receive", label: "Goods Receive", icon: Package },
   { path: "/admin/supplier-due", label: "Supplier Due", icon: FileText },
