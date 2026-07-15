@@ -24,6 +24,9 @@ import {
   Briefcase,
   Car,
   MapPin,
+  Database,
+  Settings2,
+  Layers,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useAdminAuth } from "@/hooks/useAdminAuth";
@@ -50,6 +53,9 @@ const navItems = [
     icon: MapPin,
   },
   { path: "/admin/stock-transfers", label: "Stock Transfers", icon: Activity },
+  { path: "/admin/stock-ledger", label: "Stock Ledger", icon: Database },
+  { path: "/admin/stock-adjustments", label: "Adjustments & Damage", icon: Settings2 },
+  { path: "/admin/fifo-layers", label: "FIFO Cost Layers", icon: Layers },
   { path: "/admin/suppliers", label: "Suppliers", icon: Users },
   { path: "/admin/purchase-orders", label: "Purchase Orders", icon: ShoppingCart },
   { path: "/admin/goods-receive", label: "Goods Receive", icon: Package },

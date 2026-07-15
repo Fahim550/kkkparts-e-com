@@ -82,6 +82,15 @@ const SupplierDuePage = lazy(
 const PurchaseHistoryPage = lazy(
   () => import("./modules/purchase/presentation/pages/PurchaseHistoryPage.tsx"),
 );
+const StockLedgerPage = lazy(
+  () => import("./modules/inventory/presentation/pages/StockLedgerPage.tsx"),
+);
+const StockAdjustmentsPage = lazy(
+  () => import("./modules/inventory/presentation/pages/StockAdjustmentsPage.tsx"),
+);
+const FifoCostLayersPage = lazy(
+  () => import("./modules/inventory/presentation/pages/FifoCostLayersPage.tsx"),
+);
 const BannersManager = lazy(() => import("./pages/admin/BannersManager.tsx"));
 const AnalyticsPage = lazy(() => import("./pages/admin/AnalyticsPage.tsx"));
 const VehicleDataManager = lazy(
@@ -201,6 +210,9 @@ const App = () => (
                       <Route path="goods-receive" element={<GoodsReceivePage />} />
                       <Route path="supplier-due" element={<SupplierDuePage />} />
                       <Route path="purchase-history" element={<PurchaseHistoryPage />} />
+                      <Route path="stock-ledger" element={<StockLedgerPage />} />
+                      <Route path="stock-adjustments" element={<StockAdjustmentsPage />} />
+                      <Route path="fifo-layers" element={<FifoCostLayersPage />} />
                       <Route
                         path="vehicle-data"
                         element={<VehicleDataManager />}

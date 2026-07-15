@@ -1,6 +1,7 @@
 import { supabase } from "@/integrations/supabase/client";
 import { StockBalance, StockTransferDTO } from "../../domain/types";
 import { StockRepository } from "../../infrastructure/repositories/stock.repository";
+import { InventoryEngine } from "../../../inventory/application/services/inventory.engine";
 
 export class StockService {
   static async getBalancesByWarehouse(
@@ -36,62 +37,45 @@ export class StockService {
     if (!variation) throw new Error("Variation not found.");
     const uomId = variation.products?.base_uom_id;
 
-    // We will perform updates sequentially here. In a real highly concurrent system,
-    // this should be an RPC call to guarantee atomicity.
-
-    // Deduct from source
-    await StockRepository.upsertBalance({
+    // We will perform updates via the InventoryEngine to ensure atomicity and correct ledgering
+    
+    // Deduct from source (Outbound)
+    await InventoryEngine.processMovement({
       warehouse_id: payload.from_warehouse_id,
       variation_id: payload.variation_id,
       bin_id: payload.from_bin_id,
-      batch_number: payload.batch_number,
-      quantity: sourceBalance.quantity - payload.quantity,
-    });
-
-    // Log ledger for source (outbound)
-    await StockRepository.insertLedger({
-      warehouse_id: payload.from_warehouse_id,
-      variation_id: payload.variation_id,
-      bin_id: payload.from_bin_id,
-      batch_number: payload.batch_number,
       uom_id: uomId,
       quantity: -payload.quantity,
       reference_type: payload.reference_type,
       reference_id: payload.reference_id,
-      transaction_date: new Date().toISOString(),
     });
 
-    // Add to destination
-    const destBalance = await StockRepository.getBalance(
-      payload.to_warehouse_id,
-      payload.variation_id,
-      payload.to_bin_id,
-      payload.batch_number,
-    );
+    // We don't have the original cost of this specific stock easily without a more complex transfer logic,
+    // but typically a warehouse transfer retains its FIFO layers or averages out. 
+    // For now, in this simplified FIFO, an internal transfer just deducts and adds, 
+    // which requires passing unit_cost to the destination.
+    // Let's get a unit_cost from the oldest available FIFO layer for this transfer.
+    const { data: layers } = await supabase
+      .from("fifo_ledgers")
+      .select("unit_cost")
+      .eq("variation_id", payload.variation_id)
+      .eq("warehouse_id", payload.from_warehouse_id)
+      .gt("quantity_remaining", 0)
+      .order("transaction_date", { ascending: true })
+      .limit(1);
 
-    const newDestQty = destBalance
-      ? destBalance.quantity + payload.quantity
-      : payload.quantity;
+    const transferCost = layers && layers.length > 0 ? Number(layers[0].unit_cost) : 0;
 
-    await StockRepository.upsertBalance({
+    // Add to destination (Inbound)
+    await InventoryEngine.processMovement({
       warehouse_id: payload.to_warehouse_id,
       variation_id: payload.variation_id,
       bin_id: payload.to_bin_id,
-      batch_number: payload.batch_number,
-      quantity: newDestQty,
-    });
-
-    // Log ledger for destination (inbound)
-    await StockRepository.insertLedger({
-      warehouse_id: payload.to_warehouse_id,
-      variation_id: payload.variation_id,
-      bin_id: payload.to_bin_id,
-      batch_number: payload.batch_number,
       uom_id: uomId,
       quantity: payload.quantity,
       reference_type: payload.reference_type,
       reference_id: payload.reference_id,
-      transaction_date: new Date().toISOString(),
+      unit_cost: transferCost,
     });
   }
 }
