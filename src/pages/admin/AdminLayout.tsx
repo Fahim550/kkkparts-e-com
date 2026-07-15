@@ -56,6 +56,7 @@ const navItems = [
   { path: "/admin/stock-ledger", label: "Stock Ledger", icon: Database },
   { path: "/admin/stock-adjustments", label: "Adjustments & Damage", icon: Settings2 },
   { path: "/admin/fifo-layers", label: "FIFO Cost Layers", icon: Layers },
+  { path: "/admin/customers", label: "Customers", icon: Users },
   { path: "/admin/suppliers", label: "Suppliers", icon: Users },
   { path: "/admin/purchase-orders", label: "Purchase Orders", icon: ShoppingCart },
   { path: "/admin/goods-receive", label: "Goods Receive", icon: Package },
