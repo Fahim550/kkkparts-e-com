@@ -30,6 +30,9 @@ import {
   Percent,
   Monitor,
   TrendingUp,
+  Library,
+  BookOpen,
+  Landmark,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useAdminAuth } from "@/hooks/useAdminAuth";
@@ -60,6 +63,9 @@ const navItems = [
   { path: "/admin/stock-adjustments", label: "Adjustments & Damage", icon: Settings2 },
   { path: "/admin/fifo-layers", label: "FIFO Cost Layers", icon: Layers },
   { path: "/admin/pos", label: "Point of Sale", icon: Monitor },
+  { path: "/admin/accounting/coa", label: "Chart of Accounts", icon: Library },
+  { path: "/admin/accounting/journals", label: "Journal Entries", icon: BookOpen },
+  { path: "/admin/accounting/financials", label: "Financial Reports", icon: Landmark },
   { path: "/admin/reports", label: "Dashboard KPIs", icon: TrendingUp },
   { path: "/admin/reports/sales", label: "Sales Report", icon: FileText },
   { path: "/admin/reports/inventory", label: "Inventory Report", icon: Package },

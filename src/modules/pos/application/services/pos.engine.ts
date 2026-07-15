@@ -16,9 +16,10 @@ export class PosEngine {
     // Note: The POS items are in base UOM or their respective UOMs. 
     // The Inventory Engine expects base UOM quantities. We assume cart items hold the correct quantity multiplier if needed,
     // or we pass it exactly as is if the cart handles base uom conversion.
+    let totalCogs = 0;
     
     for (const item of payload.items) {
-      await InventoryEngine.processMovement({
+      const lineCogs = await InventoryEngine.processMovement({
         reference_type: "pos_receipt",
         reference_id: receipt.id,
         warehouse_id: payload.warehouse_id,
@@ -26,7 +27,12 @@ export class PosEngine {
         quantity: -item.quantity, // Negative for outbound
         unit_cost: 0, // Outbound unit cost is determined by FIFO engine, pass 0
       });
+      totalCogs += lineCogs;
     }
+
+    // 3. Post Accounting Entries
+    const { AccountingEngine } = await import("../../../accounting/application/services/accounting.engine");
+    await AccountingEngine.postPosSale(receipt.id, payload.total_amount, totalCogs, receipt.receipt_number);
 
     return receipt;
   }

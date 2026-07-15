@@ -76,6 +76,15 @@ const CustomersManager = lazy(
 const CustomerProfilePage = lazy(
   () => import("./modules/customer/presentation/pages/CustomerProfilePage.tsx"),
 );
+const ChartOfAccountsPage = lazy(
+  () => import("./modules/accounting/presentation/pages/ChartOfAccountsPage.tsx"),
+);
+const JournalEntriesPage = lazy(
+  () => import("./modules/accounting/presentation/pages/JournalEntriesPage.tsx"),
+);
+const FinancialReportsPage = lazy(
+  () => import("./modules/accounting/presentation/pages/FinancialReportsPage.tsx"),
+);
 const ReportsDashboard = lazy(
   () => import("./modules/reporting/presentation/pages/ReportsDashboard.tsx"),
 );
@@ -238,6 +247,9 @@ const App = () => (
                       <Route path="suppliers" element={<SuppliersManager />} />
                       <Route path="customers" element={<CustomersManager />} />
                       <Route path="customers/:id" element={<CustomerProfilePage />} />
+                      <Route path="accounting/coa" element={<ChartOfAccountsPage />} />
+                      <Route path="accounting/journals" element={<JournalEntriesPage />} />
+                      <Route path="accounting/financials" element={<FinancialReportsPage />} />
                       <Route path="reports" element={<ReportsDashboard />} />
                       <Route path="reports/sales" element={<SalesReport />} />
                       <Route path="reports/inventory" element={<InventoryReport />} />

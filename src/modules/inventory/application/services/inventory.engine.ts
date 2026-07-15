@@ -9,8 +9,8 @@ export class InventoryEngine {
    * The strict, single entry point for ANY stock mutation.
    * Modifies stock_ledgers, fifo_ledgers, and rolls up into stock_balances.
    */
-  static async processMovement(payload: StockMovementPayload): Promise<void> {
-    if (payload.quantity === 0) return;
+  static async processMovement(payload: StockMovementPayload): Promise<number> {
+    if (payload.quantity === 0) return 0;
 
     // 1. Validate Current Stock (if outbound)
     const isOutbound = payload.quantity < 0;
@@ -53,9 +53,10 @@ export class InventoryEngine {
     });
 
     // 4. Handle FIFO / Cost Engine
+    let movementCost = 0;
     if (isOutbound) {
       // Consume cost layer
-      await FifoEngine.consumeCostLayer({
+      movementCost = await FifoEngine.consumeCostLayer({
         variation_id: payload.variation_id,
         warehouse_id: payload.warehouse_id,
         quantity: absQuantity,
@@ -75,7 +76,10 @@ export class InventoryEngine {
         reference_type: payload.reference_type,
         reference_id: payload.reference_id,
       });
+      movementCost = payload.quantity * payload.unit_cost;
     }
+
+    return movementCost;
   }
 
   // --- Specialized Workflow Wrappers ---
