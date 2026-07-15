@@ -34,7 +34,6 @@ export class StockService {
       .single();
 
     if (!variation) throw new Error("Variation not found.");
-    // @ts-ignore - nested select typings
     const uomId = variation.products?.base_uom_id;
 
     // We will perform updates sequentially here. In a real highly concurrent system,

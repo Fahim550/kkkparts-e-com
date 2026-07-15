@@ -67,6 +67,9 @@ const WarehouseDashboardPage = lazy(
   () =>
     import("./modules/warehouse/presentation/pages/WarehouseDashboardPage.tsx"),
 );
+const SuppliersManager = lazy(
+  () => import("./modules/supplier/presentation/pages/SuppliersManager.tsx"),
+);
 const BannersManager = lazy(() => import("./pages/admin/BannersManager.tsx"));
 const AnalyticsPage = lazy(() => import("./pages/admin/AnalyticsPage.tsx"));
 const VehicleDataManager = lazy(
@@ -181,6 +184,7 @@ const App = () => (
                         path="stock-transfers"
                         element={<StockTransfersPage />}
                       />
+                      <Route path="suppliers" element={<SuppliersManager />} />
                       <Route
                         path="vehicle-data"
                         element={<VehicleDataManager />}

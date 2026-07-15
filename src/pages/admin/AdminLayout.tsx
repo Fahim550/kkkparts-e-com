@@ -50,6 +50,7 @@ const navItems = [
     icon: MapPin,
   },
   { path: "/admin/stock-transfers", label: "Stock Transfers", icon: Activity },
+  { path: "/admin/suppliers", label: "Suppliers", icon: Users },
   { path: "/admin/vehicle-data", label: "Vehicle Data", icon: Car },
   { path: "/admin/orders", label: "Customer Orders", icon: ShoppingCart },
   { path: "/admin/dealer-orders", label: "Dealer Orders", icon: ShoppingCart },
