@@ -1,6 +1,6 @@
-import { UomRepository } from "../../infrastructure/repositories/uom.repository";
 import { UOMSchema } from "../../domain/schemas";
-import { UOM, CreateUOMDTO, UpdateUOMDTO } from "../../domain/types";
+import { CreateUOMDTO, UOM, UpdateUOMDTO } from "../../domain/types";
+import { UomRepository } from "../../infrastructure/repositories/uom.repository";
 
 export class UomService {
   static async getAllUOMs(): Promise<UOM[]> {
