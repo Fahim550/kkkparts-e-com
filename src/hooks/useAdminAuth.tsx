@@ -1,20 +1,36 @@
-import { useState, useEffect, createContext, useContext, useCallback } from 'react';
-import { supabase } from '@/integrations/supabase/client';
-import type { User, Session } from '@supabase/supabase-js';
+import {
+  useState,
+  useEffect,
+  createContext,
+  useContext,
+  useCallback,
+} from "react";
+import { supabase } from "@/integrations/supabase/client";
+import type { User, Session } from "@supabase/supabase-js";
 
 interface AdminAuthContextType {
   user: User | null;
   session: Session | null;
   isAdmin: boolean;
   loading: boolean;
-  signIn: (email: string, password: string) => Promise<{ error: string | null }>;
-  signUp: (email: string, password: string) => Promise<{ error: string | null }>;
+  signIn: (
+    email: string,
+    password: string,
+  ) => Promise<{ error: string | null }>;
+  signUp: (
+    email: string,
+    password: string,
+  ) => Promise<{ error: string | null }>;
   signOut: () => Promise<void>;
 }
 
-const AdminAuthContext = createContext<AdminAuthContextType | undefined>(undefined);
+const AdminAuthContext = createContext<AdminAuthContextType | undefined>(
+  undefined,
+);
 
-export const AdminAuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+export const AdminAuthProvider: React.FC<{ children: React.ReactNode }> = ({
+  children,
+}) => {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
@@ -22,8 +38,18 @@ export const AdminAuthProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
   const checkAdminRole = useCallback(async (userId: string) => {
     const [usersRes, rolesRes] = await Promise.all([
-      supabase.from('users').select('role').eq('id', userId).eq('role', 'admin').maybeSingle(),
-      supabase.from('user_roles').select('role').eq('user_id', userId).eq('role', 'admin').maybeSingle()
+      supabase
+        .from("users")
+        .select("role")
+        .eq("id", userId)
+        .eq("role", "admin")
+        .maybeSingle(),
+      supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", userId)
+        .eq("role", "admin")
+        .maybeSingle(),
     ]);
     return !!usersRes.data || !!rolesRes.data;
   }, []);
@@ -35,7 +61,9 @@ export const AdminAuthProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     }, 5000);
 
     // Set up auth listener FIRST
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(async (event, session) => {
       setSession(session);
       setUser(session?.user ?? null);
       if (session?.user) {
@@ -51,17 +79,20 @@ export const AdminAuthProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     });
 
     // Then check existing session
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        const admin = await checkAdminRole(session.user.id);
-        setIsAdmin(admin);
-      }
-      setLoading(false);
-    }).catch(() => {
-      setLoading(false);
-    });
+    supabase.auth
+      .getSession()
+      .then(async ({ data: { session } }) => {
+        setSession(session);
+        setUser(session?.user ?? null);
+        if (session?.user) {
+          const admin = await checkAdminRole(session.user.id);
+          setIsAdmin(admin);
+        }
+        setLoading(false);
+      })
+      .catch(() => {
+        setLoading(false);
+      });
 
     return () => {
       clearTimeout(timeout);
@@ -70,7 +101,10 @@ export const AdminAuthProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   }, [checkAdminRole]);
 
   const signIn = useCallback(async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    const { error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
     if (error) return { error: error.message };
     return { error: null };
   }, []);
@@ -82,11 +116,13 @@ export const AdminAuthProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     if (data.user) {
       // Check if any admin exists
       const { count } = await supabase
-        .from('user_roles')
-        .select('*', { count: 'exact', head: true })
-        .eq('role', 'admin');
+        .from("user_roles")
+        .select("*", { count: "exact", head: true })
+        .eq("role", "admin");
       if (count === 0) {
-        await supabase.from('user_roles').insert({ user_id: data.user.id, role: 'admin' } as any);
+        await supabase
+          .from("user_roles")
+          .insert({ user_id: data.user.id, role: "admin" } as any);
         setIsAdmin(true);
       }
     }
@@ -101,7 +137,9 @@ export const AdminAuthProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   }, []);
 
   return (
-    <AdminAuthContext.Provider value={{ user, session, isAdmin, loading, signIn, signUp, signOut }}>
+    <AdminAuthContext.Provider
+      value={{ user, session, isAdmin, loading, signIn, signUp, signOut }}
+    >
       {children}
     </AdminAuthContext.Provider>
   );
@@ -109,6 +147,7 @@ export const AdminAuthProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
 export const useAdminAuth = () => {
   const ctx = useContext(AdminAuthContext);
-  if (!ctx) throw new Error('useAdminAuth must be used within AdminAuthProvider');
+  if (!ctx)
+    throw new Error("useAdminAuth must be used within AdminAuthProvider");
   return ctx;
 };

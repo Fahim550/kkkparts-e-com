@@ -1,4 +1,4 @@
-import { useVisitorTracking } from '@/hooks/useVisitorTracking';
+import { useVisitorTracking } from "@/hooks/useVisitorTracking";
 
 const VisitorTracker = () => {
   useVisitorTracking();

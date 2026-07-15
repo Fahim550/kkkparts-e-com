@@ -1,10 +1,12 @@
-import { Navigate } from 'react-router-dom';
-import { useAdminAuth } from '@/hooks/useAdminAuth';
-import { Loader2 } from 'lucide-react';
-import { useEffect, useState } from 'react';
-import { supabase } from '@/lib/supabase';
+import { Navigate } from "react-router-dom";
+import { useAdminAuth } from "@/hooks/useAdminAuth";
+import { Loader2 } from "lucide-react";
+import { useEffect, useState } from "react";
+import { supabase } from "@/lib/supabase";
 
-const ProtectedAdminRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+const ProtectedAdminRoute: React.FC<{ children: React.ReactNode }> = ({
+  children,
+}) => {
   const { user, loading } = useAdminAuth();
   const [role, setRole] = useState<string | null>(null);
   const [roleLoading, setRoleLoading] = useState(true);
@@ -12,14 +14,20 @@ const ProtectedAdminRoute: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     if (user) {
       Promise.all([
-        supabase.from('users').select('role').eq('id', user.id).single(),
-        supabase.from('user_roles').select('role').eq('user_id', user.id).single()
-      ]).then(([usersRes, rolesRes]) => {
-        const isUsersAdmin = usersRes.data?.role === 'admin';
-        const isRolesAdmin = rolesRes.data?.role === 'admin';
-        setRole(isUsersAdmin || isRolesAdmin ? 'admin' : 'user');
-        setRoleLoading(false);
-      }).catch(() => setRoleLoading(false));
+        supabase.from("users").select("role").eq("id", user.id).single(),
+        supabase
+          .from("user_roles")
+          .select("role")
+          .eq("user_id", user.id)
+          .single(),
+      ])
+        .then(([usersRes, rolesRes]) => {
+          const isUsersAdmin = usersRes.data?.role === "admin";
+          const isRolesAdmin = rolesRes.data?.role === "admin";
+          setRole(isUsersAdmin || isRolesAdmin ? "admin" : "user");
+          setRoleLoading(false);
+        })
+        .catch(() => setRoleLoading(false));
     } else {
       setRoleLoading(false);
     }
@@ -30,7 +38,9 @@ const ProtectedAdminRoute: React.FC<{ children: React.ReactNode }> = ({ children
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
           <Loader2 className="w-8 h-8 animate-spin text-primary mx-auto mb-3" />
-          <p className="font-body text-sm text-muted-foreground">Verifying access...</p>
+          <p className="font-body text-sm text-muted-foreground">
+            Verifying access...
+          </p>
         </div>
       </div>
     );
@@ -40,16 +50,21 @@ const ProtectedAdminRoute: React.FC<{ children: React.ReactNode }> = ({ children
     return <Navigate to="/admin/login" replace />;
   }
 
-  if (role !== 'admin') {
+  if (role !== "admin") {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center p-4">
         <div className="text-center max-w-md">
-          <h1 className="font-heading text-3xl font-bold uppercase tracking-wider text-foreground mb-4">Access Denied</h1>
+          <h1 className="font-heading text-3xl font-bold uppercase tracking-wider text-foreground mb-4">
+            Access Denied
+          </h1>
           <p className="font-body text-sm text-muted-foreground mb-6">
-            Your account does not have admin privileges. Contact the store owner for access.
+            Your account does not have admin privileges. Contact the store owner
+            for access.
           </p>
-          <button onClick={() => window.location.href = '/'}
-            className="bg-primary text-primary-foreground px-6 py-3 rounded-md font-body text-sm font-bold tracking-wider uppercase hover:bg-primary/90 transition-all">
+          <button
+            onClick={() => (window.location.href = "/")}
+            className="bg-primary text-primary-foreground px-6 py-3 rounded-md font-body text-sm font-bold tracking-wider uppercase hover:bg-primary/90 transition-all"
+          >
             Go to Store
           </button>
         </div>

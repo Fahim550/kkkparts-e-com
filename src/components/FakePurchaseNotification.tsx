@@ -1,28 +1,77 @@
-import { useEffect, useState } from 'react';
-import { ShoppingBag, X } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { useEffect, useState } from "react";
+import { ShoppingBag, X } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 
 const names = [
-  'Ahmed', 'Sara', 'Mohammed', 'Fatima', 'Omar', 'Nour', 'Khalid', 'Hessa',
-  'Yousef', 'Maryam', 'Ali', 'Dalal', 'Hassan', 'Reem', 'Faisal', 'Lina',
-  'Abdulaziz', 'Noura', 'Bader', 'Shaikha', 'Jaber', 'Aisha', 'Nasser', 'Dana',
+  "Ahmed",
+  "Sara",
+  "Mohammed",
+  "Fatima",
+  "Omar",
+  "Nour",
+  "Khalid",
+  "Hessa",
+  "Yousef",
+  "Maryam",
+  "Ali",
+  "Dalal",
+  "Hassan",
+  "Reem",
+  "Faisal",
+  "Lina",
+  "Abdulaziz",
+  "Noura",
+  "Bader",
+  "Shaikha",
+  "Jaber",
+  "Aisha",
+  "Nasser",
+  "Dana",
 ];
 
-const cities = ['Downtown Dubai', 'Dubai Marina', 'Jumeirah', 'Deira', 'Bur Dubai', 'Business Bay', 'Al Barsha', 'JLT'];
+const cities = [
+  "Downtown Dubai",
+  "Dubai Marina",
+  "Jumeirah",
+  "Deira",
+  "Bur Dubai",
+  "Business Bay",
+  "Al Barsha",
+  "JLT",
+];
 
-const timeAgo = ['2 minutes ago', '5 minutes ago', '8 minutes ago', '12 minutes ago', '15 minutes ago', '20 minutes ago', '1 minute ago', '3 minutes ago'];
+const timeAgo = [
+  "2 minutes ago",
+  "5 minutes ago",
+  "8 minutes ago",
+  "12 minutes ago",
+  "15 minutes ago",
+  "20 minutes ago",
+  "1 minute ago",
+  "3 minutes ago",
+];
 
-const FakePurchaseNotification = ({ productNames }: { productNames: string[] }) => {
+const FakePurchaseNotification = ({
+  productNames,
+}: {
+  productNames: string[];
+}) => {
   const [visible, setVisible] = useState(false);
-  const [notification, setNotification] = useState({ name: '', city: '', product: '', time: '' });
+  const [notification, setNotification] = useState({
+    name: "",
+    city: "",
+    product: "",
+    time: "",
+  });
 
   useEffect(() => {
     const show = () => {
       const name = names[Math.floor(Math.random() * names.length)];
       const city = cities[Math.floor(Math.random() * cities.length)];
-      const product = productNames.length > 0
-        ? productNames[Math.floor(Math.random() * productNames.length)]
-        : 'a product';
+      const product =
+        productNames.length > 0
+          ? productNames[Math.floor(Math.random() * productNames.length)]
+          : "a product";
       const time = timeAgo[Math.floor(Math.random() * timeAgo.length)];
       setNotification({ name, city, product, time });
       setVisible(true);
@@ -31,7 +80,10 @@ const FakePurchaseNotification = ({ productNames }: { productNames: string[] }) 
 
     const initialDelay = setTimeout(show, 5000);
     const interval = setInterval(show, 10000);
-    return () => { clearTimeout(initialDelay); clearInterval(interval); };
+    return () => {
+      clearTimeout(initialDelay);
+      clearInterval(interval);
+    };
   }, [productNames]);
 
   return (
@@ -51,11 +103,19 @@ const FakePurchaseNotification = ({ productNames }: { productNames: string[] }) 
               {notification.name} from {notification.city}
             </p>
             <p className="font-body text-xs text-muted-foreground truncate">
-              purchased <span className="font-semibold text-foreground">{notification.product}</span>
+              purchased{" "}
+              <span className="font-semibold text-foreground">
+                {notification.product}
+              </span>
             </p>
-            <p className="font-body text-[10px] text-muted-foreground mt-0.5">{notification.time}</p>
+            <p className="font-body text-[10px] text-muted-foreground mt-0.5">
+              {notification.time}
+            </p>
           </div>
-          <button onClick={() => setVisible(false)} className="shrink-0 text-muted-foreground hover:text-foreground">
+          <button
+            onClick={() => setVisible(false)}
+            className="shrink-0 text-muted-foreground hover:text-foreground"
+          >
             <X className="w-3 h-3" />
           </button>
         </motion.div>

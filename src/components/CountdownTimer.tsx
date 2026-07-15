@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { Clock, Flame } from 'lucide-react';
+import { useState, useEffect } from "react";
+import { Clock, Flame } from "lucide-react";
 
 const CountdownTimer = () => {
   const [time, setTime] = useState({ hours: 23, minutes: 59, seconds: 59 });
@@ -21,28 +21,34 @@ const CountdownTimer = () => {
     return () => clearInterval(interval);
   }, []);
 
-  const pad = (n: number) => String(n).padStart(2, '0');
+  const pad = (n: number) => String(n).padStart(2, "0");
 
   return (
     <div className="bg-destructive/10 border border-destructive/30 rounded-lg p-4 mb-6">
       <div className="flex flex-wrap items-center gap-2 mb-2">
         <Flame className="w-4 h-4 text-destructive animate-pulse" />
-        <span className="font-heading text-sm font-bold text-destructive uppercase tracking-wider">Limited Time Offer!</span>
+        <span className="font-heading text-sm font-bold text-destructive uppercase tracking-wider">
+          Limited Time Offer!
+        </span>
       </div>
       <div className="flex flex-wrap items-center gap-2">
         <Clock className="w-4 h-4 text-muted-foreground" />
-        <span className="font-body text-sm text-muted-foreground">Sale ends in:</span>
+        <span className="font-body text-sm text-muted-foreground">
+          Sale ends in:
+        </span>
         <div className="flex gap-1 ml-1">
           {[
-            { value: pad(time.hours), label: 'H' },
-            { value: pad(time.minutes), label: 'M' },
-            { value: pad(time.seconds), label: 'S' },
+            { value: pad(time.hours), label: "H" },
+            { value: pad(time.minutes), label: "M" },
+            { value: pad(time.seconds), label: "S" },
           ].map((unit, i) => (
             <span key={i} className="flex items-center">
               <span className="bg-foreground text-background font-heading text-sm font-bold px-1.5 py-0.5 rounded">
                 {unit.value}
               </span>
-              <span className="font-body text-[10px] text-muted-foreground ml-0.5 mr-1">{unit.label}</span>
+              <span className="font-body text-[10px] text-muted-foreground ml-0.5 mr-1">
+                {unit.label}
+              </span>
             </span>
           ))}
         </div>

@@ -31,31 +31,57 @@ const AdminLoginPage = lazy(() => import("./pages/admin/AdminLoginPage.tsx"));
 const Dashboard = lazy(() => import("./pages/admin/Dashboard.tsx"));
 const ProductsManager = lazy(() => import("./pages/admin/ProductsManager.tsx"));
 const OrdersManager = lazy(() => import("./pages/admin/OrdersManager.tsx"));
-const DealerOrdersManager = lazy(() => import("./pages/admin/DealerOrdersManager.tsx"));
-const OrderDetailsPage = lazy(() => import("./pages/admin/OrderDetailsPage.tsx"));
+const DealerOrdersManager = lazy(
+  () => import("./pages/admin/DealerOrdersManager.tsx"),
+);
+const OrderDetailsPage = lazy(
+  () => import("./pages/admin/OrderDetailsPage.tsx"),
+);
 const CouponsManager = lazy(() => import("./pages/admin/CouponsManager.tsx"));
-const CheckoutLeadsManager = lazy(() => import("./pages/admin/CheckoutLeadsManager.tsx"));
-const CategoriesManager = lazy(() => import("./pages/admin/CategoriesManager.tsx"));
+const CheckoutLeadsManager = lazy(
+  () => import("./pages/admin/CheckoutLeadsManager.tsx"),
+);
+const CategoriesManager = lazy(
+  () => import("./pages/admin/CategoriesManager.tsx"),
+);
+const BrandsPage = lazy(
+  () => import("./modules/product/presentation/pages/BrandsPage.tsx"),
+);
+const UOMsPage = lazy(
+  () => import("./modules/product/presentation/pages/UOMsPage.tsx"),
+);
+const AttributesPage = lazy(
+  () => import("./modules/product/presentation/pages/AttributesPage.tsx"),
+);
 const BannersManager = lazy(() => import("./pages/admin/BannersManager.tsx"));
 const AnalyticsPage = lazy(() => import("./pages/admin/AnalyticsPage.tsx"));
-const VehicleDataManager = lazy(() => import("./pages/admin/VehicleDataManager.tsx"));
-const VisitorAnalyticsPage = lazy(() => import("./pages/admin/VisitorAnalyticsPage.tsx"));
-const ShippingMethodsManager = lazy(() => import("./pages/admin/ShippingMethodsManager.tsx"));
+const VehicleDataManager = lazy(
+  () => import("./pages/admin/VehicleDataManager.tsx"),
+);
+const VisitorAnalyticsPage = lazy(
+  () => import("./pages/admin/VisitorAnalyticsPage.tsx"),
+);
+const ShippingMethodsManager = lazy(
+  () => import("./pages/admin/ShippingMethodsManager.tsx"),
+);
 const ReviewsManager = lazy(() => import("./pages/admin/ReviewsManager.tsx"));
 const CustomersPage = lazy(() => import("./pages/admin/CustomersPage.tsx"));
 const UsersManager = lazy(() => import("./pages/admin/UsersManager.tsx"));
 const SettingsPage = lazy(() => import("./pages/admin/SettingsPage.tsx"));
-const MarketingTrackingPage = lazy(() => import("./pages/admin/MarketingTrackingPage.tsx"));
+const MarketingTrackingPage = lazy(
+  () => import("./pages/admin/MarketingTrackingPage.tsx"),
+);
 const MessagesManager = lazy(() => import("./pages/admin/MessagesManager.tsx"));
 const PagesManager = lazy(() => import("./pages/admin/PagesManager.tsx"));
-const JobApplicationsManager = lazy(() => import("./pages/admin/JobApplicationsManager.tsx"));
+const JobApplicationsManager = lazy(
+  () => import("./pages/admin/JobApplicationsManager.tsx"),
+);
 const AboutPage = lazy(() => import("./pages/AboutPage.tsx"));
 const ContactPage = lazy(() => import("./pages/ContactPage.tsx"));
 const CareersPage = lazy(() => import("./pages/CareersPage.tsx"));
 const NotFound = lazy(() => import("./pages/NotFound.tsx"));
 const DealerLoginPage = lazy(() => import("./pages/DealerLoginPage.tsx"));
 const DealerDashboard = lazy(() => import("./pages/DealerDashboard.tsx"));
-
 
 const queryClient = new QueryClient();
 
@@ -76,59 +102,98 @@ const App = () => (
             <Sonner />
             <BrowserRouter>
               <LanguageProvider>
-              <ScrollToTop />
-              <LanguagePopup />
-              <PageTitleUpdater />
-              <Suspense fallback={<PageLoader />}>
-                <Routes>
-                  <Route path="/" element={<Index />} />
-                  <Route path="/parts" element={<ShopPage />} />
-                  <Route path="/product/:id" element={<ProductPage />} />
-                  <Route path="/cart" element={<CartPage />} />
-                  <Route path="/checkout" element={<CheckoutPage />} />
-                  <Route path="/wishlist" element={<WishlistPage />} />
-                  <Route path="/about" element={<AboutPage />} />
-                  <Route path="/contact" element={<ContactPage />} />
-                  <Route path="/careers" element={<CareersPage />} />
-                  <Route path="/dealer/login" element={<DealerLoginPage />} />
-                  <Route path="/dealer/register" element={<DealerLoginPage />} />
-                  <Route path="/dealer/dashboard" element={<DealerDashboard />} />
+                <ScrollToTop />
+                <LanguagePopup />
+                <PageTitleUpdater />
+                <Suspense fallback={<PageLoader />}>
+                  <Routes>
+                    <Route path="/" element={<Index />} />
+                    <Route path="/parts" element={<ShopPage />} />
+                    <Route path="/product/:id" element={<ProductPage />} />
+                    <Route path="/cart" element={<CartPage />} />
+                    <Route path="/checkout" element={<CheckoutPage />} />
+                    <Route path="/wishlist" element={<WishlistPage />} />
+                    <Route path="/about" element={<AboutPage />} />
+                    <Route path="/contact" element={<ContactPage />} />
+                    <Route path="/careers" element={<CareersPage />} />
+                    <Route path="/dealer/login" element={<DealerLoginPage />} />
+                    <Route
+                      path="/dealer/register"
+                      element={<DealerLoginPage />}
+                    />
+                    <Route
+                      path="/dealer/dashboard"
+                      element={<DealerDashboard />}
+                    />
 
-                  <Route path="/admin/login" element={<AdminLoginPage />} />
-                  <Route path="/admin" element={
-                    <ProtectedAdminRoute>
-                      <AdminLayout />
-                    </ProtectedAdminRoute>
-                  }>
-                    <Route index element={<Dashboard />} />
-                    <Route path="products" element={<ProductsManager />} />
-                    <Route path="orders" element={<OrdersManager />} />
-                    <Route path="dealer-orders" element={<DealerOrdersManager />} />
-                    <Route path="dealer-orders/:id" element={<OrderDetailsPage />} />
-                    <Route path="orders/:id" element={<OrderDetailsPage />} />
-                    <Route path="categories" element={<CategoriesManager />} />
-                    <Route path="vehicle-data" element={<VehicleDataManager />} />
-                    <Route path="coupons" element={<CouponsManager />} />
-                    <Route path="checkout-leads" element={<CheckoutLeadsManager />} />
-                    <Route path="banners" element={<BannersManager />} />
-                    <Route path="messages" element={<MessagesManager />} />
-                    <Route path="analytics" element={<AnalyticsPage />} />
-                    <Route path="visitor-analytics" element={<VisitorAnalyticsPage />} />
-                    <Route path="customers" element={<CustomersPage />} />
-                    <Route path="users" element={<UsersManager />} />
-                    <Route path="settings" element={<SettingsPage />} />
-                    <Route path="marketing" element={<MarketingTrackingPage />} />
-                    <Route path="shipping" element={<ShippingMethodsManager />} />
-                    <Route path="reviews" element={<ReviewsManager />} />
-                    <Route path="pages" element={<PagesManager />} />
-                    <Route path="job-applications" element={<JobApplicationsManager />} />
-                  </Route>
-                  <Route path="*" element={<NotFound />} />
-                </Routes>
-              </Suspense>
-              <VisitorTracker />
-              {/* <WhatsAppButton /> */}
-              <FacebookPixelProvider />
+                    <Route path="/admin/login" element={<AdminLoginPage />} />
+                    <Route
+                      path="/admin"
+                      element={
+                        <ProtectedAdminRoute>
+                          <AdminLayout />
+                        </ProtectedAdminRoute>
+                      }
+                    >
+                      <Route index element={<Dashboard />} />
+                      <Route path="products" element={<ProductsManager />} />
+                      <Route path="orders" element={<OrdersManager />} />
+                      <Route
+                        path="dealer-orders"
+                        element={<DealerOrdersManager />}
+                      />
+                      <Route
+                        path="dealer-orders/:id"
+                        element={<OrderDetailsPage />}
+                      />
+                      <Route path="orders/:id" element={<OrderDetailsPage />} />
+                      <Route
+                        path="categories"
+                        element={<CategoriesManager />}
+                      />
+                      <Route path="brands" element={<BrandsPage />} />
+                      <Route path="uoms" element={<UOMsPage />} />
+                      <Route path="attributes" element={<AttributesPage />} />
+                      <Route
+                        path="vehicle-data"
+                        element={<VehicleDataManager />}
+                      />
+                      <Route path="coupons" element={<CouponsManager />} />
+                      <Route
+                        path="checkout-leads"
+                        element={<CheckoutLeadsManager />}
+                      />
+                      <Route path="banners" element={<BannersManager />} />
+                      <Route path="messages" element={<MessagesManager />} />
+                      <Route path="analytics" element={<AnalyticsPage />} />
+                      <Route
+                        path="visitor-analytics"
+                        element={<VisitorAnalyticsPage />}
+                      />
+                      <Route path="customers" element={<CustomersPage />} />
+                      <Route path="users" element={<UsersManager />} />
+                      <Route path="settings" element={<SettingsPage />} />
+                      <Route
+                        path="marketing"
+                        element={<MarketingTrackingPage />}
+                      />
+                      <Route
+                        path="shipping"
+                        element={<ShippingMethodsManager />}
+                      />
+                      <Route path="reviews" element={<ReviewsManager />} />
+                      <Route path="pages" element={<PagesManager />} />
+                      <Route
+                        path="job-applications"
+                        element={<JobApplicationsManager />}
+                      />
+                    </Route>
+                    <Route path="*" element={<NotFound />} />
+                  </Routes>
+                </Suspense>
+                <VisitorTracker />
+                {/* <WhatsAppButton /> */}
+                <FacebookPixelProvider />
               </LanguageProvider>
             </BrowserRouter>
           </AdminAuthProvider>

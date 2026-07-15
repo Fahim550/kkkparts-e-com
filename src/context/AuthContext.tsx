@@ -1,6 +1,12 @@
-import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
-import { User, Session } from '@supabase/supabase-js';
-import { supabase } from '@/lib/supabase';
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+  ReactNode,
+} from "react";
+import { User, Session } from "@supabase/supabase-js";
+import { supabase } from "@/lib/supabase";
 
 interface UserProfile {
   id: string;
@@ -33,9 +39,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const fetchProfile = async (userId: string) => {
     try {
-      const { data, error } = await supabase.from('dealers').select('*').eq('id', userId).maybeSingle();
+      const { data, error } = await supabase
+        .from("dealers")
+        .select("*")
+        .eq("id", userId)
+        .maybeSingle();
       if (!error && data) {
-        setProfile({ ...data, role: 'dealer' });
+        setProfile({ ...data, role: "dealer" });
       } else {
         setProfile(null);
       }
@@ -61,8 +71,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           setLoading(false);
         }
       });
-  
-      const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+
+      const {
+        data: { subscription },
+      } = supabase.auth.onAuthStateChange((_event, session) => {
         setSession(session);
         setUser(session?.user ?? null);
         if (session?.user) {
@@ -72,7 +84,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           setLoading(false);
         }
       });
-  
+
       return () => subscription.unsubscribe();
     } catch (error) {
       console.error("AuthContext Error:", error);

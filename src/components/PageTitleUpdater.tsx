@@ -1,5 +1,5 @@
-import { useEffect } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useEffect } from "react";
+import { useLocation } from "react-router-dom";
 
 const PageTitleUpdater = () => {
   const location = useLocation();
@@ -12,9 +12,9 @@ const PageTitleUpdater = () => {
       title = "Home | Oman Auto Parts";
     } else if (path === "/parts") {
       const searchParams = new URLSearchParams(location.search);
-      const category = searchParams.get('category');
+      const category = searchParams.get("category");
       if (category) {
-        title = `${category.charAt(0).toUpperCase() + category.slice(1).replace(/-/g, ' ')} | Oman Auto Parts`;
+        title = `${category.charAt(0).toUpperCase() + category.slice(1).replace(/-/g, " ")} | Oman Auto Parts`;
       } else {
         title = "Shop Parts | Oman Auto Parts";
       }

@@ -1,5 +1,5 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 
 export interface DbCategory {
   id: string;
@@ -24,36 +24,49 @@ export interface DbCategoryInsert {
   sort_order?: number | null;
 }
 
-export const useCategories = () => useQuery({
-  queryKey: ['categories'],
-  queryFn: async () => {
-    const { data, error } = await supabase.from('categories').select('*').order('sort_order', { ascending: true });
-    if (error) throw error;
-    return data as DbCategory[];
-  },
-});
+export const useCategories = () =>
+  useQuery({
+    queryKey: ["categories"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("categories")
+        .select("*")
+        .order("sort_order", { ascending: true });
+      if (error) throw error;
+      return data as DbCategory[];
+    },
+  });
 
-export const useActiveCategories = () => useQuery({
-  queryKey: ['categories', 'active'],
-  queryFn: async () => {
-    // include rows where is_active is true OR is_active is null (legacy rows)
-    const { data, error } = await supabase.from('categories').select('*').or('is_active.eq.true,is_active.is.null').order('sort_order', { ascending: true });
-    if (error) throw error;
-    return data as DbCategory[];
-  },
-});
+export const useActiveCategories = () =>
+  useQuery({
+    queryKey: ["categories", "active"],
+    queryFn: async () => {
+      // include rows where is_active is true OR is_active is null (legacy rows)
+      const { data, error } = await supabase
+        .from("categories")
+        .select("*")
+        .or("is_active.eq.true,is_active.is.null")
+        .order("sort_order", { ascending: true });
+      if (error) throw error;
+      return data as DbCategory[];
+    },
+  });
 
 export const useAddCategory = () => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (category: DbCategoryInsert) => {
-      const { data, error } = await supabase.from('categories').insert(category).select().single();
+      const { data, error } = await supabase
+        .from("categories")
+        .insert(category)
+        .select()
+        .single();
       if (error) throw error;
       return data;
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['categories'] });
-      qc.invalidateQueries({ queryKey: ['categories', 'active'] });
+      qc.invalidateQueries({ queryKey: ["categories"] });
+      qc.invalidateQueries({ queryKey: ["categories", "active"] });
     },
   });
 };
@@ -61,14 +74,22 @@ export const useAddCategory = () => {
 export const useUpdateCategory = () => {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ id, ...updates }: Partial<DbCategory> & { id: string }) => {
-      const { data, error } = await supabase.from('categories').update(updates).eq('id', id).select().single();
+    mutationFn: async ({
+      id,
+      ...updates
+    }: Partial<DbCategory> & { id: string }) => {
+      const { data, error } = await supabase
+        .from("categories")
+        .update(updates)
+        .eq("id", id)
+        .select()
+        .single();
       if (error) throw error;
       return data;
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['categories'] });
-      qc.invalidateQueries({ queryKey: ['categories', 'active'] });
+      qc.invalidateQueries({ queryKey: ["categories"] });
+      qc.invalidateQueries({ queryKey: ["categories", "active"] });
     },
   });
 };
@@ -77,12 +98,12 @@ export const useDeleteCategory = () => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from('categories').delete().eq('id', id);
+      const { error } = await supabase.from("categories").delete().eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['categories'] });
-      qc.invalidateQueries({ queryKey: ['categories', 'active'] });
+      qc.invalidateQueries({ queryKey: ["categories"] });
+      qc.invalidateQueries({ queryKey: ["categories", "active"] });
     },
   });
 };

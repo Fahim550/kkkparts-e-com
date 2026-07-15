@@ -1,7 +1,11 @@
-import { useEffect } from 'react';
-import { useLocation } from 'react-router-dom';
-import { useTrackingSettings } from '@/hooks/useTrackingSettings';
-import { initFacebookPixel, removeFacebookPixel, trackPageView } from '@/lib/facebook-pixel';
+import { useEffect } from "react";
+import { useLocation } from "react-router-dom";
+import { useTrackingSettings } from "@/hooks/useTrackingSettings";
+import {
+  initFacebookPixel,
+  removeFacebookPixel,
+  trackPageView,
+} from "@/lib/facebook-pixel";
 
 /**
  * Manages Facebook Pixel lifecycle based on admin settings.
@@ -23,9 +27,14 @@ const FacebookPixelProvider = () => {
 
   // Track PageView on route change
   useEffect(() => {
-    if (!settings?.facebook_pixel_enabled || !settings?.tracking_pageview) return;
+    if (!settings?.facebook_pixel_enabled || !settings?.tracking_pageview)
+      return;
     trackPageView();
-  }, [location.pathname, settings?.facebook_pixel_enabled, settings?.tracking_pageview]);
+  }, [
+    location.pathname,
+    settings?.facebook_pixel_enabled,
+    settings?.tracking_pageview,
+  ]);
 
   return null;
 };

@@ -1,5 +1,5 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 
 export interface ProductVariation {
   id: string;
@@ -22,50 +22,63 @@ export interface ProductVariationInsert {
   stock: number;
 }
 
-export const useProductVariations = (productId: string) => useQuery({
-  queryKey: ['product-variations', productId],
-  queryFn: async () => {
-    const { data, error } = await supabase
-      .from('product_variations')
-      .select('*')
-      .eq('product_id', productId)
-      .order('size', { ascending: true });
-    if (error) throw error;
-    return data as ProductVariation[];
-  },
-  enabled: !!productId,
-});
+export const useProductVariations = (productId: string) =>
+  useQuery({
+    queryKey: ["product-variations", productId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("product_variations")
+        .select("*")
+        .eq("product_id", productId)
+        .order("size", { ascending: true });
+      if (error) throw error;
+      return data as ProductVariation[];
+    },
+    enabled: !!productId,
+  });
 
 export const useSaveVariations = () => {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ productId, variations }: { productId: string; variations: Omit<ProductVariationInsert, 'product_id'>[] }) => {
+    mutationFn: async ({
+      productId,
+      variations,
+    }: {
+      productId: string;
+      variations: Omit<ProductVariationInsert, "product_id">[];
+    }) => {
       // Delete existing variations
-      await supabase.from('product_variations').delete().eq('product_id', productId);
+      await supabase
+        .from("product_variations")
+        .delete()
+        .eq("product_id", productId);
       // Insert new ones
       if (variations.length > 0) {
-        const rows = variations.map(v => ({ ...v, product_id: productId }));
-        const { error } = await supabase.from('product_variations').insert(rows as any);
+        const rows = variations.map((v) => ({ ...v, product_id: productId }));
+        const { error } = await supabase
+          .from("product_variations")
+          .insert(rows as any);
         if (error) throw error;
       }
     },
     onSuccess: (_, { productId }) => {
-      qc.invalidateQueries({ queryKey: ['product-variations', productId] });
-      qc.invalidateQueries({ queryKey: ['product-variations'] });
+      qc.invalidateQueries({ queryKey: ["product-variations", productId] });
+      qc.invalidateQueries({ queryKey: ["product-variations"] });
     },
   });
 };
 
-export const useAllVariationsForProducts = (productIds: string[]) => useQuery({
-  queryKey: ['product-variations', 'bulk', productIds],
-  queryFn: async () => {
-    if (productIds.length === 0) return [];
-    const { data, error } = await supabase
-      .from('product_variations')
-      .select('*')
-      .in('product_id', productIds);
-    if (error) throw error;
-    return data as ProductVariation[];
-  },
-  enabled: productIds.length > 0,
-});
+export const useAllVariationsForProducts = (productIds: string[]) =>
+  useQuery({
+    queryKey: ["product-variations", "bulk", productIds],
+    queryFn: async () => {
+      if (productIds.length === 0) return [];
+      const { data, error } = await supabase
+        .from("product_variations")
+        .select("*")
+        .in("product_id", productIds);
+      if (error) throw error;
+      return data as ProductVariation[];
+    },
+    enabled: productIds.length > 0,
+  });

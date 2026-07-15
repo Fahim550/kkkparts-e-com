@@ -1,57 +1,76 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
-import type { Database } from '@/integrations/supabase/types';
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import type { Database } from "@/integrations/supabase/types";
 
-export type DbProduct = Database['public']['Tables']['products']['Row'];
-export type DbProductInsert = Database['public']['Tables']['products']['Insert'];
-export type DbOrder = Database['public']['Tables']['orders']['Row'];
-export type DbOrderInsert = Database['public']['Tables']['orders']['Insert'];
-export type DbCoupon = Database['public']['Tables']['coupons']['Row'];
-export type DbCouponInsert = Database['public']['Tables']['coupons']['Insert'];
-export type DbBanner = Database['public']['Tables']['banners']['Row'];
-export type DbBannerInsert = Database['public']['Tables']['banners']['Insert'];
-export type DbSettings = Database['public']['Tables']['site_settings']['Row'];
+export type DbProduct = Database["public"]["Tables"]["products"]["Row"];
+export type DbProductInsert =
+  Database["public"]["Tables"]["products"]["Insert"];
+export type DbOrder = Database["public"]["Tables"]["orders"]["Row"];
+export type DbOrderInsert = Database["public"]["Tables"]["orders"]["Insert"];
+export type DbCoupon = Database["public"]["Tables"]["coupons"]["Row"];
+export type DbCouponInsert = Database["public"]["Tables"]["coupons"]["Insert"];
+export type DbBanner = Database["public"]["Tables"]["banners"]["Row"];
+export type DbBannerInsert = Database["public"]["Tables"]["banners"]["Insert"];
+export type DbSettings = Database["public"]["Tables"]["site_settings"]["Row"];
 
 // ==================== PRODUCTS ====================
-export const useProducts = () => useQuery({
-  queryKey: ['products'],
-  queryFn: async () => {
-    const { data, error } = await supabase.from('products').select('*').order('created_at', { ascending: false });
-    if (error) throw error;
-    return data as DbProduct[];
-  },
-});
+export const useProducts = () =>
+  useQuery({
+    queryKey: ["products"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("products")
+        .select("*")
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return data as DbProduct[];
+    },
+  });
 
-export const useActiveProducts = () => useQuery({
-  queryKey: ['products', 'active'],
-  queryFn: async () => {
-    const { data, error } = await supabase.from('products').select('*').eq('is_active', true).order('created_at', { ascending: false });
-    if (error) throw error;
-    return data as DbProduct[];
-  },
-});
+export const useActiveProducts = () =>
+  useQuery({
+    queryKey: ["products", "active"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("products")
+        .select("*")
+        .eq("is_active", true)
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return data as DbProduct[];
+    },
+  });
 
-export const useProduct = (id: string) => useQuery({
-  queryKey: ['products', id],
-  queryFn: async () => {
-    const { data, error } = await supabase.from('products').select('*').eq('id', id).single();
-    if (error) throw error;
-    return data as DbProduct;
-  },
-  enabled: !!id,
-});
+export const useProduct = (id: string) =>
+  useQuery({
+    queryKey: ["products", id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("products")
+        .select("*")
+        .eq("id", id)
+        .single();
+      if (error) throw error;
+      return data as DbProduct;
+    },
+    enabled: !!id,
+  });
 
 export const useAddProduct = () => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (product: DbProductInsert) => {
-      const { data, error } = await supabase.from('products').insert(product).select().single();
+      const { data, error } = await supabase
+        .from("products")
+        .insert(product)
+        .select()
+        .single();
       if (error) throw error;
       return data;
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['products'] });
-      qc.invalidateQueries({ queryKey: ['products', 'active'] });
+      qc.invalidateQueries({ queryKey: ["products"] });
+      qc.invalidateQueries({ queryKey: ["products", "active"] });
     },
   });
 };
@@ -59,14 +78,22 @@ export const useAddProduct = () => {
 export const useUpdateProduct = () => {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ id, ...updates }: Partial<DbProduct> & { id: string }) => {
-      const { data, error } = await supabase.from('products').update(updates).eq('id', id).select().single();
+    mutationFn: async ({
+      id,
+      ...updates
+    }: Partial<DbProduct> & { id: string }) => {
+      const { data, error } = await supabase
+        .from("products")
+        .update(updates)
+        .eq("id", id)
+        .select()
+        .single();
       if (error) throw error;
       return data;
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['products'] });
-      qc.invalidateQueries({ queryKey: ['products', 'active'] });
+      qc.invalidateQueries({ queryKey: ["products"] });
+      qc.invalidateQueries({ queryKey: ["products", "active"] });
     },
   });
 };
@@ -75,46 +102,59 @@ export const useDeleteProduct = () => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from('products').delete().eq('id', id);
+      const { error } = await supabase.from("products").delete().eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['products'] });
-      qc.invalidateQueries({ queryKey: ['products', 'active'] });
+      qc.invalidateQueries({ queryKey: ["products"] });
+      qc.invalidateQueries({ queryKey: ["products", "active"] });
     },
   });
 };
 
 // ==================== ORDERS ====================
-export const useOrders = () => useQuery({
-  queryKey: ['orders'],
-  queryFn: async () => {
-    const { data, error } = await supabase.from('orders').select('*').order('created_at', { ascending: false });
-    if (error) throw error;
-    return (data as DbOrder[]).filter((o: any) => !o.is_hidden);
-  },
-});
+export const useOrders = () =>
+  useQuery({
+    queryKey: ["orders"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("orders")
+        .select("*")
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return (data as DbOrder[]).filter((o: any) => !o.is_hidden);
+    },
+  });
 
-export const useCustomerOrders = (email?: string) => useQuery({
-  queryKey: ['orders', email],
-  queryFn: async () => {
-    if (!email) return [];
-    const { data, error } = await supabase.from('orders').select('*').eq('customer_email', email).order('created_at', { ascending: false });
-    if (error) throw error;
-    return (data as DbOrder[]).filter((o: any) => !o.is_hidden_by_dealer);
-  },
-  enabled: !!email,
-});
+export const useCustomerOrders = (email?: string) =>
+  useQuery({
+    queryKey: ["orders", email],
+    queryFn: async () => {
+      if (!email) return [];
+      const { data, error } = await supabase
+        .from("orders")
+        .select("*")
+        .eq("customer_email", email)
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return (data as DbOrder[]).filter((o: any) => !o.is_hidden_by_dealer);
+    },
+    enabled: !!email,
+  });
 
 export const useAddOrder = () => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (order: DbOrderInsert) => {
-      const { data, error } = await supabase.from('orders').insert(order).select().single();
+      const { data, error } = await supabase
+        .from("orders")
+        .insert(order)
+        .select()
+        .single();
       if (error) throw error;
       return data;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['orders'] }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["orders"] }),
   });
 };
 
@@ -122,10 +162,13 @@ export const useUpdateOrderStatus = () => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ id, status }: { id: string; status: string }) => {
-      const { error } = await supabase.from('orders').update({ status }).eq('id', id);
+      const { error } = await supabase
+        .from("orders")
+        .update({ status })
+        .eq("id", id);
       if (error) throw error;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['orders'] }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["orders"] }),
   });
 };
 
@@ -133,10 +176,13 @@ export const useDeleteOrder = () => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from('orders').update({ is_hidden: true }).eq('id', id);
+      const { error } = await supabase
+        .from("orders")
+        .update({ is_hidden: true })
+        .eq("id", id);
       if (error) throw error;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['orders'] }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["orders"] }),
   });
 };
 
@@ -144,55 +190,77 @@ export const useDealerDeleteOrder = () => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from('orders').update({ is_hidden_by_dealer: true }).eq('id', id);
+      const { error } = await supabase
+        .from("orders")
+        .update({ is_hidden_by_dealer: true })
+        .eq("id", id);
       if (error) throw error;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['orders'] }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["orders"] }),
   });
 };
-export const useCoupons = () => useQuery({
-  queryKey: ['coupons'],
-  queryFn: async () => {
-    const { data, error } = await supabase.from('coupons').select('*').order('created_at', { ascending: false });
-    if (error) throw error;
-    return data as DbCoupon[];
-  },
-});
+export const useCoupons = () =>
+  useQuery({
+    queryKey: ["coupons"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("coupons")
+        .select("*")
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return data as DbCoupon[];
+    },
+  });
 
-export const useValidateCoupon = (code: string) => useQuery({
-  queryKey: ['coupons', code],
-  queryFn: async () => {
-    if (!code) return null;
-    const { data, error } = await supabase.from('coupons').select('*').eq('code', code.toUpperCase()).single();
-    if (error) {
-      if (error.code === 'PGRST116') return null; // Not found
-      throw error;
-    }
-    return data as DbCoupon;
-  },
-  enabled: !!code,
-});
+export const useValidateCoupon = (code: string) =>
+  useQuery({
+    queryKey: ["coupons", code],
+    queryFn: async () => {
+      if (!code) return null;
+      const { data, error } = await supabase
+        .from("coupons")
+        .select("*")
+        .eq("code", code.toUpperCase())
+        .single();
+      if (error) {
+        if (error.code === "PGRST116") return null; // Not found
+        throw error;
+      }
+      return data as DbCoupon;
+    },
+    enabled: !!code,
+  });
 
 export const useAddCoupon = () => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (coupon: DbCouponInsert) => {
-      const { data, error } = await supabase.from('coupons').insert(coupon).select().single();
+      const { data, error } = await supabase
+        .from("coupons")
+        .insert(coupon)
+        .select()
+        .single();
       if (error) throw error;
       return data;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['coupons'] }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["coupons"] }),
   });
 };
 
 export const useUpdateCoupon = () => {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ id, ...updates }: Partial<DbCoupon> & { id: string }) => {
-      const { error } = await supabase.from('coupons').update(updates).eq('id', id);
+    mutationFn: async ({
+      id,
+      ...updates
+    }: Partial<DbCoupon> & { id: string }) => {
+      const { error } = await supabase
+        .from("coupons")
+        .update(updates)
+        .eq("id", id);
       if (error) throw error;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['coupons'] }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["coupons"] }),
   });
 };
 
@@ -200,52 +268,71 @@ export const useDeleteCoupon = () => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from('coupons').delete().eq('id', id);
+      const { error } = await supabase.from("coupons").delete().eq("id", id);
       if (error) throw error;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['coupons'] }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["coupons"] }),
   });
 };
 
 // ==================== BANNERS ====================
-export const useBanners = () => useQuery({
-  queryKey: ['banners'],
-  queryFn: async () => {
-    const { data, error } = await supabase.from('banners').select('*').order('created_at', { ascending: false });
-    if (error) throw error;
-    return data as DbBanner[];
-  },
-});
+export const useBanners = () =>
+  useQuery({
+    queryKey: ["banners"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("banners")
+        .select("*")
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return data as DbBanner[];
+    },
+  });
 
-export const useActiveBanners = () => useQuery({
-  queryKey: ['banners', 'active'],
-  queryFn: async () => {
-    const { data, error } = await supabase.from('banners').select('*').eq('is_active', true).order('created_at', { ascending: false });
-    if (error) throw error;
-    return data as DbBanner[];
-  },
-});
+export const useActiveBanners = () =>
+  useQuery({
+    queryKey: ["banners", "active"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("banners")
+        .select("*")
+        .eq("is_active", true)
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return data as DbBanner[];
+    },
+  });
 
 export const useAddBanner = () => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (banner: DbBannerInsert) => {
-      const { data, error } = await supabase.from('banners').insert(banner).select().single();
+      const { data, error } = await supabase
+        .from("banners")
+        .insert(banner)
+        .select()
+        .single();
       if (error) throw error;
       return data;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['banners'] }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["banners"] }),
   });
 };
 
 export const useUpdateBanner = () => {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ id, ...updates }: Partial<DbBanner> & { id: string }) => {
-      const { error } = await supabase.from('banners').update(updates).eq('id', id);
+    mutationFn: async ({
+      id,
+      ...updates
+    }: Partial<DbBanner> & { id: string }) => {
+      const { error } = await supabase
+        .from("banners")
+        .update(updates)
+        .eq("id", id);
       if (error) throw error;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['banners'] }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["banners"] }),
   });
 };
 
@@ -253,32 +340,44 @@ export const useDeleteBanner = () => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from('banners').delete().eq('id', id);
+      const { error } = await supabase.from("banners").delete().eq("id", id);
       if (error) throw error;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['banners'] }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["banners"] }),
   });
 };
 
 // ==================== SETTINGS ====================
-export const useSettings = () => useQuery({
-  queryKey: ['settings'],
-  queryFn: async () => {
-    const { data, error } = await supabase.from('site_settings').select('*').limit(1).single();
-    if (error) throw error;
-    return data as DbSettings;
-  },
-});
+export const useSettings = () =>
+  useQuery({
+    queryKey: ["settings"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("site_settings")
+        .select("*")
+        .limit(1)
+        .single();
+      if (error) throw error;
+      return data as DbSettings;
+    },
+  });
 
 export const useUpdateSettings = () => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (updates: Partial<DbSettings>) => {
-      const { data: existing } = await supabase.from('site_settings').select('id').limit(1).single();
-      if (!existing) throw new Error('No settings row');
-      const { error } = await supabase.from('site_settings').update(updates).eq('id', existing.id);
+      const { data: existing } = await supabase
+        .from("site_settings")
+        .select("id")
+        .limit(1)
+        .single();
+      if (!existing) throw new Error("No settings row");
+      const { error } = await supabase
+        .from("site_settings")
+        .update(updates)
+        .eq("id", existing.id);
       if (error) throw error;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['settings'] }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["settings"] }),
   });
 };
