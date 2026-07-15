@@ -53,6 +53,20 @@ const UOMsPage = lazy(
 const AttributesPage = lazy(
   () => import("./modules/product/presentation/pages/AttributesPage.tsx"),
 );
+const WarehousesPage = lazy(
+  () => import("./modules/warehouse/presentation/pages/WarehousesPage.tsx"),
+);
+const WarehouseLocationsPage = lazy(
+  () =>
+    import("./modules/warehouse/presentation/pages/WarehouseLocationsPage.tsx"),
+);
+const StockTransfersPage = lazy(
+  () => import("./modules/warehouse/presentation/pages/StockTransfersPage.tsx"),
+);
+const WarehouseDashboardPage = lazy(
+  () =>
+    import("./modules/warehouse/presentation/pages/WarehouseDashboardPage.tsx"),
+);
 const BannersManager = lazy(() => import("./pages/admin/BannersManager.tsx"));
 const AnalyticsPage = lazy(() => import("./pages/admin/AnalyticsPage.tsx"));
 const VehicleDataManager = lazy(
@@ -154,6 +168,19 @@ const App = () => (
                       <Route path="brands" element={<BrandsPage />} />
                       <Route path="uoms" element={<UOMsPage />} />
                       <Route path="attributes" element={<AttributesPage />} />
+                      <Route
+                        path="warehouse/dashboard"
+                        element={<WarehouseDashboardPage />}
+                      />
+                      <Route path="warehouses" element={<WarehousesPage />} />
+                      <Route
+                        path="warehouse-locations"
+                        element={<WarehouseLocationsPage />}
+                      />
+                      <Route
+                        path="stock-transfers"
+                        element={<StockTransfersPage />}
+                      />
                       <Route
                         path="vehicle-data"
                         element={<VehicleDataManager />}

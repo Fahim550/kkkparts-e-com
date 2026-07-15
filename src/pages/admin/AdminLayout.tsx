@@ -23,6 +23,7 @@ import {
   UserCog,
   Briefcase,
   Car,
+  MapPin,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useAdminAuth } from "@/hooks/useAdminAuth";
@@ -37,6 +38,18 @@ const navItems = [
   { path: "/admin/brands", label: "Brands", icon: Package },
   { path: "/admin/uoms", label: "UOMs", icon: Package },
   { path: "/admin/attributes", label: "Attributes", icon: Package },
+  {
+    path: "/admin/warehouse/dashboard",
+    label: "Warehouse Dashboard",
+    icon: BarChart3,
+  },
+  { path: "/admin/warehouses", label: "Warehouses", icon: Package },
+  {
+    path: "/admin/warehouse-locations",
+    label: "Warehouse Locations",
+    icon: MapPin,
+  },
+  { path: "/admin/stock-transfers", label: "Stock Transfers", icon: Activity },
   { path: "/admin/vehicle-data", label: "Vehicle Data", icon: Car },
   { path: "/admin/orders", label: "Customer Orders", icon: ShoppingCart },
   { path: "/admin/dealer-orders", label: "Dealer Orders", icon: ShoppingCart },
