@@ -29,6 +29,7 @@ import {
   Layers,
   Percent,
   Monitor,
+  TrendingUp,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useAdminAuth } from "@/hooks/useAdminAuth";
@@ -59,6 +60,9 @@ const navItems = [
   { path: "/admin/stock-adjustments", label: "Adjustments & Damage", icon: Settings2 },
   { path: "/admin/fifo-layers", label: "FIFO Cost Layers", icon: Layers },
   { path: "/admin/pos", label: "Point of Sale", icon: Monitor },
+  { path: "/admin/reports", label: "Dashboard KPIs", icon: TrendingUp },
+  { path: "/admin/reports/sales", label: "Sales Report", icon: FileText },
+  { path: "/admin/reports/inventory", label: "Inventory Report", icon: Package },
   { path: "/admin/customers", label: "Customers", icon: Users },
   { path: "/admin/suppliers", label: "Suppliers", icon: Users },
   { path: "/admin/price-lists", label: "Price Lists", icon: Tag },

@@ -1,0 +1,32 @@
+export type DashboardMetrics = {
+  total_sales: number;
+  total_purchases: number;
+  total_profit: number;
+  inventory_value: number;
+  active_customers: number;
+  low_stock_items: number;
+};
+
+export type SalesChartData = {
+  date: string;
+  sales: number;
+  profit: number;
+};
+
+export type InventoryReportItem = {
+  variation_id: string;
+  sku: string;
+  name: string;
+  quantity: number;
+  total_value: number; // based on FIFO cost
+};
+
+export type SalesReportItem = {
+  id: string;
+  date: string;
+  reference: string;
+  customer: string;
+  amount: number;
+  status: string;
+  source: 'Invoice' | 'POS';
+};

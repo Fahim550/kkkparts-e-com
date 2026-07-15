@@ -76,6 +76,15 @@ const CustomersManager = lazy(
 const CustomerProfilePage = lazy(
   () => import("./modules/customer/presentation/pages/CustomerProfilePage.tsx"),
 );
+const ReportsDashboard = lazy(
+  () => import("./modules/reporting/presentation/pages/ReportsDashboard.tsx"),
+);
+const SalesReport = lazy(
+  () => import("./modules/reporting/presentation/pages/SalesReport.tsx"),
+);
+const InventoryReport = lazy(
+  () => import("./modules/reporting/presentation/pages/InventoryReport.tsx"),
+);
 const PosDashboard = lazy(
   () => import("./modules/pos/presentation/pages/PosDashboard.tsx"),
 );
@@ -229,6 +238,9 @@ const App = () => (
                       <Route path="suppliers" element={<SuppliersManager />} />
                       <Route path="customers" element={<CustomersManager />} />
                       <Route path="customers/:id" element={<CustomerProfilePage />} />
+                      <Route path="reports" element={<ReportsDashboard />} />
+                      <Route path="reports/sales" element={<SalesReport />} />
+                      <Route path="reports/inventory" element={<InventoryReport />} />
                       <Route path="pos" element={<PosDashboard />} />
                       <Route path="pos/terminal" element={<PosTerminal />} />
                       <Route path="pos/receipt/:id" element={<PosReceiptViewer />} />
