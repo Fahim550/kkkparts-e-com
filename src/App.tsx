@@ -70,6 +70,18 @@ const WarehouseDashboardPage = lazy(
 const SuppliersManager = lazy(
   () => import("./modules/supplier/presentation/pages/SuppliersManager.tsx"),
 );
+const PurchaseOrdersPage = lazy(
+  () => import("./modules/purchase/presentation/pages/PurchaseOrdersPage.tsx"),
+);
+const GoodsReceivePage = lazy(
+  () => import("./modules/purchase/presentation/pages/GoodsReceivePage.tsx"),
+);
+const SupplierDuePage = lazy(
+  () => import("./modules/purchase/presentation/pages/SupplierDuePage.tsx"),
+);
+const PurchaseHistoryPage = lazy(
+  () => import("./modules/purchase/presentation/pages/PurchaseHistoryPage.tsx"),
+);
 const BannersManager = lazy(() => import("./pages/admin/BannersManager.tsx"));
 const AnalyticsPage = lazy(() => import("./pages/admin/AnalyticsPage.tsx"));
 const VehicleDataManager = lazy(
@@ -185,6 +197,10 @@ const App = () => (
                         element={<StockTransfersPage />}
                       />
                       <Route path="suppliers" element={<SuppliersManager />} />
+                      <Route path="purchase-orders" element={<PurchaseOrdersPage />} />
+                      <Route path="goods-receive" element={<GoodsReceivePage />} />
+                      <Route path="supplier-due" element={<SupplierDuePage />} />
+                      <Route path="purchase-history" element={<PurchaseHistoryPage />} />
                       <Route
                         path="vehicle-data"
                         element={<VehicleDataManager />}
