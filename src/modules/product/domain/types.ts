@@ -71,8 +71,8 @@ export type UpdateProductDTO = Partial<CreateProductDTO> & { id: string };
 
 export type CreateProductVariationDTO = Omit<
   ProductVariation,
-  "id" | "created_at" | "updated_at"
->;
+  "id" | "created_at" | "updated_at" | "sku"
+> & { sku?: string };
 export type UpdateProductVariationDTO = Partial<CreateProductVariationDTO> & {
   id: string;
 };

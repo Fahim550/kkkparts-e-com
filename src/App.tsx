@@ -29,7 +29,7 @@ const WishlistPage = lazy(() => import("./pages/WishlistPage.tsx"));
 const AdminLayout = lazy(() => import("./pages/admin/AdminLayout.tsx"));
 const AdminLoginPage = lazy(() => import("./pages/admin/AdminLoginPage.tsx"));
 const Dashboard = lazy(() => import("./pages/admin/Dashboard.tsx"));
-const ProductsManager = lazy(() => import("./pages/admin/ProductsManager.tsx"));
+const ProductsPage = lazy(() => import("./modules/product/presentation/pages/ProductsPage.tsx"));
 const OrdersManager = lazy(() => import("./pages/admin/OrdersManager.tsx"));
 const DealerOrdersManager = lazy(
   () => import("./pages/admin/DealerOrdersManager.tsx"),
@@ -41,8 +41,8 @@ const CouponsManager = lazy(() => import("./pages/admin/CouponsManager.tsx"));
 const CheckoutLeadsManager = lazy(
   () => import("./pages/admin/CheckoutLeadsManager.tsx"),
 );
-const CategoriesManager = lazy(
-  () => import("./pages/admin/CategoriesManager.tsx"),
+const CategoriesPage = lazy(
+  () => import("./modules/product/presentation/pages/CategoriesPage.tsx"),
 );
 const BrandsPage = lazy(
   () => import("./modules/product/presentation/pages/BrandsPage.tsx"),
@@ -217,7 +217,7 @@ const App = () => (
                       }
                     >
                       <Route index element={<Dashboard />} />
-                      <Route path="products" element={<ProductsManager />} />
+                      <Route path="products" element={<ProductsPage />} />
                       <Route path="orders" element={<OrdersManager />} />
                       <Route
                         path="dealer-orders"
@@ -230,7 +230,7 @@ const App = () => (
                       <Route path="orders/:id" element={<OrderDetailsPage />} />
                       <Route
                         path="categories"
-                        element={<CategoriesManager />}
+                        element={<CategoriesPage />}
                       />
                       <Route path="brands" element={<BrandsPage />} />
                       <Route path="uoms" element={<UOMsPage />} />

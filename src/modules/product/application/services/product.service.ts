@@ -46,9 +46,36 @@ export class ProductService {
 
   // --- Variations ---
 
+  static generateSKU(productItemCode: string, variationId: string): string {
+    // Generate a simple SKU if none provided
+    const randomSuffix = Math.random().toString(36).substring(2, 6).toUpperCase();
+    return `${productItemCode.toUpperCase()}-${randomSuffix}`;
+  }
+
+  static generateBarcode(): string {
+    // EAN-13 like barcode (13 digits)
+    return Math.floor(1000000000000 + Math.random() * 9000000000000).toString();
+  }
+
   static async createProductVariation(
     payload: CreateProductVariationDTO,
   ): Promise<ProductVariation> {
+    // Default values if not provided
+    if (!payload.sku) {
+       // Ideally we'd pass the item code here, but we don't have it directly in payload.
+       // We'll generate a random string for SKU as a fallback, or fetch the product.
+       const product = await ProductRepository.getTemplateById(payload.product_id);
+       if (product) {
+         payload.sku = this.generateSKU(product.item_code, payload.product_id);
+       } else {
+         payload.sku = `SKU-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
+       }
+    }
+    
+    if (!payload.barcode) {
+       payload.barcode = this.generateBarcode();
+    }
+
     const validated = ProductVariationSchema.parse(payload);
     return await ProductRepository.createVariation(
       validated as CreateProductVariationDTO,
