@@ -1,11 +1,11 @@
-import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { Input } from "@/components/ui/input";
 import { useAdminAuth } from "@/hooks/useAdminAuth";
 import { useSettings } from "@/hooks/useDatabase";
-import { Input } from "@/components/ui/input";
-import { toast } from "sonner";
-import { Lock, Mail, Eye, EyeOff, Loader2 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
+import { Eye, EyeOff, Loader2, Lock, Mail } from "lucide-react";
+import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { toast } from "sonner";
 
 const AdminLoginPage = () => {
   const { signIn, signUp, user, loading: authLoading } = useAdminAuth();
@@ -23,17 +23,13 @@ const AdminLoginPage = () => {
     if (!authLoading && user) {
       // Check both tables to be safe
       Promise.all([
-        supabase.from("users").select("role").eq("id", user.id).single(),
-        supabase
-          .from("user_roles")
-          .select("role")
-          .eq("user_id", user.id)
-          .single(),
-      ]).then(([usersRes, rolesRes]) => {
-        const isUsersAdmin = usersRes.data?.role === "admin";
-        const isRolesAdmin = rolesRes.data?.role === "admin";
+        supabase.from("users").select("role").eq("id", user.id).maybeSingle(),
+        supabase.rpc("has_role", { role_name: "Admin" }),
+      ]).then(([usersRes, rpcRes]) => {
+        const isLegacyAdmin = usersRes.data?.role === "admin";
+        const isErpAdmin = rpcRes.data === true;
 
-        if (isUsersAdmin || isRolesAdmin) {
+        if (isLegacyAdmin || isErpAdmin) {
           navigate("/admin", { replace: true });
         } else {
           if (!isSignUp) toast.error(`You do not have admin privileges.`);

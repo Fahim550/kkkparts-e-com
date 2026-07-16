@@ -1,17 +1,15 @@
-import { useState, useMemo } from "react";
 import { useOrders } from "@/hooks/useDatabase";
+import { Calendar } from "lucide-react";
+import { useMemo, useState } from "react";
 import {
-  BarChart,
-  Bar,
+  Area,
+  AreaChart,
+  CartesianGrid,
+  ResponsiveContainer,
+  Tooltip,
   XAxis,
   YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  AreaChart,
-  Area,
 } from "recharts";
-import { Calendar } from "lucide-react";
 
 const AnalyticsPage = () => {
   const { data: orders = [] } = useOrders();

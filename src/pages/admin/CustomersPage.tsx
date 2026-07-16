@@ -1,6 +1,6 @@
-import { useOrders } from "@/hooks/useDatabase";
-import { Mail, Phone, MapPin } from "lucide-react";
 import DirhamIcon from "@/components/DirhamIcon";
+import { useOrders } from "@/hooks/useDatabase";
+import { Mail, MapPin, Phone } from "lucide-react";
 
 const CustomersPage = () => {
   const { data: orders = [], isLoading } = useOrders();

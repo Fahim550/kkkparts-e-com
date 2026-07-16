@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { usePriceLists, usePriceListItems } from "../hooks/usePricing";
-import { useProducts } from "../../../product/presentation/hooks/useProducts";
+import { useProducts } from "@/hooks/useDatabase";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -104,7 +104,7 @@ export default function PriceListsManager() {
 
 function PriceListDetails({ listId, listName }: { listId: string, listName: string }) {
   const { items, isLoading, setItemPrice } = usePriceListItems(listId);
-  const { products } = useProducts();
+  const { data: products = [] } = useProducts();
   
   const [variationId, setVariationId] = useState("");
   const [price, setPrice] = useState(0);

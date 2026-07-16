@@ -1,25 +1,25 @@
-import { useState, useRef } from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Switch } from "@/components/ui/switch";
 import {
-  useCategories,
   useAddCategory,
-  useUpdateCategory,
+  useCategories,
   useDeleteCategory,
+  useUpdateCategory,
   type DbCategory,
 } from "@/hooks/useCategories";
-import { uploadProductImage, deleteProductImage } from "@/lib/image-upload";
+import { deleteProductImage, uploadProductImage } from "@/lib/image-upload";
 import {
-  Plus,
-  Pencil,
-  Trash2,
-  X,
-  Search,
-  Upload,
   ImageIcon,
   Loader2,
+  Pencil,
+  Plus,
+  Search,
+  Trash2,
+  Upload,
+  X,
 } from "lucide-react";
-import { Switch } from "@/components/ui/switch";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
+import { useRef, useState } from "react";
 import { toast } from "sonner";
 
 const ITEMS_PER_PAGE = 10;

@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { useInvoices } from "../hooks/useInvoices";
 import { useSuppliers } from "../../../supplier/presentation/hooks/useSuppliers";
 import { useGoodsReceive } from "../hooks/useGoodsReceive";
-import { useProducts } from "../../../product/presentation/hooks/useProducts";
+import { useProducts } from "@/hooks/useDatabase";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -28,7 +28,7 @@ export default function SupplierDuePage() {
   const { invoices, isLoading, createInvoice, isCreating } = useInvoices();
   const { suppliers } = useSuppliers();
   const { receipts } = useGoodsReceive();
-  const { products } = useProducts();
+  const { data: products = [] } = useProducts();
 
   const [isOpen, setIsOpen] = useState(false);
   const [invoiceNumber, setInvoiceNumber] = useState(`INV-${Date.now()}`);

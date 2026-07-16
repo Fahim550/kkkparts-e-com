@@ -1,21 +1,19 @@
-import { useState } from "react";
+import DirhamIcon from "@/components/DirhamIcon";
 import { useOrders, useProducts } from "@/hooks/useDatabase";
-import { Package, ShoppingCart, DollarSign, Clock } from "lucide-react";
+import { Clock, DollarSign, Package, ShoppingCart } from "lucide-react";
+import { useState } from "react";
 import {
-  BarChart,
   Bar,
+  BarChart,
+  CartesianGrid,
+  Cell,
+  Pie,
+  PieChart,
+  ResponsiveContainer,
+  Tooltip,
   XAxis,
   YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  PieChart,
-  Pie,
-  Cell,
-  LineChart,
-  Line,
 } from "recharts";
-import DirhamIcon from "@/components/DirhamIcon";
 
 const Dashboard = () => {
   const { data: allOrders = [] } = useOrders();

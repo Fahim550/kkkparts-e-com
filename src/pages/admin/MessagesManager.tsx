@@ -1,12 +1,12 @@
-import { useState } from "react";
+import { Button } from "@/components/ui/button";
 import {
   useContactMessages,
-  useUpdateContactMessage,
   useDeleteContactMessage,
+  useUpdateContactMessage,
   type ContactMessage,
 } from "@/hooks/useContactMessages";
-import { Mail, CheckCircle, Trash2, Search, X } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { CheckCircle, Mail, Search, Trash2, X } from "lucide-react";
+import { useState } from "react";
 import { toast } from "sonner";
 
 const MessagesManager = () => {

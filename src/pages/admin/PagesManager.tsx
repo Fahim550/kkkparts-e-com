@@ -1,11 +1,11 @@
-import { useState } from "react";
 import {
   useAllPageContents,
-  useUpsertPageContent,
   useDeletePageContent,
+  useUpsertPageContent,
   type PageContent,
 } from "@/hooks/usePageContents";
-import { Plus, Pencil, Trash2, X, Eye, EyeOff } from "lucide-react";
+import { Eye, EyeOff, Pencil, Plus, Trash2, X } from "lucide-react";
+import { useState } from "react";
 import { toast } from "sonner";
 
 const PagesManager = () => {

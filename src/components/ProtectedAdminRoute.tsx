@@ -1,8 +1,8 @@
-import { Navigate } from "react-router-dom";
 import { useAdminAuth } from "@/hooks/useAdminAuth";
+import { supabase } from "@/lib/supabase";
 import { Loader2 } from "lucide-react";
 import { useEffect, useState } from "react";
-import { supabase } from "@/lib/supabase";
+import { Navigate } from "react-router-dom";
 
 const ProtectedAdminRoute: React.FC<{ children: React.ReactNode }> = ({
   children,
@@ -13,21 +13,26 @@ const ProtectedAdminRoute: React.FC<{ children: React.ReactNode }> = ({
 
   useEffect(() => {
     if (user) {
+      // Check legacy users table first, then check the new ERP RPC function
       Promise.all([
-        supabase.from("users").select("role").eq("id", user.id).single(),
-        supabase
-          .from("user_roles")
-          .select("role")
-          .eq("user_id", user.id)
-          .single(),
+        supabase.from("users").select("role").eq("id", user.id).maybeSingle(),
+        supabase.rpc("has_role", { role_name: "Admin" }),
       ])
-        .then(([usersRes, rolesRes]) => {
-          const isUsersAdmin = usersRes.data?.role === "admin";
-          const isRolesAdmin = rolesRes.data?.role === "admin";
-          setRole(isUsersAdmin || isRolesAdmin ? "admin" : "user");
+        .then(([usersRes, rpcRes]) => {
+          const isLegacyAdmin = usersRes.data?.role === "admin";
+          const isErpAdmin = rpcRes.data === true;
+
+          if (isLegacyAdmin || isErpAdmin) {
+            setRole("admin");
+          } else {
+            setRole("user");
+          }
           setRoleLoading(false);
         })
-        .catch(() => setRoleLoading(false));
+        .catch((err) => {
+          console.error("Error checking roles:", err);
+          setRoleLoading(false);
+        });
     } else {
       setRoleLoading(false);
     }

@@ -1,23 +1,23 @@
-import { useState, useRef } from "react";
 import {
-  useBanners,
   useAddBanner,
-  useUpdateBanner,
+  useBanners,
   useDeleteBanner,
+  useUpdateBanner,
   type DbBanner,
 } from "@/hooks/useDatabase";
-import { uploadProductImage, deleteProductImage } from "@/lib/image-upload";
+import { deleteProductImage, uploadProductImage } from "@/lib/image-upload";
 import {
-  Plus,
-  Pencil,
-  Trash2,
-  X,
   Eye,
   EyeOff,
-  Upload,
-  Loader2,
   ImageIcon,
+  Loader2,
+  Pencil,
+  Plus,
+  Trash2,
+  Upload,
+  X,
 } from "lucide-react";
+import { useRef, useState } from "react";
 import { toast } from "sonner";
 
 const images = [

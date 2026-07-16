@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { useGoodsReceive } from "../hooks/useGoodsReceive";
 import { useWarehouses } from "../../../warehouse/presentation/hooks/useWarehouses";
 import { useSuppliers } from "../../../supplier/presentation/hooks/useSuppliers";
-import { useProducts } from "../../../product/presentation/hooks/useProducts";
+import { useProducts } from "@/hooks/useDatabase";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -29,7 +29,7 @@ export default function GoodsReceivePage() {
   const { receipts, isLoading, receiveGoods, isReceiving } = useGoodsReceive();
   const { warehouses } = useWarehouses();
   const { suppliers } = useSuppliers();
-  const { products } = useProducts();
+  const { data: products = [] } = useProducts();
 
   const [isOpen, setIsOpen] = useState(false);
   const [receiptNumber, setReceiptNumber] = useState(`REC-${Date.now()}`);

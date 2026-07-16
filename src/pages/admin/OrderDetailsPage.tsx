@@ -1,22 +1,22 @@
-import { useParams, Link, useLocation } from "react-router-dom";
+import {
+  printCourierSlip,
+  printInvoice,
+} from "@/components/admin/InvoicePrint";
+import DirhamIcon from "@/components/DirhamIcon";
+import { Button } from "@/components/ui/button";
 import { useOrders, useUpdateOrderStatus } from "@/hooks/useDatabase";
 import {
-  printInvoice,
-  printCourierSlip,
-} from "@/components/admin/InvoicePrint";
-import {
+  ArrowLeft,
+  Clock,
+  CreditCard,
+  MapPin,
+  Package,
   Printer,
   Truck,
-  ArrowLeft,
-  Package,
   User,
-  MapPin,
-  CreditCard,
-  Clock,
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Link, useLocation, useParams } from "react-router-dom";
 import { toast } from "sonner";
-import DirhamIcon from "@/components/DirhamIcon";
 
 const statusColors: Record<string, string> = {
   pending: "bg-yellow-100 text-yellow-700 border-yellow-200",

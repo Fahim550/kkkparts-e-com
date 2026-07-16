@@ -1,14 +1,14 @@
-import { useState } from "react";
+import DirhamIcon from "@/components/DirhamIcon";
 import {
-  useCoupons,
   useAddCoupon,
-  useUpdateCoupon,
+  useCoupons,
   useDeleteCoupon,
+  useUpdateCoupon,
   type DbCoupon,
 } from "@/hooks/useDatabase";
-import { Plus, Pencil, Trash2, X } from "lucide-react";
+import { Pencil, Plus, Trash2, X } from "lucide-react";
+import { useState } from "react";
 import { toast } from "sonner";
-import DirhamIcon from "@/components/DirhamIcon";
 
 const CouponsManager = () => {
   const { data: coupons = [], isLoading } = useCoupons();

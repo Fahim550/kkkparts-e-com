@@ -1,20 +1,20 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Route, Routes } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { CartProvider } from "@/context/CartContext";
 import { AuthProvider } from "@/context/AuthContext";
-import { AdminAuthProvider } from "@/hooks/useAdminAuth";
+import { CartProvider } from "@/context/CartContext";
 import { LanguageProvider } from "@/context/LanguageContext";
+import { AdminAuthProvider } from "@/hooks/useAdminAuth";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { lazy, Suspense } from "react";
+import { BrowserRouter, Route, Routes } from "react-router-dom";
 // import WhatsAppButton from "@/components/WhatsAppButton";
 import FacebookPixelProvider from "@/components/FacebookPixelProvider";
-import ProtectedAdminRoute from "@/components/ProtectedAdminRoute";
-import VisitorTracker from "@/components/VisitorTracker";
-import ScrollToTop from "@/components/ScrollToTop";
 import LanguagePopup from "@/components/LanguagePopup";
 import PageTitleUpdater from "@/components/PageTitleUpdater";
+import ProtectedAdminRoute from "@/components/ProtectedAdminRoute";
+import ScrollToTop from "@/components/ScrollToTop";
+import VisitorTracker from "@/components/VisitorTracker";
 import { Loader2 } from "lucide-react";
 
 // Eager load homepage for better LCP performance
@@ -77,13 +77,16 @@ const CustomerProfilePage = lazy(
   () => import("./modules/customer/presentation/pages/CustomerProfilePage.tsx"),
 );
 const ChartOfAccountsPage = lazy(
-  () => import("./modules/accounting/presentation/pages/ChartOfAccountsPage.tsx"),
+  () =>
+    import("./modules/accounting/presentation/pages/ChartOfAccountsPage.tsx"),
 );
 const JournalEntriesPage = lazy(
-  () => import("./modules/accounting/presentation/pages/JournalEntriesPage.tsx"),
+  () =>
+    import("./modules/accounting/presentation/pages/JournalEntriesPage.tsx"),
 );
 const FinancialReportsPage = lazy(
-  () => import("./modules/accounting/presentation/pages/FinancialReportsPage.tsx"),
+  () =>
+    import("./modules/accounting/presentation/pages/FinancialReportsPage.tsx"),
 );
 const ReportsDashboard = lazy(
   () => import("./modules/reporting/presentation/pages/ReportsDashboard.tsx"),
@@ -125,7 +128,8 @@ const StockLedgerPage = lazy(
   () => import("./modules/inventory/presentation/pages/StockLedgerPage.tsx"),
 );
 const StockAdjustmentsPage = lazy(
-  () => import("./modules/inventory/presentation/pages/StockAdjustmentsPage.tsx"),
+  () =>
+    import("./modules/inventory/presentation/pages/StockAdjustmentsPage.tsx"),
 );
 const FifoCostLayersPage = lazy(
   () => import("./modules/inventory/presentation/pages/FifoCostLayersPage.tsx"),
@@ -246,25 +250,70 @@ const App = () => (
                       />
                       <Route path="suppliers" element={<SuppliersManager />} />
                       <Route path="customers" element={<CustomersManager />} />
-                      <Route path="customers/:id" element={<CustomerProfilePage />} />
-                      <Route path="accounting/coa" element={<ChartOfAccountsPage />} />
-                      <Route path="accounting/journals" element={<JournalEntriesPage />} />
-                      <Route path="accounting/financials" element={<FinancialReportsPage />} />
+                      <Route
+                        path="customers/:id"
+                        element={<CustomerProfilePage />}
+                      />
+                      <Route
+                        path="accounting/coa"
+                        element={<ChartOfAccountsPage />}
+                      />
+                      <Route
+                        path="accounting/journals"
+                        element={<JournalEntriesPage />}
+                      />
+                      <Route
+                        path="accounting/financials"
+                        element={<FinancialReportsPage />}
+                      />
                       <Route path="reports" element={<ReportsDashboard />} />
                       <Route path="reports/sales" element={<SalesReport />} />
-                      <Route path="reports/inventory" element={<InventoryReport />} />
+                      <Route
+                        path="reports/inventory"
+                        element={<InventoryReport />}
+                      />
                       <Route path="pos" element={<PosDashboard />} />
                       <Route path="pos/terminal" element={<PosTerminal />} />
-                      <Route path="pos/receipt/:id" element={<PosReceiptViewer />} />
-                      <Route path="price-lists" element={<PriceListsManager />} />
-                      <Route path="discount-rules" element={<DiscountRulesManager />} />
-                      <Route path="purchase-orders" element={<PurchaseOrdersPage />} />
-                      <Route path="goods-receive" element={<GoodsReceivePage />} />
-                      <Route path="supplier-due" element={<SupplierDuePage />} />
-                      <Route path="purchase-history" element={<PurchaseHistoryPage />} />
-                      <Route path="stock-ledger" element={<StockLedgerPage />} />
-                      <Route path="stock-adjustments" element={<StockAdjustmentsPage />} />
-                      <Route path="fifo-layers" element={<FifoCostLayersPage />} />
+                      <Route
+                        path="pos/receipt/:id"
+                        element={<PosReceiptViewer />}
+                      />
+                      <Route
+                        path="price-lists"
+                        element={<PriceListsManager />}
+                      />
+                      <Route
+                        path="discount-rules"
+                        element={<DiscountRulesManager />}
+                      />
+                      <Route
+                        path="purchase-orders"
+                        element={<PurchaseOrdersPage />}
+                      />
+                      <Route
+                        path="goods-receive"
+                        element={<GoodsReceivePage />}
+                      />
+                      <Route
+                        path="supplier-due"
+                        element={<SupplierDuePage />}
+                      />
+                      <Route
+                        path="purchase-history"
+                        element={<PurchaseHistoryPage />}
+                      />
+                      <Route
+                        path="stock-ledger"
+                        element={<StockLedgerPage />}
+                      />
+                      <Route
+                        path="stock-adjustments"
+                        element={<StockAdjustmentsPage />}
+                      />
+                      <Route
+                        path="fifo-layers"
+                        element={<FifoCostLayersPage />}
+                      />
                       <Route
                         path="vehicle-data"
                         element={<VehicleDataManager />}

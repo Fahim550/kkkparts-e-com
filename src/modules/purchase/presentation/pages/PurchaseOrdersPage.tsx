@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { usePurchaseOrders } from "../hooks/usePurchaseOrders";
 import { useSuppliers } from "../../../supplier/presentation/hooks/useSuppliers";
-import { useProducts } from "../../../product/presentation/hooks/useProducts";
+import { useProducts } from "@/hooks/useDatabase";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -27,7 +27,7 @@ import { PurchaseOrder } from "../../domain/types";
 export default function PurchaseOrdersPage() {
   const { orders, isLoading, createOrder, isCreating } = usePurchaseOrders();
   const { suppliers } = useSuppliers();
-  const { products } = useProducts();
+  const { data: products = [] } = useProducts();
 
   const [isOpen, setIsOpen] = useState(false);
   const [poNumber, setPoNumber] = useState(`PO-${Date.now()}`);

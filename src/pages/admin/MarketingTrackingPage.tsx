@@ -1,11 +1,11 @@
-import { useState, useEffect } from "react";
+import { Input } from "@/components/ui/input";
+import { Switch } from "@/components/ui/switch";
 import { useTrackingSettings } from "@/hooks/useTrackingSettings";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
-import { toast } from "sonner";
-import { Switch } from "@/components/ui/switch";
-import { Input } from "@/components/ui/input";
 import { Eye, EyeOff, Send } from "lucide-react";
+import { useEffect, useState } from "react";
+import { toast } from "sonner";
 
 const Toggle = ({
   label,
