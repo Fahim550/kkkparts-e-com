@@ -14,12 +14,13 @@ import { AlertTriangle, Loader2, Settings2 } from "lucide-react";
 import { useState } from "react";
 import { useWarehouses } from "../../../warehouse/presentation/hooks/useWarehouses";
 import { useInventory } from "../hooks/useInventory";
+import { useProductTemplates } from "../../../product/presentation/hooks/useProducts";
 
 export default function StockAdjustmentsPage() {
   const { adjustStock, writeOffDamage, isAdjusting, isWritingOff } =
     useInventory();
   const { warehouses } = useWarehouses();
-  const { products } = useProducts();
+  const { data: products } = useProductTemplates();
 
   // General Adjustment State
   const [adjWarehouseId, setAdjWarehouseId] = useState("");

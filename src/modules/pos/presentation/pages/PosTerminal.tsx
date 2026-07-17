@@ -1,7 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { useProducts } from "@/hooks/useDatabase";
+import { useProductTemplates } from "../../../product/presentation/hooks/useProducts";
 import {
   ArrowLeft,
   CreditCard,
@@ -20,7 +20,7 @@ import { usePosSession } from "../hooks/usePosSession";
 export default function PosTerminal() {
   const navigate = useNavigate();
   const { currentShift, isLoadingShift, registers } = usePosSession();
-  const { data: products = [] } = useProducts();
+  const { data: products = [] } = useProductTemplates();
   const { customers } = useCustomers();
 
   const [barcodeInput, setBarcodeInput] = useState("");
