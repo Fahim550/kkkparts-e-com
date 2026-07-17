@@ -71,8 +71,8 @@ export default function PosTerminal() {
     // Find variation by SKU
     let found = false;
     for (const p of products || []) {
-      const v = p.product_variations?.find(
-        (x: any) => x.sku === barcodeInput.trim(),
+      const v = p.variations?.find(
+        (v: any) => v.barcode === barcodeInput.trim() || v.sku === barcodeInput.trim(),
       );
       if (v) {
         addItem(v, p, 1);
@@ -124,7 +124,7 @@ export default function PosTerminal() {
         <ScrollArea className="flex-1 p-4">
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
             {products?.map((p) =>
-              p.product_variations?.map((v: any) => (
+              p.variations?.map((v: any) => (
                 <div
                   key={v.id}
                   className="bg-card border rounded-lg p-4 cursor-pointer hover:border-primary transition-colors text-center shadow-sm"

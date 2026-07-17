@@ -134,7 +134,7 @@ export default function StockAdjustmentsPage() {
                   </SelectTrigger>
                   <SelectContent>
                     {products?.map((p) =>
-                      p.product_variations?.map((v: any) => (
+                      p.variations?.map((v: any) => (
                         <SelectItem key={v.id} value={v.id}>
                           {p.name} - {v.sku}
                         </SelectItem>
@@ -241,7 +241,7 @@ export default function StockAdjustmentsPage() {
                   </SelectTrigger>
                   <SelectContent>
                     {products?.map((p) =>
-                      p.product_variations?.map((v: any) => (
+                      p.variations?.map((v: any) => (
                         <SelectItem key={v.id} value={v.id}>
                           {p.name} - {v.sku}
                         </SelectItem>

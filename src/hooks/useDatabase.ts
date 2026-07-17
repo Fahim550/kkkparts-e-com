@@ -2,7 +2,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import type { Database } from "@/integrations/supabase/types";
 
-export type DbProduct = Database["public"]["Tables"]["products"]["Row"];
+export type DbProduct = Database["public"]["Tables"]["products"]["Row"] & { product_variations?: any[] };
 export type DbProductInsert =
   Database["public"]["Tables"]["products"]["Insert"];
 export type DbOrder = Database["public"]["Tables"]["orders"]["Row"];
@@ -20,7 +20,7 @@ export const useProducts = () =>
     queryFn: async () => {
       const { data, error } = await supabase
         .from("products")
-        .select("*")
+        .select("*, product_variations(*)")
         .order("created_at", { ascending: false });
       if (error) throw error;
       return data as DbProduct[];
@@ -33,7 +33,7 @@ export const useActiveProducts = () =>
     queryFn: async () => {
       const { data, error } = await supabase
         .from("products")
-        .select("*")
+        .select("*, product_variations(*)")
         .eq("is_active", true)
         .order("created_at", { ascending: false });
       if (error) throw error;
@@ -47,7 +47,7 @@ export const useProduct = (id: string) =>
     queryFn: async () => {
       const { data, error } = await supabase
         .from("products")
-        .select("*")
+        .select("*, product_variations(*)")
         .eq("id", id)
         .single();
       if (error) throw error;
