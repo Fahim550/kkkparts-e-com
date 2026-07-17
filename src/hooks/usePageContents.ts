@@ -23,7 +23,10 @@ export const usePageContent = (slug: string) =>
         .eq("page_slug", slug)
         .eq("is_active", true)
         .maybeSingle();
-      if (error) throw error;
+      if (error) {
+        console.warn(`Error fetching page content for ${slug}:`, error);
+        return null;
+      }
       return data as PageContent | null;
     },
     enabled: !!slug,
@@ -37,7 +40,10 @@ export const useAllPageContents = () =>
         .from("page_contents")
         .select("*")
         .order("page_slug");
-      if (error) throw error;
+      if (error) {
+        console.warn("Error fetching page contents:", error);
+        return [];
+      }
       return data as PageContent[];
     },
   });

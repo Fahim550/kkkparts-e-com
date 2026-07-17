@@ -284,7 +284,10 @@ export const useBanners = () =>
         .from("banners")
         .select("*")
         .order("created_at", { ascending: false });
-      if (error) throw error;
+      if (error) {
+        console.warn("Error fetching banners:", error);
+        return [];
+      }
       return data as DbBanner[];
     },
   });
@@ -298,7 +301,10 @@ export const useActiveBanners = () =>
         .select("*")
         .eq("is_active", true)
         .order("created_at", { ascending: false });
-      if (error) throw error;
+      if (error) {
+        console.warn("Error fetching active banners:", error);
+        return [];
+      }
       return data as DbBanner[];
     },
   });

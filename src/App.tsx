@@ -29,7 +29,9 @@ const WishlistPage = lazy(() => import("./pages/WishlistPage.tsx"));
 const AdminLayout = lazy(() => import("./pages/admin/AdminLayout.tsx"));
 const AdminLoginPage = lazy(() => import("./pages/admin/AdminLoginPage.tsx"));
 const Dashboard = lazy(() => import("./pages/admin/Dashboard.tsx"));
-const ProductsPage = lazy(() => import("./modules/product/presentation/pages/ProductsPage.tsx"));
+const ProductsPage = lazy(
+  () => import("./modules/product/presentation/pages/ProductsPage.tsx"),
+);
 const OrdersManager = lazy(() => import("./pages/admin/OrdersManager.tsx"));
 const DealerOrdersManager = lazy(
   () => import("./pages/admin/DealerOrdersManager.tsx"),
@@ -228,10 +230,7 @@ const App = () => (
                         element={<OrderDetailsPage />}
                       />
                       <Route path="orders/:id" element={<OrderDetailsPage />} />
-                      <Route
-                        path="categories"
-                        element={<CategoriesPage />}
-                      />
+                      <Route path="categories" element={<CategoriesPage />} />
                       <Route path="brands" element={<BrandsPage />} />
                       <Route path="uoms" element={<UOMsPage />} />
                       <Route path="attributes" element={<AttributesPage />} />

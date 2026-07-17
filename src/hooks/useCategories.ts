@@ -31,8 +31,11 @@ export const useCategories = () =>
       const { data, error } = await supabase
         .from("categories")
         .select("*")
-        .order("sort_order", { ascending: true });
-      if (error) throw error;
+        .order("name", { ascending: true });
+      if (error) {
+        console.warn("Error fetching categories:", error);
+        return [];
+      }
       return data as DbCategory[];
     },
   });
@@ -46,8 +49,11 @@ export const useActiveCategories = () =>
         .from("categories")
         .select("*")
         .or("is_active.eq.true,is_active.is.null")
-        .order("sort_order", { ascending: true });
-      if (error) throw error;
+        .order("name", { ascending: true });
+      if (error) {
+        console.warn("Error fetching active categories:", error);
+        return [];
+      }
       return data as DbCategory[];
     },
   });

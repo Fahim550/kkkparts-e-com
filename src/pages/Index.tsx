@@ -1,30 +1,28 @@
-import { Link, useNavigate } from "react-router-dom";
-import { motion, AnimatePresence } from "framer-motion";
+import Footer from "@/components/Footer";
+import Navbar from "@/components/Navbar";
+import OfferProductCard from "@/components/OfferProductCard";
+import ProductCard from "@/components/ProductCard";
+import { useLanguage } from "@/context/LanguageContext";
+import { useActiveCategories } from "@/hooks/useCategories";
+import { useActiveBanners, useActiveProducts } from "@/hooks/useDatabase";
+import { usePageContent } from "@/hooks/usePageContents";
+import Autoplay from "embla-carousel-autoplay";
+import useEmblaCarousel from "embla-carousel-react";
+import { AnimatePresence, motion } from "framer-motion";
 import {
   ArrowRight,
-  Star,
-  Zap,
-  Truck,
-  RefreshCw,
-  Shield,
-  ChevronRight,
   ChevronLeft,
-  ChevronDown,
+  ChevronRight,
   Loader2,
+  RefreshCw,
   Search,
+  Shield,
+  Star,
+  Truck,
+  Zap,
 } from "lucide-react";
-import { useActiveProducts, useActiveBanners } from "@/hooks/useDatabase";
-import { useActiveCategories } from "@/hooks/useCategories";
-import { usePageContent } from "@/hooks/usePageContents";
-import { useLanguage } from "@/context/LanguageContext";
-import ProductCard from "@/components/ProductCard";
-import OfferProductCard from "@/components/OfferProductCard";
-import Navbar from "@/components/Navbar";
-import Footer from "@/components/Footer";
-import useEmblaCarousel from "embla-carousel-react";
-import Autoplay from "embla-carousel-autoplay";
-import { useState, useEffect, useCallback, useRef } from "react";
-import { SearchableSelect } from "@/components/SearchableSelect";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
 
 // Use an optimized, highly compressed external image for the fallback hero instead of a 520KB local asset to boost LCP
 const heroImage =
@@ -71,19 +69,19 @@ const Index = () => {
   const [direction, setDirection] = useState(1);
   const [searchQuery, setSearchQuery] = useState("");
   const [isSearchExpanded, setIsSearchExpanded] = useState(false);
-  const products = dbProducts.map((p) => ({
+  const products = dbProducts.map((p: any) => ({
     id: p.id,
     name: p.name,
-    brand: p.brand,
-    price: Number(p.price),
+    brand: p.brand || "",
+    price: Number(p.price) || 0,
     originalPrice: p.original_price ? Number(p.original_price) : undefined,
     dealerPrice: p.dealer_price ? Number(p.dealer_price) : undefined,
     dealerOriginalPrice: p.dealer_original_price
       ? Number(p.dealer_original_price)
       : undefined,
     category: p.category as any,
-    image: p.image,
-    images: p.images || [p.image],
+    image: p.image || "",
+    images: p.images || [p.image || ""],
     stock: p.stock || 0,
     sizes: p.sizes || [],
     colors: p.colors || [],
@@ -92,10 +90,10 @@ const Index = () => {
     reviews: p.reviews || 0,
     isTrending: p.is_trending || false,
     isNew: p.is_new || false,
-    isOffer: (p as any).is_offer || false,
+    isOffer: p.is_offer || false,
   }));
   const dynamicBrands = Array.from(
-    new Set(products.map((p) => p.brand.trim().toUpperCase())),
+    new Set(products.map((p) => (p.brand || "").trim().toUpperCase())),
   )
     .filter(Boolean)
     .sort();

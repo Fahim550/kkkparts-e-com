@@ -1,12 +1,12 @@
-import {
-  useState,
-  useEffect,
-  createContext,
-  useContext,
-  useCallback,
-} from "react";
 import { supabase } from "@/integrations/supabase/client";
-import type { User, Session } from "@supabase/supabase-js";
+import type { Session, User } from "@supabase/supabase-js";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useState,
+} from "react";
 
 interface AdminAuthContextType {
   user: User | null;
@@ -37,21 +37,27 @@ export const AdminAuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const [loading, setLoading] = useState(true);
 
   const checkAdminRole = useCallback(async (userId: string) => {
-    const [usersRes, rolesRes] = await Promise.all([
-      supabase
-        .from("users")
-        .select("role")
-        .eq("id", userId)
-        .eq("role", "admin")
-        .maybeSingle(),
-      supabase
-        .from("user_roles")
-        .select("role")
+    try {
+      const { data: adminRole } = await supabase
+        .from("erp_roles")
+        .select("id")
+        .eq("name", "admin")
+        .maybeSingle();
+
+      if (!adminRole) return false;
+
+      const { data: userRole } = await supabase
+        .from("erp_user_roles")
+        .select("role_id")
         .eq("user_id", userId)
-        .eq("role", "admin")
-        .maybeSingle(),
-    ]);
-    return !!usersRes.data || !!rolesRes.data;
+        .eq("role_id", adminRole.id)
+        .maybeSingle();
+
+      return !!userRole;
+    } catch (e) {
+      console.error("Error checking admin role:", e);
+      return false;
+    }
   }, []);
 
   useEffect(() => {
@@ -115,15 +121,24 @@ export const AdminAuthProvider: React.FC<{ children: React.ReactNode }> = ({
     // Auto-assign admin role to first user
     if (data.user) {
       // Check if any admin exists
-      const { count } = await supabase
-        .from("user_roles")
-        .select("*", { count: "exact", head: true })
-        .eq("role", "admin");
-      if (count === 0) {
-        await supabase
-          .from("user_roles")
-          .insert({ user_id: data.user.id, role: "admin" } as any);
-        setIsAdmin(true);
+      const { data: adminRole } = await supabase
+        .from("erp_roles")
+        .select("id")
+        .eq("name", "admin")
+        .maybeSingle();
+
+      if (adminRole) {
+        const { count } = await supabase
+          .from("erp_user_roles")
+          .select("*", { count: "exact", head: true })
+          .eq("role_id", adminRole.id);
+
+        if (count === 0) {
+          await supabase
+            .from("erp_user_roles")
+            .insert({ user_id: data.user.id, role_id: adminRole.id } as any);
+          setIsAdmin(true);
+        }
       }
     }
     return { error: null };
