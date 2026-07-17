@@ -56,10 +56,12 @@ export default function PurchaseOrdersPage() {
 
   const handleAddItem = () => {
     if (!selectedVariation || qty <= 0 || price < 0) return;
-    // Mock UOM for now since we don't fetch UOMs in this simple UI, just grab first one or default
-    // Ideally we'd fetch variation details to get its base UOM
-    const uom_id = "00000000-0000-0000-0000-000000000000"; // Placeholder: replace with actual uom_id in real app
-
+    // Find the product containing the selected variation to get its base UOM
+    const product = products.find((p) =>
+      p.product_variations?.some((v: any) => v.id === selectedVariation),
+    );
+    if (!product || !product.base_uom_id) return;
+    const uom_id = product.base_uom_id;
     setItems([
       ...items,
       {

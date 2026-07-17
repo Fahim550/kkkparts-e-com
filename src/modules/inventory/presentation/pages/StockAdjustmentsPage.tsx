@@ -12,9 +12,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { AlertTriangle, Loader2, Settings2 } from "lucide-react";
 import { useState } from "react";
+import { useProductTemplates } from "../../../product/presentation/hooks/useProducts";
 import { useWarehouses } from "../../../warehouse/presentation/hooks/useWarehouses";
 import { useInventory } from "../hooks/useInventory";
-import { useProductTemplates } from "../../../product/presentation/hooks/useProducts";
 
 export default function StockAdjustmentsPage() {
   const { adjustStock, writeOffDamage, isAdjusting, isWritingOff } =
@@ -38,11 +38,15 @@ export default function StockAdjustmentsPage() {
   const handleAdjust = async () => {
     if (!adjWarehouseId || !adjVariationId || adjQuantity === 0 || !adjReason)
       return;
+    const product = products?.find((p) =>
+      p.variations?.some((v: any) => v.id === adjVariationId),
+    );
+    if (!product || !product.base_uom_id) return;
     try {
       await adjustStock({
         warehouse_id: adjWarehouseId,
         variation_id: adjVariationId,
-        uom_id: "00000000-0000-0000-0000-000000000000", // placeholder
+        uom_id: product.base_uom_id,
         quantity: adjQuantity,
         unit_cost: adjQuantity > 0 ? adjUnitCost : undefined,
         reason: adjReason,
@@ -57,11 +61,15 @@ export default function StockAdjustmentsPage() {
   const handleDamage = async () => {
     if (!dmgWarehouseId || !dmgVariationId || dmgQuantity <= 0 || !dmgReason)
       return;
+    const product = products?.find((p) =>
+      p.variations?.some((v: any) => v.id === dmgVariationId),
+    );
+    if (!product || !product.base_uom_id) return;
     try {
       await writeOffDamage({
         warehouse_id: dmgWarehouseId,
         variation_id: dmgVariationId,
-        uom_id: "00000000-0000-0000-0000-000000000000", // placeholder
+        uom_id: product.base_uom_id,
         quantity: dmgQuantity,
         reason: dmgReason,
       });
