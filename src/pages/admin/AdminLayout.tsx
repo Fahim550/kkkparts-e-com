@@ -8,7 +8,9 @@ import {
   BookOpen,
   Briefcase,
   Car,
+  ChevronDown,
   ChevronLeft,
+  ChevronRight,
   Database,
   FileText,
   FolderTree,
@@ -39,92 +41,106 @@ import {
 import { useEffect, useState } from "react";
 import { Link, Outlet, useLocation } from "react-router-dom";
 
-const navItems = [
-  { path: "/admin", label: "Dashboard", icon: LayoutDashboard, exact: true },
-  { path: "/admin/products", label: "Products", icon: Package },
-  { path: "/admin/categories", label: "Categories", icon: FolderTree },
-  { path: "/admin/brands", label: "Brands", icon: Package },
-  { path: "/admin/uoms", label: "UOMs", icon: Package },
-  { path: "/admin/attributes", label: "Attributes", icon: Package },
+const navCategories = [
   {
-    path: "/admin/warehouse/dashboard",
-    label: "Warehouse Dashboard",
-    icon: BarChart3,
-  },
-  { path: "/admin/warehouses", label: "Warehouses", icon: Package },
-  {
-    path: "/admin/warehouse-locations",
-    label: "Warehouse Locations",
-    icon: MapPin,
-  },
-  { path: "/admin/stock-transfers", label: "Stock Transfers", icon: Activity },
-  { path: "/admin/stock-ledger", label: "Stock Ledger", icon: Database },
-  {
-    path: "/admin/stock-adjustments",
-    label: "Adjustments & Damage",
-    icon: Settings2,
-  },
-  { path: "/admin/fifo-layers", label: "FIFO Cost Layers", icon: Layers },
-  { path: "/admin/pos", label: "Point of Sale", icon: Monitor },
-  { path: "/admin/accounting/coa", label: "Chart of Accounts", icon: Library },
-  {
-    path: "/admin/accounting/journals",
-    label: "Journal Entries",
-    icon: BookOpen,
+    title: "Overview",
+    items: [
+      { path: "/admin", label: "Dashboard", icon: LayoutDashboard, exact: true },
+    ]
   },
   {
-    path: "/admin/accounting/financials",
-    label: "Financial Reports",
-    icon: Landmark,
+    title: "Catalog",
+    items: [
+      { path: "/admin/products", label: "Products", icon: Package },
+      { path: "/admin/categories", label: "Categories", icon: FolderTree },
+      { path: "/admin/brands", label: "Brands", icon: Package },
+      { path: "/admin/uoms", label: "UOMs", icon: Package },
+      { path: "/admin/attributes", label: "Attributes", icon: Package },
+    ]
   },
-  { path: "/admin/reports", label: "Dashboard KPIs", icon: TrendingUp },
-  { path: "/admin/reports/sales", label: "Sales Report", icon: FileText },
   {
-    path: "/admin/reports/inventory",
-    label: "Inventory Report",
-    icon: Package,
+    title: "Inventory",
+    items: [
+      { path: "/admin/warehouse/dashboard", label: "Warehouse Dashboard", icon: BarChart3 },
+      { path: "/admin/warehouses", label: "Warehouses", icon: Package },
+      { path: "/admin/warehouse-locations", label: "Warehouse Locations", icon: MapPin },
+      { path: "/admin/stock-transfers", label: "Stock Transfers", icon: Activity },
+      { path: "/admin/stock-ledger", label: "Stock Ledger", icon: Database },
+      { path: "/admin/stock-adjustments", label: "Adjustments & Damage", icon: Settings2 },
+      { path: "/admin/fifo-layers", label: "FIFO Cost Layers", icon: Layers },
+    ]
   },
-  { path: "/admin/customers", label: "Customers", icon: Users },
-  { path: "/admin/suppliers", label: "Suppliers", icon: Users },
-  { path: "/admin/price-lists", label: "Price Lists", icon: Tag },
-  { path: "/admin/discount-rules", label: "Discount Rules", icon: Percent },
   {
-    path: "/admin/purchase-orders",
-    label: "Purchase Orders",
-    icon: ShoppingCart,
+    title: "Sales & POS",
+    items: [
+      { path: "/admin/pos", label: "Point of Sale", icon: Monitor },
+      { path: "/admin/orders", label: "Customer Orders", icon: ShoppingCart },
+      { path: "/admin/dealer-orders", label: "Dealer Orders", icon: ShoppingCart },
+    ]
   },
-  { path: "/admin/goods-receive", label: "Goods Receive", icon: Package },
-  { path: "/admin/supplier-due", label: "Supplier Due", icon: FileText },
   {
-    path: "/admin/purchase-history",
-    label: "Purchase History",
-    icon: Activity,
+    title: "Purchases",
+    items: [
+      { path: "/admin/purchase-orders", label: "Purchase Orders", icon: ShoppingCart },
+      { path: "/admin/goods-receive", label: "Goods Receive", icon: Package },
+      { path: "/admin/supplier-due", label: "Supplier Due", icon: FileText },
+      { path: "/admin/purchase-history", label: "Purchase History", icon: Activity },
+    ]
   },
-  { path: "/admin/vehicle-data", label: "Vehicle Data", icon: Car },
-  { path: "/admin/orders", label: "Customer Orders", icon: ShoppingCart },
-  { path: "/admin/dealer-orders", label: "Dealer Orders", icon: ShoppingCart },
-  { path: "/admin/coupons", label: "Coupons", icon: Tag },
-  { path: "/admin/checkout-leads", label: "Checkout Leads", icon: UserSearch },
   {
-    path: "/admin/job-applications",
-    label: "Job Applications",
-    icon: Briefcase,
+    title: "Accounting & Finance",
+    items: [
+      { path: "/admin/accounting/coa", label: "Chart of Accounts", icon: Library },
+      { path: "/admin/accounting/journals", label: "Journal Entries", icon: BookOpen },
+      { path: "/admin/accounting/financials", label: "Financial Reports", icon: Landmark },
+    ]
   },
-  { path: "/admin/messages", label: "Messages", icon: MessageSquare },
-  { path: "/admin/banners", label: "Banners", icon: Image },
-  { path: "/admin/reviews", label: "Reviews", icon: Star },
-  { path: "/admin/analytics", label: "Analytics", icon: BarChart3 },
   {
-    path: "/admin/visitor-analytics",
-    label: "Visitor Tracker",
-    icon: Activity,
+    title: "Reports & Analytics",
+    items: [
+      { path: "/admin/reports", label: "Dashboard KPIs", icon: TrendingUp },
+      { path: "/admin/reports/sales", label: "Sales Report", icon: FileText },
+      { path: "/admin/reports/inventory", label: "Inventory Report", icon: Package },
+      { path: "/admin/analytics", label: "Analytics", icon: BarChart3 },
+      { path: "/admin/visitor-analytics", label: "Visitor Tracker", icon: Activity },
+    ]
   },
-  { path: "/admin/customers", label: "Customers", icon: Users },
-  { path: "/admin/users", label: "Dealers Details", icon: UserCog },
-  { path: "/admin/marketing", label: "Marketing", icon: Megaphone },
-  { path: "/admin/shipping", label: "Shipping Methods", icon: Truck },
-  { path: "/admin/pages", label: "Pages", icon: FileText },
-  { path: "/admin/settings", label: "Settings", icon: Settings },
+  {
+    title: "People",
+    items: [
+      { path: "/admin/customers", label: "Customers", icon: Users },
+      { path: "/admin/suppliers", label: "Suppliers", icon: Users },
+      { path: "/admin/users", label: "Dealers Details", icon: UserCog },
+      { path: "/admin/job-applications", label: "Job Applications", icon: Briefcase },
+    ]
+  },
+  {
+    title: "Marketing & Pricing",
+    items: [
+      { path: "/admin/price-lists", label: "Price Lists", icon: Tag },
+      { path: "/admin/discount-rules", label: "Discount Rules", icon: Percent },
+      { path: "/admin/coupons", label: "Coupons", icon: Tag },
+      { path: "/admin/marketing", label: "Marketing", icon: Megaphone },
+      { path: "/admin/checkout-leads", label: "Checkout Leads", icon: UserSearch },
+    ]
+  },
+  {
+    title: "Storefront & Content",
+    items: [
+      { path: "/admin/banners", label: "Banners", icon: Image },
+      { path: "/admin/pages", label: "Pages", icon: FileText },
+      { path: "/admin/reviews", label: "Reviews", icon: Star },
+      { path: "/admin/messages", label: "Messages", icon: MessageSquare },
+      { path: "/admin/vehicle-data", label: "Vehicle Data", icon: Car },
+    ]
+  },
+  {
+    title: "System",
+    items: [
+      { path: "/admin/shipping", label: "Shipping Methods", icon: Truck },
+      { path: "/admin/settings", label: "Settings", icon: Settings },
+    ]
+  }
 ];
 
 const AdminLayout = () => {
@@ -137,6 +153,27 @@ const AdminLayout = () => {
   const s = Array.isArray(settings) ? settings[0] || {} : settings || {};
   const logoUrl = s?.logo_url || "/logo.png";
   const siteName = s?.site_name || "Admin";
+
+  const [openCategories, setOpenCategories] = useState<Record<string, boolean>>(() => {
+    const initialState: Record<string, boolean> = {};
+    navCategories.forEach(cat => {
+      const hasActive = cat.items.some(item => location.pathname === item.path || (!item.exact && location.pathname.startsWith(item.path)));
+      if (hasActive) {
+        initialState[cat.title] = true;
+      }
+    });
+    if (Object.keys(initialState).length === 0) {
+      initialState["Overview"] = true;
+    }
+    return initialState;
+  });
+
+  const toggleCategory = (categoryTitle: string) => {
+    setOpenCategories(prev => ({
+      ...prev,
+      [categoryTitle]: !prev[categoryTitle]
+    }));
+  };
 
   useEffect(() => {
     if (s?.favicon_url) {
@@ -165,26 +202,57 @@ const AdminLayout = () => {
 
   const sidebarContent = (
     <>
-      <nav className="flex-1 py-4 space-y-1 px-2 overflow-y-auto">
-        {navItems.map((item) => {
-          const active = isActive(item.path, item.exact);
+      <nav className="flex-1 py-4 px-2 overflow-y-auto space-y-4">
+        {navCategories.map((category, index) => {
+          const isOpen = openCategories[category.title];
+          const isCollapsed = !isMobile && collapsed;
+          
           return (
-            <Link
-              key={item.path}
-              to={item.path}
-              onClick={() => isMobile && setMobileOpen(false)}
-              className={`flex items-center gap-3 px-3 py-2.5 rounded-md font-body text-sm transition-all ${
-                active
-                  ? "bg-sidebar-primary/15 text-sidebar-primary border-l-2 border-sidebar-primary"
-                  : "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent"
-              }`}
-              title={!isMobile && collapsed ? item.label : undefined}
-            >
-              <item.icon className="w-5 h-5 shrink-0" />
-              {(isMobile || !collapsed) && (
-                <span className="font-medium">{item.label}</span>
+            <div key={category.title} className="space-y-1">
+              {!isCollapsed && (
+                <button
+                  onClick={() => toggleCategory(category.title)}
+                  className="w-full flex items-center justify-between px-3 py-2 text-xs font-semibold text-sidebar-foreground/50 uppercase tracking-wider hover:text-sidebar-foreground transition-colors group"
+                >
+                  <span className="group-hover:text-sidebar-primary transition-colors">{category.title}</span>
+                  {isOpen ? (
+                    <ChevronDown className="w-4 h-4" />
+                  ) : (
+                    <ChevronRight className="w-4 h-4" />
+                  )}
+                </button>
               )}
-            </Link>
+              
+              {(isOpen || isCollapsed) && (
+                <div className="space-y-1">
+                  {category.items.map((item) => {
+                    const active = isActive(item.path, item.exact);
+                    return (
+                      <Link
+                        key={item.path}
+                        to={item.path}
+                        onClick={() => isMobile && setMobileOpen(false)}
+                        className={`flex items-center gap-3 px-3 py-2.5 rounded-md font-body text-sm transition-all ${
+                          active
+                            ? "bg-sidebar-primary/15 text-sidebar-primary border-l-2 border-sidebar-primary"
+                            : "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent"
+                        }`}
+                        title={!isMobile && collapsed ? item.label : undefined}
+                      >
+                        <item.icon className="w-5 h-5 shrink-0" />
+                        {(isMobile || !collapsed) && (
+                          <span className="font-medium">{item.label}</span>
+                        )}
+                      </Link>
+                    );
+                  })}
+                </div>
+              )}
+              
+              {isCollapsed && index < navCategories.length - 1 && (
+                <div className="my-3 border-b border-sidebar-border/30 w-8 mx-auto" />
+              )}
+            </div>
           );
         })}
       </nav>
