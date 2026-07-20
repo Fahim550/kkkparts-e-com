@@ -9,22 +9,32 @@ export class PricingEngine {
    * 3. Evaluates applicable Discount Rules (e.g. quantity discount, customer specific)
    * 4. Returns the final calculated price
    */
-  static async calculatePrice(payload: PricingQueryPayload): Promise<PricingResult> {
+  static async calculatePrice(
+    payload: PricingQueryPayload,
+  ): Promise<PricingResult> {
     // 1. Determine Price List
     let targetPriceListName = "Retail";
-    if (payload.customer_group && ["Wholesale", "Dealer"].includes(payload.customer_group)) {
+    if (
+      payload.customer_group &&
+      ["Wholesale", "Dealer"].includes(payload.customer_group)
+    ) {
       targetPriceListName = payload.customer_group;
     }
+
+    // Debug: fetch all price lists to see what's available to this user/session
+    const { data: allLists } = await supabase.from("price_lists").select("*");
+    console.log("ALL available price lists in DB:", allLists);
 
     // Get the price list id
     const { data: priceList } = await supabase
       .from("price_lists")
       .select("id")
-      .eq("name", targetPriceListName)
-      .single();
+      .ilike("name", `%${targetPriceListName}%`)
+      .maybeSingle();
 
     let basePrice = 0;
 
+    console.log("Price list ", priceList);
     if (priceList) {
       // Get base price from items
       const { data: priceItem } = await supabase
@@ -33,7 +43,7 @@ export class PricingEngine {
         .eq("price_list_id", priceList.id)
         .eq("variation_id", payload.variation_id)
         .eq("uom_id", payload.uom_id)
-        .single();
+        .maybeSingle();
 
       if (priceItem) {
         basePrice = Number(priceItem.price);
@@ -42,17 +52,29 @@ export class PricingEngine {
 
     if (basePrice === 0) {
       // Fallback: Check if there's any Retail price if Wholesale/Dealer wasn't found
-      if (targetPriceListName !== "Retail") {
-         const { data: retailList } = await supabase.from("price_lists").select("id").eq("name", "Retail").single();
-         if (retailList) {
-           const { data: retailItem } = await supabase.from("price_list_items").select("price").eq("price_list_id", retailList.id).eq("variation_id", payload.variation_id).eq("uom_id", payload.uom_id).single();
-           if (retailItem) basePrice = Number(retailItem.price);
-         }
+      if (targetPriceListName.toLowerCase() !== "retail") {
+        const { data: retailList } = await supabase
+          .from("price_lists")
+          .select("id")
+          .ilike("name", "%Retail%")
+          .maybeSingle();
+        if (retailList) {
+          const { data: retailItem } = await supabase
+            .from("price_list_items")
+            .select("price")
+            .eq("price_list_id", retailList.id)
+            .eq("variation_id", payload.variation_id)
+            .eq("uom_id", payload.uom_id)
+            .maybeSingle();
+          if (retailItem) basePrice = Number(retailItem.price);
+        }
       }
     }
 
     if (basePrice === 0) {
-      throw new Error(`No price defined for variation ${payload.variation_id} in Price List ${targetPriceListName}`);
+      throw new Error(
+        `No price defined for variation ${payload.variation_id} in Price List ${targetPriceListName}`,
+      );
     }
 
     // 2. Evaluate Discounts
@@ -63,10 +85,12 @@ export class PricingEngine {
     // Fetch all active rules and their conditions
     const { data: rulesData } = await supabase
       .from("discount_rules")
-      .select(`
+      .select(
+        `
         *,
         discount_rule_conditions(*)
-      `)
+      `,
+      )
       .eq("is_active", true)
       .order("priority", { ascending: false });
 
@@ -77,25 +101,38 @@ export class PricingEngine {
         const conditions = rule.discount_rule_conditions || [];
 
         for (const cond of conditions) {
-          if (cond.condition_type === "CUSTOMER" && payload.customer_id !== cond.condition_value) {
+          if (
+            cond.condition_type === "CUSTOMER" &&
+            payload.customer_id !== cond.condition_value
+          ) {
             applies = false;
             break;
           }
-          if (cond.condition_type === "CUSTOMER_GROUP" && payload.customer_group !== cond.condition_value) {
+          if (
+            cond.condition_type === "CUSTOMER_GROUP" &&
+            payload.customer_group !== cond.condition_value
+          ) {
             applies = false;
             break;
           }
-          if (cond.condition_type === "PRODUCT" && payload.variation_id !== cond.condition_value) {
+          if (
+            cond.condition_type === "PRODUCT" &&
+            payload.variation_id !== cond.condition_value
+          ) {
             applies = false;
             break;
           }
-          if (cond.condition_type === "MIN_QUANTITY" && payload.quantity < Number(cond.condition_value)) {
+          if (
+            cond.condition_type === "MIN_QUANTITY" &&
+            payload.quantity < Number(cond.condition_value)
+          ) {
             applies = false;
             break;
           }
         }
 
-        if (applies && conditions.length > 0) { // Require at least one condition to avoid applying to everything
+        if (applies && conditions.length > 0) {
+          // Require at least one condition to avoid applying to everything
           // Apply discount
           let currentDiscount = 0;
           if (rule.discount_type === "Percentage") {

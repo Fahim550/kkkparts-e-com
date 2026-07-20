@@ -19,15 +19,23 @@ export class PosEngine {
     let totalCogs = 0;
     
     for (const item of payload.items) {
-      const lineCogs = await InventoryEngine.processMovement({
-        reference_type: "pos_receipt",
-        reference_id: receipt.id,
-        warehouse_id: payload.warehouse_id,
-        variation_id: item.variation_id,
-        quantity: -item.quantity, // Negative for outbound
-        unit_cost: 0, // Outbound unit cost is determined by FIFO engine, pass 0
-      });
-      totalCogs += lineCogs;
+      try {
+        const lineCogs = await InventoryEngine.processMovement({
+          reference_type: "pos_receipt",
+          reference_id: receipt.id,
+          warehouse_id: payload.warehouse_id,
+          variation_id: item.variation_id,
+          uom_id: item.uom_id,
+          quantity: -item.quantity, // Negative for outbound
+          unit_cost: 0, // Outbound unit cost is determined by FIFO engine, pass 0
+        });
+        totalCogs += lineCogs;
+      } catch (e: any) {
+        if (e.message.includes("Insufficient stock")) {
+          throw new Error(`Out of stock: "${item.name}" (${item.sku}) does not have enough stock in this warehouse.`);
+        }
+        throw e;
+      }
     }
 
     // 3. Post Accounting Entries

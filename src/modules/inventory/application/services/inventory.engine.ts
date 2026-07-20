@@ -1,8 +1,7 @@
-import { supabase } from "@/integrations/supabase/client";
+import { v4 as uuidv4 } from "uuid";
+import { StockRepository } from "../../../warehouse/infrastructure/repositories/stock.repository";
 import { StockMovementPayload } from "../../domain/types";
 import { FifoEngine } from "./fifo.engine";
-import { StockRepository } from "../../../warehouse/infrastructure/repositories/stock.repository";
-import { v4 as uuidv4 } from "uuid";
 
 export class InventoryEngine {
   /**
@@ -16,16 +15,18 @@ export class InventoryEngine {
     const isOutbound = payload.quantity < 0;
     const absQuantity = Math.abs(payload.quantity);
 
-    let currentBalance = await StockRepository.getBalance(
+    const currentBalance = await StockRepository.getBalance(
       payload.warehouse_id,
       payload.variation_id,
       payload.bin_id || null,
-      null
+      null,
     );
 
     if (isOutbound) {
       if (!currentBalance || currentBalance.quantity < absQuantity) {
-        throw new Error(`Insufficient stock in warehouse for variation ${payload.variation_id}.`);
+        throw new Error(
+          `Insufficient stock in warehouse for variation ${payload.variation_id}.`,
+        );
       }
     }
 
@@ -43,7 +44,9 @@ export class InventoryEngine {
     });
 
     // 3. Update Aggregate Balance
-    const newQty = currentBalance ? currentBalance.quantity + payload.quantity : payload.quantity;
+    const newQty = currentBalance
+      ? currentBalance.quantity + payload.quantity
+      : payload.quantity;
     await StockRepository.upsertBalance({
       warehouse_id: payload.warehouse_id,
       variation_id: payload.variation_id,
@@ -66,7 +69,9 @@ export class InventoryEngine {
     } else {
       // Add cost layer (needs unit_cost)
       if (payload.unit_cost === undefined || payload.unit_cost === null) {
-        throw new Error("Unit cost is required for inbound stock movements (to build FIFO layers).");
+        throw new Error(
+          "Unit cost is required for inbound stock movements (to build FIFO layers).",
+        );
       }
       await FifoEngine.addCostLayer({
         variation_id: payload.variation_id,
@@ -115,7 +120,8 @@ export class InventoryEngine {
     uom_id: string;
     reason: string;
   }): Promise<void> {
-    if (data.quantity <= 0) throw new Error("Damage write-off quantity must be > 0");
+    if (data.quantity <= 0)
+      throw new Error("Damage write-off quantity must be > 0");
     const refId = uuidv4(); // Generate a unique ID
 
     // Deduct stock
