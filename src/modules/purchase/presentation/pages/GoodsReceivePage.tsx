@@ -52,7 +52,16 @@ export default function GoodsReceivePage() {
 
   const handleAddItem = () => {
     if (!selectedVariation || qty <= 0 || cost < 0) return;
-    const uom_id = "00000000-0000-0000-0000-000000000000"; // Placeholder
+
+    // Find the product containing the selected variation to get its base UOM
+    const product = products.find((p) =>
+      p.product_variations?.some((v: any) => v.id === selectedVariation),
+    );
+    if (!product || !product.base_uom_id) {
+      console.error("Product base UOM not found");
+      return;
+    }
+    const uom_id = product.base_uom_id;
 
     setItems([
       ...items,

@@ -1,8 +1,7 @@
-import React from "react";
-import { useWarehouses } from "../hooks/useWarehouses";
-import { useStock } from "../hooks/useStock";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -10,19 +9,21 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useForm } from "react-hook-form";
+import { useProducts } from "@/hooks/useDatabase";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { StockTransferSchema } from "../../domain/validations";
+import { ArrowRight, Loader2 } from "lucide-react";
+import React from "react";
+import { useForm } from "react-hook-form";
 import { z } from "zod";
-import { Loader2, ArrowRight } from "lucide-react";
-import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { StockTransferSchema } from "../../domain/validations";
+import { useStock } from "../hooks/useStock";
+import { useWarehouses } from "../hooks/useWarehouses";
 
 type TransferFormData = z.infer<typeof StockTransferSchema>;
 
 export default function StockTransfersPage() {
   const { warehouses, isLoading: isLoadingWarehouses } = useWarehouses();
-  const { transferStock, isTransferring } = useStock();
+  const { data: products = [] } = useProducts();
 
   const {
     register,
@@ -40,10 +41,21 @@ export default function StockTransfersPage() {
 
   const fromWarehouseId = watch("from_warehouse_id");
   const toWarehouseId = watch("to_warehouse_id");
+  const variationId = watch("variation_id");
+
+  const { transferStock, isTransferring, balances } = useStock(fromWarehouseId);
+  const [selectedBalanceId, setSelectedBalanceId] = React.useState<string>("");
+
+  const availableQty = React.useMemo(() => {
+    if (!balances || !selectedBalanceId) return 0;
+    const bal = balances.find((b) => b.id === selectedBalanceId);
+    return bal ? bal.quantity : 0;
+  }, [balances, selectedBalanceId]);
 
   const onSubmit = async (data: TransferFormData) => {
     await transferStock(data);
     reset();
+    setSelectedBalanceId("");
   };
 
   if (isLoadingWarehouses)
@@ -130,11 +142,48 @@ export default function StockTransfersPage() {
 
             <div className="space-y-4 border-t pt-4">
               <div>
-                <Label>Product Variation ID</Label>
-                <Input
-                  {...register("variation_id")}
-                  placeholder="Enter exact Variation ID for transfer"
-                />
+                <Label>Source Stock (Variation - Bin)</Label>
+                <Select
+                  value={selectedBalanceId}
+                  onValueChange={(val) => {
+                    setSelectedBalanceId(val);
+                    const bal = balances?.find((b) => b.id === val);
+                    if (bal) {
+                      setValue("variation_id", bal.variation_id, {
+                        shouldValidate: true,
+                      });
+                      setValue("from_bin_id", bal.bin_id || undefined);
+                      setValue("batch_number", bal.batch_number || undefined);
+                    }
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select available stock to transfer..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {balances
+                      ?.filter((b) => b.quantity > 0)
+                      .map((bal) => (
+                        <SelectItem key={bal.id} value={bal.id}>
+                          {bal.product_variations?.products?.name || "Unknown"}{" "}
+                          - {bal.product_variations?.sku || "N/A"}
+                          {bal.warehouse_bins?.name
+                            ? ` (Bin: ${bal.warehouse_bins.name})`
+                            : ""}
+                          {bal.batch_number
+                            ? ` (Batch: ${bal.batch_number})`
+                            : ""}
+                        </SelectItem>
+                      ))}
+                  </SelectContent>
+                </Select>
+                {selectedBalanceId && (
+                  <p
+                    className={`text-sm mt-1 ${availableQty > 0 ? "text-green-600" : "text-amber-600"}`}
+                  >
+                    Available stock: {availableQty}
+                  </p>
+                )}
                 {errors.variation_id && (
                   <p className="text-sm text-red-500 mt-1">
                     {errors.variation_id.message}

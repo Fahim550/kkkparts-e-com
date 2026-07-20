@@ -1,7 +1,8 @@
 import { supabase } from "@/integrations/supabase/client";
+import { v4 as uuidv4 } from "uuid";
+import { InventoryEngine } from "../../../inventory/application/services/inventory.engine";
 import { StockBalance, StockTransferDTO } from "../../domain/types";
 import { StockRepository } from "../../infrastructure/repositories/stock.repository";
-import { InventoryEngine } from "../../../inventory/application/services/inventory.engine";
 
 export class StockService {
   static async getBalancesByWarehouse(
@@ -37,8 +38,13 @@ export class StockService {
     if (!variation) throw new Error("Variation not found.");
     const uomId = variation.products?.base_uom_id;
 
+    // Generate a valid UUID for the database reference_id column
+    const transferRefId = uuidv4();
+    // Safely store the user's manual transfer number (e.g. TRF-004) inside reference_type
+    const refType = `${payload.reference_type}: ${payload.reference_id}`;
+
     // We will perform updates via the InventoryEngine to ensure atomicity and correct ledgering
-    
+
     // Deduct from source (Outbound)
     await InventoryEngine.processMovement({
       warehouse_id: payload.from_warehouse_id,
@@ -46,13 +52,13 @@ export class StockService {
       bin_id: payload.from_bin_id,
       uom_id: uomId,
       quantity: -payload.quantity,
-      reference_type: payload.reference_type,
-      reference_id: payload.reference_id,
+      reference_type: refType,
+      reference_id: transferRefId,
     });
 
     // We don't have the original cost of this specific stock easily without a more complex transfer logic,
-    // but typically a warehouse transfer retains its FIFO layers or averages out. 
-    // For now, in this simplified FIFO, an internal transfer just deducts and adds, 
+    // but typically a warehouse transfer retains its FIFO layers or averages out.
+    // For now, in this simplified FIFO, an internal transfer just deducts and adds,
     // which requires passing unit_cost to the destination.
     // Let's get a unit_cost from the oldest available FIFO layer for this transfer.
     const { data: layers } = await supabase
@@ -64,7 +70,8 @@ export class StockService {
       .order("transaction_date", { ascending: true })
       .limit(1);
 
-    const transferCost = layers && layers.length > 0 ? Number(layers[0].unit_cost) : 0;
+    const transferCost =
+      layers && layers.length > 0 ? Number(layers[0].unit_cost) : 0;
 
     // Add to destination (Inbound)
     await InventoryEngine.processMovement({
@@ -73,8 +80,8 @@ export class StockService {
       bin_id: payload.to_bin_id,
       uom_id: uomId,
       quantity: payload.quantity,
-      reference_type: payload.reference_type,
-      reference_id: payload.reference_id,
+      reference_type: refType,
+      reference_id: transferRefId,
       unit_cost: transferCost,
     });
   }
