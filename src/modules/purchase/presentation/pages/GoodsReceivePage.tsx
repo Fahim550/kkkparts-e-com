@@ -23,17 +23,35 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { ArrowDownToLine, Loader2, Plus, Eye } from "lucide-react";
-import { useState, useEffect } from "react";
+import { ArrowDownToLine, Eye, Loader2, Plus, Search, X } from "lucide-react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import { useSuppliers } from "../../../supplier/presentation/hooks/useSuppliers";
 import { useWarehouses } from "../../../warehouse/presentation/hooks/useWarehouses";
 import { ReceiptItemPayload } from "../../application/services/receipt.service";
 import { useGoodsReceive } from "../hooks/useGoodsReceive";
 import { usePurchaseOrders } from "../hooks/usePurchaseOrders";
 
 export default function GoodsReceivePage() {
-  const { receipts, isLoading, receiveGoods, isReceiving } = useGoodsReceive();
+  // ── Filter state (backend-driven) ──────────────────────────────────────
+  const [filterSearch, setFilterSearch] = useState("");
+  const [filterStatus, setFilterStatus] = useState("");
+  const [filterSupplier, setFilterSupplier] = useState("");
+  const [filterDateFrom, setFilterDateFrom] = useState("");
+  const [filterDateTo, setFilterDateTo] = useState("");
+
+  const receiptFilters = {
+    ...(filterSearch ? { search: filterSearch } : {}),
+    ...(filterStatus ? { status: filterStatus } : {}),
+    ...(filterSupplier ? { supplierId: filterSupplier } : {}),
+    ...(filterDateFrom ? { dateFrom: filterDateFrom } : {}),
+    ...(filterDateTo ? { dateTo: filterDateTo } : {}),
+  };
+
+  const { receipts, isLoading, receiveGoods, isReceiving } =
+    useGoodsReceive(receiptFilters);
   const { warehouses } = useWarehouses();
+  const { suppliers } = useSuppliers();
   const { orders } = usePurchaseOrders();
 
   const [isOpen, setIsOpen] = useState(false);
@@ -59,10 +77,10 @@ export default function GoodsReceivePage() {
       const po = orders.find((o) => o.id === selectedPoId);
       if (po) {
         setSupplierId(po.supplier_id || "");
-        
+
         // Map PO items to receipt items
         if (po.purchase_order_items) {
-          const mappedItems = po.purchase_order_items.map(item => ({
+          const mappedItems = po.purchase_order_items.map((item) => ({
             variation_id: item.variation_id,
             uom_id: item.uom_id,
             quantity_received: item.quantity_ordered, // Default to ordered qty
@@ -86,7 +104,8 @@ export default function GoodsReceivePage() {
   };
 
   const handleReceive = async () => {
-    if (!supplierId || !warehouseId || items.length === 0 || !selectedPoId) return;
+    if (!supplierId || !warehouseId || items.length === 0 || !selectedPoId)
+      return;
     try {
       await receiveGoods({
         receipt: {
@@ -108,7 +127,7 @@ export default function GoodsReceivePage() {
     }
   };
 
-  const pendingOrders = orders?.filter(o => o.status !== "Received") || [];
+  const pendingOrders = orders?.filter((o) => o.status !== "Received") || [];
 
   return (
     <div className="space-y-6">
@@ -178,29 +197,43 @@ export default function GoodsReceivePage() {
               {selectedPoId && (
                 <div className="border p-4 rounded-md space-y-4 bg-muted/20">
                   <h3 className="font-semibold">Items from Purchase Order</h3>
-                  
+
                   {items.length > 0 ? (
                     <Table>
                       <TableHeader>
                         <TableRow>
                           <TableHead>Product</TableHead>
-                          <TableHead className="text-right">Ordered Qty</TableHead>
-                          <TableHead className="text-right">Qty Received</TableHead>
-                          <TableHead className="text-right">Unit Cost</TableHead>
-                          <TableHead className="text-right">Total Val</TableHead>
+                          <TableHead className="text-right">
+                            Ordered Qty
+                          </TableHead>
+                          <TableHead className="text-right">
+                            Qty Received
+                          </TableHead>
+                          <TableHead className="text-right">
+                            Unit Cost
+                          </TableHead>
+                          <TableHead className="text-right">
+                            Total Val
+                          </TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
                         {items.map((it, idx) => {
-                          const poItem = orders?.find(o => o.id === selectedPoId)?.purchase_order_items?.find(poi => poi.variation_id === it.variation_id);
+                          const poItem = orders
+                            ?.find((o) => o.id === selectedPoId)
+                            ?.purchase_order_items?.find(
+                              (poi) => poi.variation_id === it.variation_id,
+                            );
                           const orderedQty = poItem?.quantity_ordered || 0;
-                          
+
                           return (
                             <TableRow key={idx}>
                               <TableCell className="text-sm">
-                                {poItem?.product_variations?.products?.name || "Unknown Product"}
+                                {poItem?.product_variations?.products?.name ||
+                                  "Unknown Product"}
                                 <span className="block text-xs text-muted-foreground font-mono">
-                                  {poItem?.product_variations?.sku || it.variation_id}
+                                  {poItem?.product_variations?.sku ||
+                                    it.variation_id}
                                 </span>
                               </TableCell>
                               <TableCell className="text-right text-muted-foreground">
@@ -213,7 +246,9 @@ export default function GoodsReceivePage() {
                                   max={orderedQty}
                                   className="w-24 ml-auto text-right"
                                   value={it.quantity_received}
-                                  onChange={(e) => handleQtyChange(idx, Number(e.target.value))}
+                                  onChange={(e) =>
+                                    handleQtyChange(idx, Number(e.target.value))
+                                  }
                                 />
                               </TableCell>
                               <TableCell className="text-right">
@@ -228,7 +263,9 @@ export default function GoodsReceivePage() {
                       </TableBody>
                     </Table>
                   ) : (
-                    <p className="text-sm text-muted-foreground">No items found in this Purchase Order.</p>
+                    <p className="text-sm text-muted-foreground">
+                      No items found in this Purchase Order.
+                    </p>
                   )}
                 </div>
               )}
@@ -236,7 +273,12 @@ export default function GoodsReceivePage() {
               <Button
                 onClick={handleReceive}
                 className="w-full"
-                disabled={isReceiving || items.length === 0 || !warehouseId || !selectedPoId}
+                disabled={
+                  isReceiving ||
+                  items.length === 0 ||
+                  !warehouseId ||
+                  !selectedPoId
+                }
               >
                 {isReceiving && (
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />
@@ -246,6 +288,91 @@ export default function GoodsReceivePage() {
             </div>
           </DialogContent>
         </Dialog>
+      </div>
+
+      {/* ── Filter Bar ── */}
+      <div className="flex flex-wrap gap-3 items-end p-3 border rounded-lg bg-muted/10">
+        <div className="relative flex-1 min-w-[160px]">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <Input
+            className="pl-9"
+            placeholder="Search receipt number..."
+            value={filterSearch}
+            onChange={(e) => setFilterSearch(e.target.value)}
+          />
+          {filterSearch && (
+            <button
+              onClick={() => setFilterSearch("")}
+              className="absolute right-3 top-1/2 -translate-y-1/2"
+            >
+              <X className="w-3.5 h-3.5 text-muted-foreground" />
+            </button>
+          )}
+        </div>
+        <div className="w-44">
+          <Select value={filterSupplier || "all"} onValueChange={(v) => setFilterSupplier(v === "all" ? "" : v)}>
+            <SelectTrigger>
+              <SelectValue placeholder="All Suppliers" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Suppliers</SelectItem>
+              {suppliers?.map((s) => (
+                <SelectItem key={s.id} value={s.id}>
+                  {s.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="w-36">
+          <Select value={filterStatus || "all"} onValueChange={(v) => setFilterStatus(v === "all" ? "" : v)}>
+            <SelectTrigger>
+              <SelectValue placeholder="All Status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Status</SelectItem>
+              <SelectItem value="Completed">Completed</SelectItem>
+              <SelectItem value="Return">Return</SelectItem>
+              <SelectItem value="Pending">Pending</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="flex items-center gap-2">
+          <Input
+            type="date"
+            className="w-36"
+            value={filterDateFrom}
+            onChange={(e) => setFilterDateFrom(e.target.value)}
+            title="Date From"
+          />
+          <span className="text-muted-foreground text-sm">—</span>
+          <Input
+            type="date"
+            className="w-36"
+            value={filterDateTo}
+            onChange={(e) => setFilterDateTo(e.target.value)}
+            title="Date To"
+          />
+        </div>
+        {(filterSearch ||
+          filterStatus ||
+          filterSupplier ||
+          filterDateFrom ||
+          filterDateTo) && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => {
+              setFilterSearch("");
+              setFilterStatus("");
+              setFilterSupplier("");
+              setFilterDateFrom("");
+              setFilterDateTo("");
+            }}
+          >
+            <X className="w-3.5 h-3.5 mr-1" /> Clear
+          </Button>
+        )}
       </div>
 
       <div className="border rounded-md">
@@ -278,7 +405,9 @@ export default function GoodsReceivePage() {
                     </div>
                   </TableCell>
                   {/* @ts-ignore */}
-                  <TableCell>{rec.purchase_orders?.po_number || "N/A"}</TableCell>
+                  <TableCell>
+                    {rec.purchase_orders?.po_number || "N/A"}
+                  </TableCell>
                   {/* @ts-ignore */}
                   <TableCell>{rec.suppliers?.name}</TableCell>
                   {/* @ts-ignore */}

@@ -24,14 +24,30 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useProducts } from "@/hooks/useDatabase";
-import { Eye, FileText, Loader2, Plus } from "lucide-react";
+import { Eye, FileText, Loader2, Plus, Search, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { useSuppliers } from "../../../supplier/presentation/hooks/useSuppliers";
 import { usePurchaseOrders } from "../hooks/usePurchaseOrders";
 
 export default function PurchaseOrdersPage() {
-  const { orders, isLoading, createOrder, isCreating } = usePurchaseOrders();
+  // ── Filter state (backend-driven) ──────────────────────────────────────
+  const [filterSearch, setFilterSearch] = useState("");
+  const [filterStatus, setFilterStatus] = useState("");
+  const [filterSupplier, setFilterSupplier] = useState("");
+  const [filterDateFrom, setFilterDateFrom] = useState("");
+  const [filterDateTo, setFilterDateTo] = useState("");
+
+  const filters = {
+    ...(filterSearch ? { search: filterSearch } : {}),
+    ...(filterStatus ? { status: filterStatus } : {}),
+    ...(filterSupplier ? { supplierId: filterSupplier } : {}),
+    ...(filterDateFrom ? { dateFrom: filterDateFrom } : {}),
+    ...(filterDateTo ? { dateTo: filterDateTo } : {}),
+  };
+
+  const { orders, isLoading, createOrder, isCreating } =
+    usePurchaseOrders(filters);
   const { suppliers } = useSuppliers();
   const { data: products = [] } = useProducts();
 
@@ -247,6 +263,98 @@ export default function PurchaseOrdersPage() {
             </div>
           </DialogContent>
         </Dialog>
+      </div>
+
+      {/* ── Filter Bar ── */}
+      <div className="flex flex-wrap gap-3 items-end p-3 border rounded-lg bg-muted/10">
+        <div className="relative flex-1 min-w-[160px]">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <Input
+            className="pl-9"
+            placeholder="Search PO number..."
+            value={filterSearch}
+            onChange={(e) => setFilterSearch(e.target.value)}
+          />
+          {filterSearch && (
+            <button
+              onClick={() => setFilterSearch("")}
+              className="absolute right-3 top-1/2 -translate-y-1/2"
+            >
+              <X className="w-3.5 h-3.5 text-muted-foreground" />
+            </button>
+          )}
+        </div>
+        <div className="w-44">
+          <Select
+            value={filterSupplier || "all"}
+            onValueChange={(v) => setFilterSupplier(v === "all" ? "" : v)}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="All Suppliers" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Suppliers</SelectItem>
+              {suppliers?.map((s) => (
+                <SelectItem key={s.id} value={s.id}>
+                  {s.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="w-36">
+          <Select
+            value={filterStatus || "all"}
+            onValueChange={(v) => setFilterStatus(v === "all" ? "" : v)}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="All Status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Status</SelectItem>
+              <SelectItem value="Draft">Draft</SelectItem>
+              <SelectItem value="Confirmed">Confirmed</SelectItem>
+              <SelectItem value="Received">Received</SelectItem>
+              <SelectItem value="Cancelled">Cancelled</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="flex items-center gap-2">
+          <Input
+            type="date"
+            className="w-36"
+            value={filterDateFrom}
+            onChange={(e) => setFilterDateFrom(e.target.value)}
+            title="Date From"
+          />
+          <span className="text-muted-foreground text-sm">—</span>
+          <Input
+            type="date"
+            className="w-36"
+            value={filterDateTo}
+            onChange={(e) => setFilterDateTo(e.target.value)}
+            title="Date To"
+          />
+        </div>
+        {(filterSearch ||
+          filterStatus ||
+          filterSupplier ||
+          filterDateFrom ||
+          filterDateTo) && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => {
+              setFilterSearch("");
+              setFilterStatus("");
+              setFilterSupplier("");
+              setFilterDateFrom("");
+              setFilterDateTo("");
+            }}
+          >
+            <X className="w-3.5 h-3.5 mr-1" /> Clear
+          </Button>
+        )}
       </div>
 
       <div className="border rounded-md">

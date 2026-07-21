@@ -1,4 +1,4 @@
-import { PurchaseReceiptRepository } from "../../infrastructure/repositories/purchase-receipt.repository";
+import { PurchaseReceiptRepository, PurchaseReceiptFilters } from "../../infrastructure/repositories/purchase-receipt.repository";
 import { InventoryEngine } from "../../../inventory/application/services/inventory.engine";
 import { PurchaseReceipt, CreatePurchaseReceiptDTO, CreatePurchaseReceiptItemDTO } from "../../domain/types";
 
@@ -6,8 +6,8 @@ import { PurchaseReceipt, CreatePurchaseReceiptDTO, CreatePurchaseReceiptItemDTO
 export type ReceiptItemPayload = CreatePurchaseReceiptItemDTO & { unit_cost: number };
 
 export class PurchaseReceiptService {
-  static async getAllReceipts(): Promise<PurchaseReceipt[]> {
-    return PurchaseReceiptRepository.getAll();
+  static async getAllReceipts(filters?: PurchaseReceiptFilters): Promise<PurchaseReceipt[]> {
+    return PurchaseReceiptRepository.getAll(filters);
   }
 
   static async getReceiptById(id: string): Promise<PurchaseReceipt | null> {
@@ -19,13 +19,9 @@ export class PurchaseReceiptService {
       throw new Error("Receipt must have at least one item.");
     }
 
-    // 1. Create the receipt and items in DB
     const createdReceipt = await PurchaseReceiptRepository.create(receipt, items);
 
-    // 2. For each item, update stock and create FIFO lot via InventoryEngine
     for (const item of items) {
-      // Determine if receipt is a return (negative quantity)
-      // For basic goods receive, quantity is positive.
       const isReturn = receipt.status === 'Return';
       const qty = isReturn ? -item.quantity_received : item.quantity_received;
 

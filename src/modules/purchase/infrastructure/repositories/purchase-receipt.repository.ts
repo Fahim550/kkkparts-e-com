@@ -5,9 +5,17 @@ import {
   PurchaseReceipt,
 } from "../../domain/types";
 
+export type PurchaseReceiptFilters = {
+  supplierId?: string;
+  status?: string;
+  dateFrom?: string;
+  dateTo?: string;
+  search?: string; // searches receipt_number
+};
+
 export class PurchaseReceiptRepository {
-  static async getAll(): Promise<PurchaseReceipt[]> {
-    const { data, error } = await supabase
+  static async getAll(filters?: PurchaseReceiptFilters): Promise<PurchaseReceipt[]> {
+    let query = supabase
       .from("purchase_receipts")
       .select(
         `
@@ -19,6 +27,23 @@ export class PurchaseReceiptRepository {
       )
       .order("created_at", { ascending: false });
 
+    if (filters?.supplierId) {
+      query = query.eq("supplier_id", filters.supplierId);
+    }
+    if (filters?.status) {
+      query = query.eq("status", filters.status);
+    }
+    if (filters?.dateFrom) {
+      query = query.gte("receipt_date", filters.dateFrom);
+    }
+    if (filters?.dateTo) {
+      query = query.lte("receipt_date", filters.dateTo);
+    }
+    if (filters?.search) {
+      query = query.ilike("receipt_number", `%${filters.search}%`);
+    }
+
+    const { data, error } = await query;
     if (error) throw error;
     return data as any;
   }
