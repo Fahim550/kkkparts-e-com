@@ -17,7 +17,19 @@ export const useInvoices = () => {
       PurchaseInvoiceService.createInvoice(data.invoice, data.items),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["purchase-invoices"] });
-      toast({ title: "Success", description: "Invoice created successfully." });
+      toast({ title: "✅ Invoice Created", description: "Supplier bill recorded successfully." });
+    },
+    onError: (error: any) => {
+      toast({ variant: "destructive", title: "Error", description: error.message });
+    },
+  });
+
+  const payMutation = useMutation({
+    mutationFn: (data: { id: string; status: "Unpaid" | "PartiallyPaid" | "Paid" }) =>
+      PurchaseInvoiceService.updateInvoiceStatus(data.id, data.status),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["purchase-invoices"] });
+      toast({ title: "✅ Payment Recorded", description: "Invoice status has been updated." });
     },
     onError: (error: any) => {
       toast({ variant: "destructive", title: "Error", description: error.message });
@@ -29,5 +41,7 @@ export const useInvoices = () => {
     isLoading: query.isLoading,
     createInvoice: createMutation.mutateAsync,
     isCreating: createMutation.isPending,
+    payInvoice: payMutation.mutateAsync,
+    isPaying: payMutation.isPending,
   };
 };

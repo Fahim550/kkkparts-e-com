@@ -9,8 +9,10 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Loader2, ArrowRightLeft, FileText, ArrowDownToLine } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Loader2, ArrowRightLeft, FileText, ArrowDownToLine, Eye } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Link } from "react-router-dom";
 
 export default function PurchaseHistoryPage() {
   const { orders, isLoading: loadingOrders } = usePurchaseOrders();
@@ -19,7 +21,7 @@ export default function PurchaseHistoryPage() {
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold tracking-tight">Purchase History & Returns</h1>
+        <h1 className="text-2xl font-bold tracking-tight">Purchase History &amp; Returns</h1>
       </div>
 
       <Tabs defaultValue="orders" className="w-full">
@@ -27,7 +29,8 @@ export default function PurchaseHistoryPage() {
           <TabsTrigger value="orders">Purchase Orders</TabsTrigger>
           <TabsTrigger value="receipts">Goods Receipts</TabsTrigger>
         </TabsList>
-        
+
+        {/* ── Purchase Orders Tab ── */}
         <TabsContent value="orders" className="mt-4">
           <div className="border rounded-md">
             <Table>
@@ -38,11 +41,16 @@ export default function PurchaseHistoryPage() {
                   <TableHead>Date</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead className="text-right">Amount</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {loadingOrders ? (
-                  <TableRow><TableCell colSpan={5} className="text-center py-4"><Loader2 className="animate-spin w-6 h-6 mx-auto" /></TableCell></TableRow>
+                  <TableRow>
+                    <TableCell colSpan={6} className="text-center py-4">
+                      <Loader2 className="animate-spin w-6 h-6 mx-auto" />
+                    </TableCell>
+                  </TableRow>
                 ) : orders?.map((order) => (
                   <TableRow key={order.id}>
                     <TableCell className="font-medium">
@@ -58,18 +66,28 @@ export default function PurchaseHistoryPage() {
                       <span className="px-2 py-1 rounded-full text-xs bg-secondary">{order.status}</span>
                     </TableCell>
                     <TableCell className="text-right font-bold">${order.total_amount}</TableCell>
+                    <TableCell className="text-right">
+                      <Link to={`/admin/purchase-orders/${order.id}`}>
+                        <Button variant="ghost" size="icon" title="View Order Details">
+                          <Eye className="w-4 h-4 text-muted-foreground" />
+                        </Button>
+                      </Link>
+                    </TableCell>
                   </TableRow>
                 ))}
                 {(!orders || orders.length === 0) && !loadingOrders && (
                   <TableRow>
-                    <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">No Purchase Orders found.</TableCell>
+                    <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                      No Purchase Orders found.
+                    </TableCell>
                   </TableRow>
                 )}
               </TableBody>
             </Table>
           </div>
         </TabsContent>
-        
+
+        {/* ── Goods Receipts Tab ── */}
         <TabsContent value="receipts" className="mt-4">
           <div className="border rounded-md">
             <Table>
@@ -80,11 +98,16 @@ export default function PurchaseHistoryPage() {
                   <TableHead>Warehouse</TableHead>
                   <TableHead>Date</TableHead>
                   <TableHead>Type</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {loadingReceipts ? (
-                  <TableRow><TableCell colSpan={5} className="text-center py-4"><Loader2 className="animate-spin w-6 h-6 mx-auto" /></TableCell></TableRow>
+                  <TableRow>
+                    <TableCell colSpan={6} className="text-center py-4">
+                      <Loader2 className="animate-spin w-6 h-6 mx-auto" />
+                    </TableCell>
+                  </TableRow>
                 ) : receipts?.map((rec) => (
                   <TableRow key={rec.id}>
                     <TableCell className="font-medium">
@@ -107,11 +130,20 @@ export default function PurchaseHistoryPage() {
                         {rec.status === 'Return' ? 'Return' : 'Receipt'}
                       </span>
                     </TableCell>
+                    <TableCell className="text-right">
+                      <Link to={`/admin/goods-receive/${rec.id}`}>
+                        <Button variant="ghost" size="icon" title="View Receipt Details">
+                          <Eye className="w-4 h-4 text-muted-foreground" />
+                        </Button>
+                      </Link>
+                    </TableCell>
                   </TableRow>
                 ))}
                 {(!receipts || receipts.length === 0) && !loadingReceipts && (
                   <TableRow>
-                    <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">No receipts found.</TableCell>
+                    <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                      No receipts found.
+                    </TableCell>
                   </TableRow>
                 )}
               </TableBody>
