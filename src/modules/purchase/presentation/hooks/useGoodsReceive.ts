@@ -33,3 +33,11 @@ export const useGoodsReceive = () => {
     isReceiving: receiveMutation.isPending,
   };
 };
+
+export const useGoodsReceipt = (id: string) => {
+  return useQuery({
+    queryKey: ["purchase-receipts", id],
+    queryFn: () => PurchaseReceiptService.getReceiptById(id),
+    enabled: !!id,
+  });
+};

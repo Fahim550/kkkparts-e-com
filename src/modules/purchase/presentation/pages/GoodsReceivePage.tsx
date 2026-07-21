@@ -23,8 +23,9 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { ArrowDownToLine, Loader2, Plus } from "lucide-react";
+import { ArrowDownToLine, Loader2, Plus, Eye } from "lucide-react";
 import { useState, useEffect } from "react";
+import { Link } from "react-router-dom";
 import { useWarehouses } from "../../../warehouse/presentation/hooks/useWarehouses";
 import { ReceiptItemPayload } from "../../application/services/receipt.service";
 import { useGoodsReceive } from "../hooks/useGoodsReceive";
@@ -37,6 +38,12 @@ export default function GoodsReceivePage() {
 
   const [isOpen, setIsOpen] = useState(false);
   const [receiptNumber, setReceiptNumber] = useState(`REC-${Date.now()}`);
+
+  useEffect(() => {
+    if (isOpen) {
+      setReceiptNumber(`REC-${Date.now()}`);
+    }
+  }, [isOpen]);
   const [selectedPoId, setSelectedPoId] = useState("");
   const [supplierId, setSupplierId] = useState("");
   const [warehouseId, setWarehouseId] = useState("");
@@ -176,7 +183,7 @@ export default function GoodsReceivePage() {
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead>Variation ID</TableHead>
+                          <TableHead>Product</TableHead>
                           <TableHead className="text-right">Ordered Qty</TableHead>
                           <TableHead className="text-right">Qty Received</TableHead>
                           <TableHead className="text-right">Unit Cost</TableHead>
@@ -190,8 +197,11 @@ export default function GoodsReceivePage() {
                           
                           return (
                             <TableRow key={idx}>
-                              <TableCell className="font-mono text-xs">
-                                {it.variation_id}
+                              <TableCell className="text-sm">
+                                {poItem?.product_variations?.products?.name || "Unknown Product"}
+                                <span className="block text-xs text-muted-foreground font-mono">
+                                  {poItem?.product_variations?.sku || it.variation_id}
+                                </span>
                               </TableCell>
                               <TableCell className="text-right text-muted-foreground">
                                 {orderedQty}
@@ -248,12 +258,13 @@ export default function GoodsReceivePage() {
               <TableHead>Warehouse</TableHead>
               <TableHead>Date</TableHead>
               <TableHead>Status</TableHead>
+              <TableHead className="text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={6} className="text-center py-4">
+                <TableCell colSpan={7} className="text-center py-4">
                   <Loader2 className="animate-spin w-6 h-6 mx-auto" />
                 </TableCell>
               </TableRow>
@@ -280,13 +291,20 @@ export default function GoodsReceivePage() {
                       {rec.status}
                     </span>
                   </TableCell>
+                  <TableCell className="text-right">
+                    <Link to={`/admin/goods-receive/${rec.id}`}>
+                      <Button variant="ghost" size="icon">
+                        <Eye className="w-4 h-4 text-muted-foreground" />
+                      </Button>
+                    </Link>
+                  </TableCell>
                 </TableRow>
               ))
             )}
             {(!receipts || receipts.length === 0) && !isLoading && (
               <TableRow>
                 <TableCell
-                  colSpan={6}
+                  colSpan={7}
                   className="text-center py-8 text-muted-foreground"
                 >
                   No receipts found.

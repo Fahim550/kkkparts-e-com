@@ -23,6 +23,27 @@ export class PurchaseReceiptRepository {
     return data as any;
   }
 
+  static async getById(id: string): Promise<PurchaseReceipt | null> {
+    const { data, error } = await supabase
+      .from("purchase_receipts")
+      .select(`
+        *,
+        suppliers(*),
+        warehouses(*),
+        purchase_orders(id, po_number),
+        purchase_receipt_items(
+          *,
+          product_variations(id, sku, products(name)),
+          units_of_measure(id, name, abbreviation)
+        )
+      `)
+      .eq("id", id)
+      .single();
+
+    if (error) throw error;
+    return data as any;
+  }
+
   static async create(
     receipt: CreatePurchaseReceiptDTO,
     items: CreatePurchaseReceiptItemDTO[],

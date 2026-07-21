@@ -25,7 +25,7 @@ import {
 } from "@/components/ui/table";
 import { useProducts } from "@/hooks/useDatabase";
 import { Eye, FileText, Loader2, Plus } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { useSuppliers } from "../../../supplier/presentation/hooks/useSuppliers";
 import { usePurchaseOrders } from "../hooks/usePurchaseOrders";
@@ -37,6 +37,12 @@ export default function PurchaseOrdersPage() {
 
   const [isOpen, setIsOpen] = useState(false);
   const [poNumber, setPoNumber] = useState(`PO-${Date.now()}`);
+
+  useEffect(() => {
+    if (isOpen) {
+      setPoNumber(`PO-${Date.now()}`);
+    }
+  }, [isOpen]);
   const [supplierId, setSupplierId] = useState("");
   const [orderDate, setOrderDate] = useState(
     new Date().toISOString().split("T")[0],

@@ -10,6 +10,10 @@ export class PurchaseReceiptService {
     return PurchaseReceiptRepository.getAll();
   }
 
+  static async getReceiptById(id: string): Promise<PurchaseReceipt | null> {
+    return PurchaseReceiptRepository.getById(id);
+  }
+
   static async receiveGoods(receipt: CreatePurchaseReceiptDTO, items: ReceiptItemPayload[]): Promise<PurchaseReceipt> {
     if (!items || items.length === 0) {
       throw new Error("Receipt must have at least one item.");

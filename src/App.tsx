@@ -123,6 +123,9 @@ const PurchaseOrderDetailsPage = lazy(
 const GoodsReceivePage = lazy(
   () => import("./modules/purchase/presentation/pages/GoodsReceivePage.tsx"),
 );
+const GoodsReceiveDetailsPage = lazy(
+  () => import("./modules/purchase/presentation/pages/GoodsReceiveDetailsPage.tsx"),
+);
 const SupplierDuePage = lazy(
   () => import("./modules/purchase/presentation/pages/SupplierDuePage.tsx"),
 );
@@ -299,6 +302,10 @@ const App = () => (
                       <Route
                         path="goods-receive"
                         element={<GoodsReceivePage />}
+                      />
+                      <Route
+                        path="goods-receive/:id"
+                        element={<GoodsReceiveDetailsPage />}
                       />
                       <Route
                         path="supplier-due"

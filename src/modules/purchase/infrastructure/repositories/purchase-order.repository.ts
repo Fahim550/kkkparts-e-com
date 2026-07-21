@@ -8,7 +8,10 @@ export class PurchaseOrderRepository {
       .select(`
         *,
         suppliers(id, name),
-        purchase_order_items(*)
+        purchase_order_items(
+          *,
+          product_variations(id, sku, products(name))
+        )
       `)
       .order("created_at", { ascending: false });
 
