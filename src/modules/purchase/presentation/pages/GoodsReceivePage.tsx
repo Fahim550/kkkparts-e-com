@@ -23,22 +23,21 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { useProducts } from "@/hooks/useDatabase";
 import { ArrowDownToLine, Loader2, Plus } from "lucide-react";
-import { useState } from "react";
-import { useSuppliers } from "../../../supplier/presentation/hooks/useSuppliers";
+import { useState, useEffect } from "react";
 import { useWarehouses } from "../../../warehouse/presentation/hooks/useWarehouses";
 import { ReceiptItemPayload } from "../../application/services/receipt.service";
 import { useGoodsReceive } from "../hooks/useGoodsReceive";
+import { usePurchaseOrders } from "../hooks/usePurchaseOrders";
 
 export default function GoodsReceivePage() {
   const { receipts, isLoading, receiveGoods, isReceiving } = useGoodsReceive();
   const { warehouses } = useWarehouses();
-  const { suppliers } = useSuppliers();
-  const { data: products = [] } = useProducts();
+  const { orders } = usePurchaseOrders();
 
   const [isOpen, setIsOpen] = useState(false);
   const [receiptNumber, setReceiptNumber] = useState(`REC-${Date.now()}`);
+  const [selectedPoId, setSelectedPoId] = useState("");
   const [supplierId, setSupplierId] = useState("");
   const [warehouseId, setWarehouseId] = useState("");
   const [receiptDate, setReceiptDate] = useState(
@@ -46,57 +45,63 @@ export default function GoodsReceivePage() {
   );
 
   const [items, setItems] = useState<ReceiptItemPayload[]>([]);
-  const [selectedVariation, setSelectedVariation] = useState("");
-  const [qty, setQty] = useState(1);
-  const [cost, setCost] = useState(0);
 
-  const handleAddItem = () => {
-    if (!selectedVariation || qty <= 0 || cost < 0) return;
-
-    // Find the product containing the selected variation to get its base UOM
-    const product = products.find((p) =>
-      p.product_variations?.some((v: any) => v.id === selectedVariation),
-    );
-    if (!product || !product.base_uom_id) {
-      console.error("Product base UOM not found");
-      return;
+  // Auto-populate when a PO is selected
+  useEffect(() => {
+    if (selectedPoId && orders) {
+      const po = orders.find((o) => o.id === selectedPoId);
+      if (po) {
+        setSupplierId(po.supplier_id || "");
+        
+        // Map PO items to receipt items
+        if (po.purchase_order_items) {
+          const mappedItems = po.purchase_order_items.map(item => ({
+            variation_id: item.variation_id,
+            uom_id: item.uom_id,
+            quantity_received: item.quantity_ordered, // Default to ordered qty
+            unit_cost: item.unit_price,
+          }));
+          setItems(mappedItems);
+        } else {
+          setItems([]);
+        }
+      }
+    } else {
+      setSupplierId("");
+      setItems([]);
     }
-    const uom_id = product.base_uom_id;
+  }, [selectedPoId, orders]);
 
-    setItems([
-      ...items,
-      {
-        variation_id: selectedVariation,
-        uom_id,
-        quantity_received: qty,
-        unit_cost: cost,
-      },
-    ]);
-    setSelectedVariation("");
-    setQty(1);
-    setCost(0);
+  const handleQtyChange = (index: number, newQty: number) => {
+    const newItems = [...items];
+    newItems[index].quantity_received = newQty;
+    setItems(newItems);
   };
 
   const handleReceive = async () => {
-    if (!supplierId || !warehouseId || items.length === 0) return;
+    if (!supplierId || !warehouseId || items.length === 0 || !selectedPoId) return;
     try {
       await receiveGoods({
         receipt: {
           supplier_id: supplierId,
           warehouse_id: warehouseId,
+          purchase_order_id: selectedPoId,
           receipt_number: receiptNumber,
           receipt_date: receiptDate,
-          status: "Completed", // Goods are received instantly in this flow
+          status: "Completed",
         },
         items,
       });
       setIsOpen(false);
+      setSelectedPoId("");
       setItems([]);
       setReceiptNumber(`REC-${Date.now()}`);
     } catch (e) {
       // handled
     }
   };
+
+  const pendingOrders = orders?.filter(o => o.status !== "Received") || [];
 
   return (
     <div className="space-y-6">
@@ -112,35 +117,20 @@ export default function GoodsReceivePage() {
           </DialogTrigger>
           <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle>Receive Goods & Create FIFO Lots</DialogTitle>
+              <DialogTitle>Receive Goods Against Purchase Order</DialogTitle>
             </DialogHeader>
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label>Receipt Number</Label>
-                  <Input
-                    value={receiptNumber}
-                    onChange={(e) => setReceiptNumber(e.target.value)}
-                  />
-                </div>
-                <div>
-                  <Label>Receipt Date</Label>
-                  <Input
-                    type="date"
-                    value={receiptDate}
-                    onChange={(e) => setReceiptDate(e.target.value)}
-                  />
-                </div>
-                <div>
-                  <Label>Supplier</Label>
-                  <Select value={supplierId} onValueChange={setSupplierId}>
+                  <Label>Purchase Order</Label>
+                  <Select value={selectedPoId} onValueChange={setSelectedPoId}>
                     <SelectTrigger>
-                      <SelectValue placeholder="Select supplier" />
+                      <SelectValue placeholder="Select PO" />
                     </SelectTrigger>
                     <SelectContent>
-                      {suppliers?.map((s) => (
-                        <SelectItem key={s.id} value={s.id}>
-                          {s.name}
+                      {pendingOrders.map((o) => (
+                        <SelectItem key={o.id} value={o.id}>
+                          {o.po_number}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -161,93 +151,82 @@ export default function GoodsReceivePage() {
                     </SelectContent>
                   </Select>
                 </div>
-              </div>
-
-              <div className="border p-4 rounded-md space-y-4 bg-muted/20">
-                <h3 className="font-semibold">Receive Items (FIFO Costing)</h3>
-                <div className="flex gap-2 items-end">
-                  <div className="flex-1">
-                    <Label>Product Variation</Label>
-                    <Select
-                      value={selectedVariation}
-                      onValueChange={setSelectedVariation}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select variation" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {products?.map((p) =>
-                          p.product_variations?.map((v: any) => (
-                            <SelectItem key={v.id} value={v.id}>
-                              {p.name} - {v.sku}
-                            </SelectItem>
-                          )),
-                        )}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="w-24">
-                    <Label>Qty</Label>
-                    <Input
-                      type="number"
-                      min="1"
-                      value={qty}
-                      onChange={(e) => setQty(Number(e.target.value))}
-                    />
-                  </div>
-                  <div className="w-32">
-                    <Label>Unit Cost</Label>
-                    <Input
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      value={cost}
-                      onChange={(e) => setCost(Number(e.target.value))}
-                    />
-                  </div>
-                  <Button type="button" onClick={handleAddItem}>
-                    Add
-                  </Button>
+                <div>
+                  <Label>Receipt Number</Label>
+                  <Input
+                    value={receiptNumber}
+                    onChange={(e) => setReceiptNumber(e.target.value)}
+                  />
                 </div>
-
-                {items.length > 0 && (
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Variation ID</TableHead>
-                        <TableHead className="text-right">
-                          Qty Received
-                        </TableHead>
-                        <TableHead className="text-right">Unit Cost</TableHead>
-                        <TableHead className="text-right">Total Val</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {items.map((it, idx) => (
-                        <TableRow key={idx}>
-                          <TableCell className="font-mono text-xs">
-                            {it.variation_id}
-                          </TableCell>
-                          <TableCell className="text-right">
-                            {it.quantity_received}
-                          </TableCell>
-                          <TableCell className="text-right">
-                            ${it.unit_cost}
-                          </TableCell>
-                          <TableCell className="text-right font-bold">
-                            ${it.quantity_received * it.unit_cost}
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                )}
+                <div>
+                  <Label>Receipt Date</Label>
+                  <Input
+                    type="date"
+                    value={receiptDate}
+                    onChange={(e) => setReceiptDate(e.target.value)}
+                  />
+                </div>
               </div>
+
+              {selectedPoId && (
+                <div className="border p-4 rounded-md space-y-4 bg-muted/20">
+                  <h3 className="font-semibold">Items from Purchase Order</h3>
+                  
+                  {items.length > 0 ? (
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Variation ID</TableHead>
+                          <TableHead className="text-right">Ordered Qty</TableHead>
+                          <TableHead className="text-right">Qty Received</TableHead>
+                          <TableHead className="text-right">Unit Cost</TableHead>
+                          <TableHead className="text-right">Total Val</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {items.map((it, idx) => {
+                          const poItem = orders?.find(o => o.id === selectedPoId)?.purchase_order_items?.find(poi => poi.variation_id === it.variation_id);
+                          const orderedQty = poItem?.quantity_ordered || 0;
+                          
+                          return (
+                            <TableRow key={idx}>
+                              <TableCell className="font-mono text-xs">
+                                {it.variation_id}
+                              </TableCell>
+                              <TableCell className="text-right text-muted-foreground">
+                                {orderedQty}
+                              </TableCell>
+                              <TableCell className="text-right">
+                                <Input
+                                  type="number"
+                                  min="0"
+                                  max={orderedQty}
+                                  className="w-24 ml-auto text-right"
+                                  value={it.quantity_received}
+                                  onChange={(e) => handleQtyChange(idx, Number(e.target.value))}
+                                />
+                              </TableCell>
+                              <TableCell className="text-right">
+                                ${it.unit_cost}
+                              </TableCell>
+                              <TableCell className="text-right font-bold">
+                                ${it.quantity_received * it.unit_cost}
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })}
+                      </TableBody>
+                    </Table>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">No items found in this Purchase Order.</p>
+                  )}
+                </div>
+              )}
 
               <Button
                 onClick={handleReceive}
                 className="w-full"
-                disabled={isReceiving || items.length === 0 || !warehouseId}
+                disabled={isReceiving || items.length === 0 || !warehouseId || !selectedPoId}
               >
                 {isReceiving && (
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />
@@ -264,6 +243,7 @@ export default function GoodsReceivePage() {
           <TableHeader>
             <TableRow>
               <TableHead>Receipt Number</TableHead>
+              <TableHead>PO Reference</TableHead>
               <TableHead>Supplier</TableHead>
               <TableHead>Warehouse</TableHead>
               <TableHead>Date</TableHead>
@@ -273,7 +253,7 @@ export default function GoodsReceivePage() {
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={5} className="text-center py-4">
+                <TableCell colSpan={6} className="text-center py-4">
                   <Loader2 className="animate-spin w-6 h-6 mx-auto" />
                 </TableCell>
               </TableRow>
@@ -286,6 +266,8 @@ export default function GoodsReceivePage() {
                       {rec.receipt_number}
                     </div>
                   </TableCell>
+                  {/* @ts-ignore */}
+                  <TableCell>{rec.purchase_orders?.po_number || "N/A"}</TableCell>
                   {/* @ts-ignore */}
                   <TableCell>{rec.suppliers?.name}</TableCell>
                   {/* @ts-ignore */}
@@ -304,12 +286,11 @@ export default function GoodsReceivePage() {
             {(!receipts || receipts.length === 0) && !isLoading && (
               <TableRow>
                 <TableCell
-                  colSpan={5}
+                  colSpan={6}
                   className="text-center py-8 text-muted-foreground"
                 >
                   No receipts found.
                 </TableCell>
-                TableRow{" "}
               </TableRow>
             )}
           </TableBody>

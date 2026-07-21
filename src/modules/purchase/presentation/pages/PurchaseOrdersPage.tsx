@@ -24,8 +24,9 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useProducts } from "@/hooks/useDatabase";
-import { FileText, Loader2, Plus } from "lucide-react";
+import { Eye, FileText, Loader2, Plus } from "lucide-react";
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import { useSuppliers } from "../../../supplier/presentation/hooks/useSuppliers";
 import { usePurchaseOrders } from "../hooks/usePurchaseOrders";
 
@@ -48,6 +49,7 @@ export default function PurchaseOrdersPage() {
       uom_id: string;
       quantity_ordered: number;
       unit_price: number;
+      display_name?: string;
     }[]
   >([]);
   const [selectedVariation, setSelectedVariation] = useState("");
@@ -56,11 +58,13 @@ export default function PurchaseOrdersPage() {
 
   const handleAddItem = () => {
     if (!selectedVariation || qty <= 0 || price < 0) return;
-    // Find the product containing the selected variation to get its base UOM
     const product = products.find((p) =>
       p.product_variations?.some((v: any) => v.id === selectedVariation),
     );
     if (!product || !product.base_uom_id) return;
+    const variation = product.product_variations?.find(
+      (v: any) => v.id === selectedVariation,
+    );
     const uom_id = product.base_uom_id;
     setItems([
       ...items,
@@ -69,6 +73,7 @@ export default function PurchaseOrdersPage() {
         uom_id,
         quantity_ordered: qty,
         unit_price: price,
+        display_name: `${product.name} - ${variation?.sku || ""}`,
       },
     ]);
     setSelectedVariation("");
@@ -86,7 +91,7 @@ export default function PurchaseOrdersPage() {
           order_date: orderDate,
           status: "Draft",
         },
-        items,
+        items: items.map(({ display_name, ...rest }) => rest),
       });
       setIsOpen(false);
       setItems([]);
@@ -195,7 +200,7 @@ export default function PurchaseOrdersPage() {
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>Variation ID</TableHead>
+                        <TableHead>Product</TableHead>
                         <TableHead className="text-right">Qty</TableHead>
                         <TableHead className="text-right">Price</TableHead>
                         <TableHead className="text-right">Total</TableHead>
@@ -204,8 +209,8 @@ export default function PurchaseOrdersPage() {
                     <TableBody>
                       {items.map((it, idx) => (
                         <TableRow key={idx}>
-                          <TableCell className="font-mono text-xs">
-                            {it.variation_id}
+                          <TableCell className="text-sm">
+                            {it.display_name || it.variation_id}
                           </TableCell>
                           <TableCell className="text-right">
                             {it.quantity_ordered}
@@ -247,12 +252,13 @@ export default function PurchaseOrdersPage() {
               <TableHead>Date</TableHead>
               <TableHead>Status</TableHead>
               <TableHead className="text-right">Amount</TableHead>
+              <TableHead className="text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={5} className="text-center py-4">
+                <TableCell colSpan={6} className="text-center py-4">
                   <Loader2 className="animate-spin w-6 h-6 mx-auto" />
                 </TableCell>
               </TableRow>
@@ -278,13 +284,20 @@ export default function PurchaseOrdersPage() {
                   <TableCell className="text-right font-bold">
                     ${order.total_amount}
                   </TableCell>
+                  <TableCell className="text-right">
+                    <Link to={`/admin/purchase-orders/${order.id}`}>
+                      <Button variant="ghost" size="icon">
+                        <Eye className="w-4 h-4 text-muted-foreground" />
+                      </Button>
+                    </Link>
+                  </TableCell>
                 </TableRow>
               ))
             )}
             {(!orders || orders.length === 0) && !isLoading && (
               <TableRow>
                 <TableCell
-                  colSpan={5}
+                  colSpan={6}
                   className="text-center py-8 text-muted-foreground"
                 >
                   No Purchase Orders found.

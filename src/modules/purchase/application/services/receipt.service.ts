@@ -37,10 +37,12 @@ export class PurchaseReceiptService {
       });
     }
 
-    // If linked to a PO, we might want to update PO status to 'Received' or 'Partially Received'
-    // This is optional but good practice. For now, we rely on the PO service if needed.
+    if (createdReceipt.purchase_order_id) {
+      const { PurchaseOrderService } = await import("./purchase-order.service");
+      await PurchaseOrderService.updateOrderStatus(createdReceipt.purchase_order_id, "Received");
+    }
 
-    if (createdReceipt.status === 'Received') {
+    if (createdReceipt.status === 'Completed' || createdReceipt.status === 'Received') {
       const { AccountingEngine } = await import("../../../accounting/application/services/accounting.engine");
       await AccountingEngine.postPurchaseReceipt(createdReceipt.id, createdReceipt.total_amount, createdReceipt.receipt_number);
     }

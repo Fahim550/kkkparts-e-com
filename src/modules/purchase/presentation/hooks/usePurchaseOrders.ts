@@ -43,3 +43,11 @@ export const usePurchaseOrders = () => {
     isCreating: createMutation.isPending,
   };
 };
+
+export const usePurchaseOrder = (id: string) => {
+  return useQuery({
+    queryKey: ["purchase-orders", id],
+    queryFn: () => PurchaseOrderService.getOrderById(id),
+    enabled: !!id,
+  });
+};

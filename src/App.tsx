@@ -117,6 +117,9 @@ const DiscountRulesManager = lazy(
 const PurchaseOrdersPage = lazy(
   () => import("./modules/purchase/presentation/pages/PurchaseOrdersPage.tsx"),
 );
+const PurchaseOrderDetailsPage = lazy(
+  () => import("./modules/purchase/presentation/pages/PurchaseOrderDetailsPage.tsx"),
+);
 const GoodsReceivePage = lazy(
   () => import("./modules/purchase/presentation/pages/GoodsReceivePage.tsx"),
 );
@@ -288,6 +291,10 @@ const App = () => (
                       <Route
                         path="purchase-orders"
                         element={<PurchaseOrdersPage />}
+                      />
+                      <Route
+                        path="purchase-orders/:id"
+                        element={<PurchaseOrderDetailsPage />}
                       />
                       <Route
                         path="goods-receive"
