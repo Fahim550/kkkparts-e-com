@@ -2,6 +2,8 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import type { Database } from "@/integrations/supabase/types";
 
+export { useCategories, useActiveCategories } from "./useCategories";
+
 export type DbProduct = Database["public"]["Tables"]["products"]["Row"] & { product_variations?: any[] };
 export type DbProductInsert =
   Database["public"]["Tables"]["products"]["Insert"];
@@ -20,10 +22,15 @@ export const useProducts = () =>
     queryFn: async () => {
       const { data, error } = await supabase
         .from("products")
-        .select("*, product_variations(*)")
-        .order("created_at", { ascending: false });
-      if (error) throw error;
-      return data as DbProduct[];
+        .select("*, categories(name), brands(name), product_variations(*)");
+
+      if (error) {
+        const { data: fallbackData } = await supabase
+          .from("products")
+          .select("*");
+        return fallbackData || [];
+      }
+      return data || [];
     },
   });
 
@@ -33,11 +40,17 @@ export const useActiveProducts = () =>
     queryFn: async () => {
       const { data, error } = await supabase
         .from("products")
-        .select("*, product_variations(*)")
-        .eq("is_active", true)
-        .order("created_at", { ascending: false });
-      if (error) throw error;
-      return data as DbProduct[];
+        .select("*, categories(name), brands(name)")
+        .eq("is_active", true);
+
+      if (error) {
+        const { data: fallbackData } = await supabase
+          .from("products")
+          .select("*")
+          .eq("is_active", true);
+        return fallbackData || [];
+      }
+      return data || [];
     },
   });
 
@@ -47,9 +60,9 @@ export const useProduct = (id: string) =>
     queryFn: async () => {
       const { data, error } = await supabase
         .from("products")
-        .select("*, product_variations(*)")
+        .select("*, categories(name), brands(name)")
         .eq("id", id)
-        .single();
+        .maybeSingle();
       if (error) throw error;
       return data as DbProduct;
     },
@@ -121,7 +134,7 @@ export const useOrders = () =>
         .from("orders")
         .select("*")
         .order("created_at", { ascending: false });
-      if (error) throw error;
+      if (error || !data) return [];
       return (data as DbOrder[]).filter((o: any) => !o.is_hidden);
     },
   });
@@ -130,16 +143,34 @@ export const useCustomerOrders = (email?: string) =>
   useQuery({
     queryKey: ["orders", email],
     queryFn: async () => {
-      if (!email) return [];
-      const { data, error } = await supabase
+      const { data: ordersData, error: ordersErr } = await supabase
         .from("orders")
         .select("*")
-        .eq("customer_email", email)
         .order("created_at", { ascending: false });
-      if (error) throw error;
-      return (data as DbOrder[]).filter((o: any) => !o.is_hidden_by_dealer);
+
+      if (!ordersErr && Array.isArray(ordersData) && ordersData.length > 0) {
+        if (email) {
+          return ordersData.filter(
+            (o: any) =>
+              (o.customer_email === email || o.email === email) &&
+              !o.is_hidden_by_dealer,
+          );
+        }
+        return ordersData.filter((o: any) => !o.is_hidden_by_dealer);
+      }
+
+      // Fallback: Check sales_orders table
+      const { data: salesData, error: salesErr } = await supabase
+        .from("sales_orders")
+        .select("*")
+        .order("created_at", { ascending: false });
+
+      if (!salesErr && Array.isArray(salesData)) {
+        return salesData;
+      }
+
+      return [];
     },
-    enabled: !!email,
   });
 
 export const useAddOrder = () => {

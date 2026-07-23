@@ -5,12 +5,33 @@ import React, {
   useEffect,
   useCallback,
 } from "react";
-import { Product } from "@/data/products";
+// Shared enriched product shape used in the cart (compatible with DealerDashboard)
+export interface CartProduct {
+  id: string;
+  name: string;
+  brand: string;
+  price: number;
+  originalPrice?: number;
+  dealerPrice?: number;
+  dealerOriginalPrice?: number;
+  category: string;
+  image: string;
+  images?: string[];
+  sizes?: number[];
+  colors?: string[];
+  description?: string;
+  rating?: number;
+  reviews?: number;
+  stock?: number;
+  isTrending?: boolean;
+  isNew?: boolean;
+  isOffer?: boolean;
+}
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
 
 export interface CartItem {
-  product: Product;
+  product: CartProduct;
   quantity: number;
   size: number;
   color: string;
@@ -27,7 +48,7 @@ interface CartContextType {
   items: CartItem[];
   wishlist: string[];
   addToCart: (
-    product: Product,
+    product: CartProduct,
     size: number,
     color: string,
     quantity?: number,
@@ -90,7 +111,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const addToCart = useCallback(
     (
-      product: Product,
+      product: CartProduct,
       size: number,
       color: string,
       quantity: number = 1,

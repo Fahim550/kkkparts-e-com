@@ -171,6 +171,9 @@ const CareersPage = lazy(() => import("./pages/CareersPage.tsx"));
 const NotFound = lazy(() => import("./pages/NotFound.tsx"));
 const DealerLoginPage = lazy(() => import("./pages/DealerLoginPage.tsx"));
 const DealerDashboard = lazy(() => import("./pages/DealerDashboard.tsx"));
+const DealerOrdersPage = lazy(
+  () => import("./pages/dealer/DealerOrdersPage.tsx"),
+);
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -220,6 +223,10 @@ const App = () => (
                     <Route
                       path="/dealer/dashboard"
                       element={<DealerDashboard />}
+                    />
+                    <Route
+                      path="/dealer/orders"
+                      element={<DealerOrdersPage />}
                     />
 
                     <Route path="/admin/login" element={<AdminLoginPage />} />
