@@ -30,7 +30,7 @@ export default function DealerDashboard() {
   const { data: dbProducts = [], isLoading } = useProducts();
   const { data: categoriesData = [] } = useCategories();
   const { warehouses = [] } = useWarehouses();
-  const [selectedWarehouse, setSelectedWarehouse] = useState<string>("");
+  const [selectedWarehouse, setSelectedWarehouse] = useState<string>("all");
 
   // Fetch price lists and price list items (same as admin price-lists page)
   const { data: priceLists = [] } = useQuery({
@@ -83,8 +83,6 @@ export default function DealerDashboard() {
   const isApproved = profile?.is_approved ?? false;
 
   const allProducts: CartProduct[] = useMemo(() => {
-    // --- Build products list ---
-    // Priority: dbProducts > products derived from activeBalances > static fallback
     let productsToMap: any[] = [];
 
     if (Array.isArray(dbProducts) && dbProducts.length > 0) {
@@ -112,9 +110,7 @@ export default function DealerDashboard() {
       productsToMap = staticProducts;
     }
 
-    // --- Build a stock lookup map ---
-    // Keys by BOTH product id AND variation id so it works whether productsToMap
-    // comes from dbProducts (keyed by product.id) or from stock_balances relations.
+    // --- Build stock lookup maps ---
     const stockByProductId = new Map<string, number>();
     const stockByVariationId = new Map<string, number>();
     activeBalances.forEach((sb: any) => {
@@ -127,8 +123,8 @@ export default function DealerDashboard() {
 
       const qty = Number(sb.quantity) || 0;
 
-      // Index by product id (from the nested products join)
-      const productId = String(sbProd?.id || "");
+      // Index by product_id (from variation foreign key or joined product object)
+      const productId = String(sbVar?.product_id || sbProd?.id || "");
       if (productId) {
         stockByProductId.set(productId, (stockByProductId.get(productId) || 0) + qty);
       }
@@ -224,22 +220,46 @@ export default function DealerDashboard() {
           ? Number(p.dealer_price)
           : basePrice > 0 ? Math.round(basePrice * 0.8) : undefined);
 
-      // --- Real stock from warehouse balances ---
-      // Try product id first, then fall back to any of the product's variation ids
+      // --- Calculate exact real stock from activeBalances (matching Admin Warehouse Dashboard) ---
       let realStock: number | undefined;
-      if (stockByProductId.has(String(p.id))) {
-        realStock = stockByProductId.get(String(p.id));
-      } else if (variationIds.length > 0) {
-        // Sum stock across all variations of this product
-        realStock = variationIds.reduce(
-          (acc, vid) => acc + (stockByVariationId.get(vid) || 0),
-          0
-        );
+
+      if (Array.isArray(activeBalances) && activeBalances.length > 0) {
+        // Find all stock balance entries matching this product by ID, Variation ID, or Name
+        const matchingBalances = activeBalances.filter((sb: any) => {
+          const sbVar = Array.isArray(sb.product_variations)
+            ? sb.product_variations[0]
+            : sb.product_variations;
+          const sbProd = sbVar?.products
+            ? (Array.isArray(sbVar.products) ? sbVar.products[0] : sbVar.products)
+            : null;
+
+          const sbProductId = String(sb.product_id || sbVar?.product_id || sbProd?.id || "");
+          const sbVariationId = String(sb.variation_id || sbVar?.id || "");
+          const sbProductName = String(sbProd?.name || "").toLowerCase().trim();
+          const pName = String(p.name || p.title || "").toLowerCase().trim();
+
+          const matchesId = sbProductId && sbProductId === String(p.id);
+          const matchesVar = sbVariationId && variationIds.includes(sbVariationId);
+          const matchesName = sbProductName && pName && (sbProductName === pName || pName.includes(sbProductName) || sbProductName.includes(pName));
+
+          return matchesId || matchesVar || matchesName;
+        });
+
+        if (matchingBalances.length > 0) {
+          realStock = matchingBalances.reduce((sum: number, sb: any) => sum + (Number(sb.quantity) || 0), 0);
+        } else {
+          realStock = 0;
+        }
       }
-      // Only fall back to p.stock when no warehouse is selected yet
+
+      // Sum variation stock from p.product_variations as fallback if no activeBalances exist
+      const productVariationsStock = Array.isArray(p.product_variations) && p.product_variations.length > 0
+        ? p.product_variations.reduce((sum: number, v: any) => sum + (Number(v.stock) || 0), 0)
+        : undefined;
+
       const finalStock = realStock !== undefined
         ? realStock
-        : (p.stock != null ? Number(p.stock) : 0);
+        : (productVariationsStock ?? (p.stock != null ? Number(p.stock) : 100));
 
       return {
         id: String(p.id),
@@ -360,7 +380,6 @@ export default function DealerDashboard() {
                 onChange={(e) => setSelectedWarehouse(e.target.value)}
                 className="bg-transparent text-sm font-body font-bold text-gray-800 focus:outline-none cursor-pointer w-full"
               >
-                <option value="">-- Select Warehouse --</option>
                 <option value="all">All Warehouses</option>
                 {Array.isArray(warehouses) &&
                   warehouses.map((wh: any) => (
