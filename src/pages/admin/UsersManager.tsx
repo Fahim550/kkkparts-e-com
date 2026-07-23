@@ -31,15 +31,18 @@ const UsersManager = () => {
   const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
 
-  const { data: users = [], isLoading } = useQuery({
+  const { data: users = [], isLoading, error } = useQuery({
     queryKey: ["dealers_list"],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("dealers")
         .select("*")
         .order("created_at", { ascending: false });
-      if (error) throw error;
-      return data as DbUser[];
+      if (error) {
+        console.error("Error fetching dealers list:", error);
+        throw error;
+      }
+      return (data || []) as DbUser[];
     },
   });
 
@@ -143,6 +146,14 @@ const UsersManager = () => {
       <p className="text-center py-10 text-muted-foreground">
         Loading users...
       </p>
+    );
+
+  if (error)
+    return (
+      <div className="bg-red-50 border border-red-200 text-red-700 p-6 rounded-2xl text-center my-6">
+        <h3 className="font-bold text-lg mb-1">Failed to load dealers</h3>
+        <p className="text-sm">{(error as Error).message || "An unexpected error occurred while communicating with Supabase."}</p>
+      </div>
     );
 
   return (

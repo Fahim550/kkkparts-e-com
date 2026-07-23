@@ -110,6 +110,24 @@ const DealerLoginPage = () => {
 
         if (error) throw error;
 
+        if (data.user) {
+          const { error: insertError } = await supabase.from("dealers").upsert({
+            id: data.user.id,
+            full_name: name,
+            email: authEmail,
+            phone: phone,
+            sponsored_details: sponsoredDetails,
+            area: area,
+            license_number: licenseNumber,
+            is_approved: false,
+            plain_password: password,
+          });
+
+          if (insertError) {
+            console.error("Failed to insert dealer record into dealers table:", insertError);
+          }
+        }
+
         toast.success("Registration successful! Welcome to the dealer portal.");
         navigate("/dealer/dashboard");
       }

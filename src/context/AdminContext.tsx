@@ -1,9 +1,9 @@
 import React, {
   createContext,
-  useContext,
-  useState,
-  useEffect,
   useCallback,
+  useContext,
+  useEffect,
+  useState,
 } from "react";
 
 export interface AdminProduct {
@@ -98,15 +98,15 @@ interface AdminContextType {
 }
 
 const defaultSettings: SiteSettings = {
-  siteName: "Legacy-29",
-  siteDescription: "Premium sports shoes in Dubai",
-  metaTitle: "Legacy-29 - Premium Sports Shoes in Dubai",
+  siteName: "kkkparts.com",
+  siteDescription: "Premium Car Parts in Oman",
+  metaTitle: "kkkparts.com - Premium Car Parts in Oman",
   metaDescription:
-    "Shop authentic Nike, Adidas, Puma sports shoes in Dubai. Fast delivery and COD.",
+    "Shop authentic car parts in Oman. Fast delivery and COD.",
   whatsappNumber: "+96512345678",
-  instagramHandle: "legacy29",
+  instagramHandle: "kkkparts",
   freeShippingThreshold: 30,
-  currency: "BDT",
+  currency: "OMR",
 };
 
 const defaultOrders: Order[] = [

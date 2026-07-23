@@ -35,7 +35,7 @@ export const printInvoice = (order: DbOrder) => {
 </head>
 <body>
   <div class="header">
-    <div class="logo"><img src="/logo.png" alt="Legacy-29" style="max-height: 40px; width: auto;" onerror="this.style.display='none'; this.nextSibling.style.display='block';" /><span style="display:none;">kkkparts.com</span></div>
+    <div class="logo"><img src="/logo.png" alt="kkkparts" style="max-height: 40px; width: auto;" onerror="this.style.display='none'; this.nextSibling.style.display='block';" /><span style="display:none;">kkkparts.com</span></div>
     <div class="invoice-title">
       <h2>Invoice</h2>
       <p>${order.order_number} · ${new Date(order.created_at).toLocaleDateString("en-GB")}</p>
