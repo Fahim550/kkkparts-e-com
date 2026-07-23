@@ -1,17 +1,17 @@
-import { useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-  Search,
-  User as UserIcon,
-  Mail,
-  Phone,
-  Lock,
-  Trash2,
-  MapPin,
-  CreditCard,
   Calendar,
+  CreditCard,
+  Lock,
+  Mail,
+  MapPin,
+  Phone,
+  Search,
+  Trash2,
+  User as UserIcon,
 } from "lucide-react";
+import { useState } from "react";
 import { toast } from "sonner";
 
 interface DbUser {
@@ -147,11 +147,6 @@ const UsersManager = () => {
 
   return (
     <div>
-      <div>
-        <h1>
-          <button>hello button</button>
-        </h1>
-      </div>
       <div className="flex items-center justify-between mb-8">
         <div>
           <h1 className="font-heading text-3xl font-bold uppercase tracking-wider text-foreground">

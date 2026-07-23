@@ -32,9 +32,10 @@ const useReceivableAccounts = () => {
   return useQuery({
     queryKey: ["receivable-accounts"],
     queryFn: async () => {
-      const { data } = await supabase.from("chart_of_accounts").select("*").eq("account_type", "Asset"); // Ideally filter by sub_type 'Accounts Receivable'
+      const { data } = await supabase.from("chart_of_accounts").select("*").eq("account_type", "Asset");
       return data || [];
-    }
+    },
+    staleTime: 1000 * 60 * 10,
   });
 };
 

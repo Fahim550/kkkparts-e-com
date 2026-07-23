@@ -1,7 +1,8 @@
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Briefcase, FileText, Trash2 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { toast } from "sonner";
 
 const statusColors: Record<string, string> = {
@@ -15,30 +16,21 @@ const statusColors: Record<string, string> = {
 const statuses = ["pending", "reviewed", "interviewed", "rejected", "hired"];
 
 export default function JobApplicationsManager() {
-  const [applications, setApplications] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
   const [statusFilter, setStatusFilter] = useState("all");
 
-  useEffect(() => {
-    fetchApplications();
-  }, []);
-
-  const fetchApplications = async () => {
-    try {
+  const { data: applications = [], isLoading: loading } = useQuery({
+    queryKey: ["job_applications"],
+    queryFn: async () => {
       const { data, error } = await supabase
         .from("job_applications")
         .select("*")
         .order("created_at", { ascending: false });
-
       if (error) throw error;
-      setApplications(data || []);
-    } catch (error: any) {
-      toast.error("Error fetching applications");
-      console.error(error);
-    } finally {
-      setLoading(false);
-    }
-  };
+      return data || [];
+    },
+    staleTime: 1000 * 60 * 5,
+  });
 
   const filtered = useMemo(() => {
     if (statusFilter === "all") return applications;
@@ -61,12 +53,7 @@ export default function JobApplicationsManager() {
         .eq("id", id);
 
       if (error) throw error;
-
-      setApplications((apps) =>
-        apps.map((app) =>
-          app.id === id ? { ...app, status: newStatus } : app,
-        ),
-      );
+      queryClient.invalidateQueries({ queryKey: ["job_applications"] });
       toast.success("Status updated");
     } catch (error: any) {
       toast.error("Failed to update status");
@@ -88,7 +75,7 @@ export default function JobApplicationsManager() {
         .eq("id", id);
 
       if (error) throw error;
-      setApplications((apps) => apps.filter((app) => app.id !== id));
+      queryClient.invalidateQueries({ queryKey: ["job_applications"] });
       toast.success("Application deleted");
     } catch (error: any) {
       toast.error("Failed to delete application");

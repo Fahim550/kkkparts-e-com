@@ -10,6 +10,7 @@ export const useCustomers = () => {
   const query = useQuery({
     queryKey: ["customers"],
     queryFn: CustomerService.getAllCustomers,
+    staleTime: 1000 * 60 * 5,
   });
 
   const createMutation = useMutation({

@@ -6,7 +6,6 @@ import {
   Activity,
   BarChart3,
   BookOpen,
-  Briefcase,
   Car,
   ChevronDown,
   ChevronLeft,
@@ -36,7 +35,7 @@ import {
   Truck,
   UserCog,
   Users,
-  UserSearch,
+  UserSearch
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Link, Outlet, useLocation } from "react-router-dom";
@@ -111,7 +110,7 @@ const navCategories = [
       { path: "/admin/customers", label: "Customers", icon: Users },
       { path: "/admin/suppliers", label: "Suppliers", icon: Users },
       { path: "/admin/users", label: "Dealers Details", icon: UserCog },
-      { path: "/admin/job-applications", label: "Job Applications", icon: Briefcase },
+      // { path: "/admin/job-applications", label: "Job Applications", icon: Briefcase },
     ]
   },
   {

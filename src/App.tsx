@@ -172,7 +172,14 @@ const NotFound = lazy(() => import("./pages/NotFound.tsx"));
 const DealerLoginPage = lazy(() => import("./pages/DealerLoginPage.tsx"));
 const DealerDashboard = lazy(() => import("./pages/DealerDashboard.tsx"));
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 1000 * 60 * 5, // 5 minutes cache
+      refetchOnWindowFocus: false,
+    },
+  },
+});
 
 // Page loading fallback
 const PageLoader = () => (
@@ -343,7 +350,6 @@ const App = () => (
                         path="visitor-analytics"
                         element={<VisitorAnalyticsPage />}
                       />
-                      <Route path="customers" element={<CustomersPage />} />
                       <Route path="users" element={<UsersManager />} />
                       <Route path="settings" element={<SettingsPage />} />
                       <Route

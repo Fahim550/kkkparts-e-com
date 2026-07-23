@@ -13,11 +13,13 @@ export const useSuppliers = () => {
   const query = useQuery({
     queryKey: ["suppliers", searchQuery],
     queryFn: () => SupplierService.searchSuppliers(searchQuery),
+    staleTime: 1000 * 60 * 5,
   });
 
   const accountsQuery = useQuery({
     queryKey: ["payable-accounts"],
     queryFn: SupplierService.getPayableAccounts,
+    staleTime: 1000 * 60 * 10,
   });
 
   const createMutation = useMutation({
