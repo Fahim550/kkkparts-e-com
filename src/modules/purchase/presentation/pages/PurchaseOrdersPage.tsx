@@ -15,6 +15,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 import {
   Table,
   TableBody,
@@ -23,10 +24,19 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { useProducts } from "@/hooks/useDatabase";
+import { useToast } from "@/hooks/use-toast";
+import { useAddProduct, useProducts } from "@/hooks/useDatabase";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useQueryClient } from "@tanstack/react-query";
 import { Eye, FileText, Loader2, Plus, Search, X } from "lucide-react";
 import { useEffect, useState } from "react";
+import { useForm } from "react-hook-form";
 import { Link } from "react-router-dom";
+import { z } from "zod";
+import { useCategories } from "../../../product/presentation/hooks/useCategories";
+import { useCreateProductVariation } from "../../../product/presentation/hooks/useProducts";
+import { useUOMs } from "../../../product/presentation/hooks/useUOMs";
+import { SupplierSchema } from "../../../supplier/domain/validations";
 import { useSuppliers } from "../../../supplier/presentation/hooks/useSuppliers";
 import { usePurchaseOrders } from "../hooks/usePurchaseOrders";
 
@@ -48,8 +58,101 @@ export default function PurchaseOrdersPage() {
 
   const { orders, isLoading, createOrder, isCreating } =
     usePurchaseOrders(filters);
-  const { suppliers } = useSuppliers();
-  const { data: products = [] } = useProducts();
+  const { suppliers, createSupplier, payableAccounts, isCreating: isCreatingSupplier } = useSuppliers();
+  const { data: products = [], refetch: refetchProducts } = useProducts();
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  // ── Quick-create: Supplier ──
+  const [supplierDialogOpen, setSupplierDialogOpen] = useState(false);
+  const supplierForm = useForm<z.infer<typeof SupplierSchema>>({
+    resolver: zodResolver(SupplierSchema),
+    defaultValues: { is_active: true, name: "", contact_email: "", contact_phone: "", address: "", tax_id: "" },
+  });
+  const handleQuickCreateSupplier = async (data: z.infer<typeof SupplierSchema>) => {
+    try {
+      const newSupplier = await createSupplier({
+        ...data,
+        contact_email: data.contact_email || null,
+        contact_phone: data.contact_phone || null,
+        address: data.address || null,
+        tax_id: data.tax_id || null,
+      });
+      setSupplierId((newSupplier as any).id);
+      setSupplierDialogOpen(false);
+      supplierForm.reset();
+    } catch (e: any) {
+      toast({ variant: "destructive", title: "Error", description: e.message });
+    }
+  };
+
+  // ── Quick-create: Product ──
+  const [productDialogOpen, setProductDialogOpen] = useState(false);
+  const [newItemCode, setNewItemCode] = useState("");
+  const [newProductName, setNewProductName] = useState("");
+  const [newProductDesc, setNewProductDesc] = useState("");
+  const [newCategoryId, setNewCategoryId] = useState("");
+  const [newUomId, setNewUomId] = useState("");
+  const [isCreatingProduct, setIsCreatingProduct] = useState(false);
+  const { mutateAsync: addProduct } = useAddProduct();
+  const { data: categories = [] } = useCategories();
+  const { data: uoms = [] } = useUOMs();
+  const createVariation = useCreateProductVariation();
+
+  const handleQuickCreateProduct = async () => {
+    if (!newProductName.trim()) return;
+
+    const itemCodeToUse = newItemCode.trim() || `PRD-${Date.now().toString().slice(-6)}`;
+    const categoryIdToUse = newCategoryId || categories[0]?.id;
+    const uomIdToUse = newUomId || uoms[0]?.id;
+
+    if (!categoryIdToUse || !uomIdToUse) {
+      toast({
+        variant: "destructive",
+        title: "Validation Error",
+        description: "Category and Base UOM are required to create a product template.",
+      });
+      return;
+    }
+
+    setIsCreatingProduct(true);
+    try {
+      const newProduct = await addProduct({
+        item_code: itemCodeToUse,
+        name: newProductName.trim(),
+        description: newProductDesc.trim() || null,
+        category_id: categoryIdToUse,
+        base_uom_id: uomIdToUse,
+        is_active: true,
+        has_variants: false,
+      } as any);
+
+      if (newProduct?.id) {
+        await createVariation.mutateAsync({
+          product_id: newProduct.id,
+          sku: itemCodeToUse,
+          is_active: true,
+        });
+      }
+
+      await refetchProducts();
+      queryClient.invalidateQueries({ queryKey: ["products"] });
+      setProductDialogOpen(false);
+      setNewItemCode("");
+      setNewProductName("");
+      setNewProductDesc("");
+      setNewCategoryId("");
+      setNewUomId("");
+      toast({
+        title: "Product created",
+        description: `${newProductName} (${itemCodeToUse}) created successfully.`,
+      });
+    } catch (e: any) {
+      toast({ variant: "destructive", title: "Error", description: e.message });
+    } finally {
+      setIsCreatingProduct(false);
+    }
+  };
 
   const [isOpen, setIsOpen] = useState(false);
   const [poNumber, setPoNumber] = useState(`PO-${Date.now()}`);
@@ -148,18 +251,88 @@ export default function PurchaseOrdersPage() {
                 </div>
                 <div>
                   <Label>Supplier</Label>
-                  <Select value={supplierId} onValueChange={setSupplierId}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select supplier" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {suppliers?.map((s) => (
-                        <SelectItem key={s.id} value={s.id}>
-                          {s.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <div className="flex gap-2 items-center">
+                    <Select value={supplierId} onValueChange={setSupplierId}>
+                      <SelectTrigger className="flex-1">
+                        <SelectValue placeholder="Select supplier" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {suppliers?.map((s) => (
+                          <SelectItem key={s.id} value={s.id}>
+                            {s.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {/* Quick-create Supplier */}
+                    <Dialog open={supplierDialogOpen} onOpenChange={setSupplierDialogOpen}>
+                      <DialogTrigger asChild>
+                        <Button type="button" variant="outline" size="icon" title="Create new supplier">
+                          <Plus className="w-4 h-4" />
+                        </Button>
+                      </DialogTrigger>
+                      <DialogContent className="max-w-lg">
+                        <DialogHeader>
+                          <DialogTitle>Quick Create Supplier</DialogTitle>
+                        </DialogHeader>
+                        <form onSubmit={supplierForm.handleSubmit(handleQuickCreateSupplier)} className="space-y-4">
+                          <div className="grid grid-cols-2 gap-3">
+                            <div className="col-span-2 space-y-1">
+                              <Label>Supplier Name <span className="text-red-500">*</span></Label>
+                              <Input {...supplierForm.register("name")} placeholder="e.g. Dhaka Auto Parts" />
+                              {supplierForm.formState.errors.name && (
+                                <p className="text-xs text-red-500">{supplierForm.formState.errors.name.message}</p>
+                              )}
+                            </div>
+                            <div className="space-y-1">
+                              <Label>Contact Email</Label>
+                              <Input {...supplierForm.register("contact_email")} type="email" placeholder="email@example.com" />
+                            </div>
+                            <div className="space-y-1">
+                              <Label>Contact Phone</Label>
+                              <Input {...supplierForm.register("contact_phone")} placeholder="Phone number" />
+                            </div>
+                            <div className="col-span-2 space-y-1">
+                              <Label>Address</Label>
+                              <Input {...supplierForm.register("address")} placeholder="Full address" />
+                            </div>
+                            <div className="space-y-1">
+                              <Label>Tax ID</Label>
+                              <Input {...supplierForm.register("tax_id")} placeholder="Optional" />
+                            </div>
+                            <div className="col-span-2 space-y-1">
+                              <Label>Payable Account <span className="text-red-500">*</span></Label>
+                              <Select
+                                value={supplierForm.watch("payable_account_id")}
+                                onValueChange={(v) => supplierForm.setValue("payable_account_id", v)}
+                              >
+                                <SelectTrigger><SelectValue placeholder="Select account..." /></SelectTrigger>
+                                <SelectContent>
+                                  {payableAccounts?.map((acc) => (
+                                    <SelectItem key={acc.id} value={acc.id}>{acc.name} ({acc.account_number})</SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                              {supplierForm.formState.errors.payable_account_id && (
+                                <p className="text-xs text-red-500">{supplierForm.formState.errors.payable_account_id.message}</p>
+                              )}
+                            </div>
+                            <div className="col-span-2 flex items-center gap-2 pt-1 border-t">
+                              <Switch
+                                checked={supplierForm.watch("is_active")}
+                                onCheckedChange={(v) => supplierForm.setValue("is_active", v)}
+                              />
+                              <Label>Active Supplier</Label>
+                            </div>
+                          </div>
+                          <Button type="submit" className="w-full" disabled={isCreatingSupplier}>
+                            {isCreatingSupplier && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                            Create Supplier
+                          </Button>
+                        </form>
+                      </DialogContent>
+                    </Dialog>
+                  </div>
                 </div>
                 <div>
                   <Label>Order Date</Label>
@@ -176,23 +349,109 @@ export default function PurchaseOrdersPage() {
                 <div className="flex gap-2 items-end">
                   <div className="flex-1">
                     <Label>Product Variation</Label>
-                    <Select
-                      value={selectedVariation}
-                      onValueChange={setSelectedVariation}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select variation" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {products?.map((p) =>
-                          p.product_variations?.map((v: any) => (
-                            <SelectItem key={v.id} value={v.id}>
-                              {p.name} - {v.sku}
-                            </SelectItem>
-                          )),
-                        )}
-                      </SelectContent>
-                    </Select>
+                    <div className="flex gap-2 items-center mt-1">
+                      <Select
+                        value={selectedVariation}
+                        onValueChange={setSelectedVariation}
+                      >
+                        <SelectTrigger className="flex-1">
+                          <SelectValue placeholder="Select variation" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {products?.map((p) =>
+                            p.product_variations?.map((v: any) => (
+                              <SelectItem key={v.id} value={v.id}>
+                                {p.name} - {v.sku}
+                              </SelectItem>
+                            )),
+                          )}
+                        </SelectContent>
+                      </Select>
+                      {/* Quick-create Product */}
+                      <Dialog open={productDialogOpen} onOpenChange={setProductDialogOpen}>
+                        <DialogTrigger asChild>
+                          <Button type="button" variant="outline" size="icon" title="Create new product">
+                            <Plus className="w-4 h-4" />
+                          </Button>
+                        </DialogTrigger>
+                        <DialogContent className="max-w-md">
+                          <DialogHeader>
+                            <DialogTitle>Quick Create Product</DialogTitle>
+                          </DialogHeader>
+                          <div className="space-y-3">
+                            <p className="text-xs text-muted-foreground">
+                              Create a product template. A default variation will be created automatically for purchase order selection.
+                            </p>
+                            <div className="grid grid-cols-2 gap-2">
+                              <div className="space-y-1">
+                                <Label>Item Code</Label>
+                                <Input
+                                  placeholder="e.g. PRD-001 (Auto if empty)"
+                                  value={newItemCode}
+                                  onChange={(e) => setNewItemCode(e.target.value)}
+                                />
+                              </div>
+                              <div className="space-y-1">
+                                <Label>Product Name <span className="text-red-500">*</span></Label>
+                                <Input
+                                  placeholder="e.g. Toyota Brake Pad"
+                                  value={newProductName}
+                                  onChange={(e) => setNewProductName(e.target.value)}
+                                />
+                              </div>
+                            </div>
+                            <div className="grid grid-cols-2 gap-2">
+                              <div className="space-y-1">
+                                <Label>Category <span className="text-red-500">*</span></Label>
+                                <select
+                                  value={newCategoryId || categories[0]?.id || ""}
+                                  onChange={(e) => setNewCategoryId(e.target.value)}
+                                  className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm"
+                                >
+                                  {categories.length === 0 && <option value="">No categories found</option>}
+                                  {categories.map((c) => (
+                                    <option key={c.id} value={c.id}>
+                                      {c.name}
+                                    </option>
+                                  ))}
+                                </select>
+                              </div>
+                              <div className="space-y-1">
+                                <Label>Base UOM <span className="text-red-500">*</span></Label>
+                                <select
+                                  value={newUomId || uoms[0]?.id || ""}
+                                  onChange={(e) => setNewUomId(e.target.value)}
+                                  className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm"
+                                >
+                                  {uoms.length === 0 && <option value="">No UOMs found</option>}
+                                  {uoms.map((u) => (
+                                    <option key={u.id} value={u.id}>
+                                      {u.name} ({u.abbreviation})
+                                    </option>
+                                  ))}
+                                </select>
+                              </div>
+                            </div>
+                            <div className="space-y-1">
+                              <Label>Description</Label>
+                              <Input
+                                placeholder="Optional description"
+                                value={newProductDesc}
+                                onChange={(e) => setNewProductDesc(e.target.value)}
+                              />
+                            </div>
+                            <Button
+                              className="w-full"
+                              onClick={handleQuickCreateProduct}
+                              disabled={isCreatingProduct || !newProductName.trim()}
+                            >
+                              {isCreatingProduct && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                              Create Product
+                            </Button>
+                          </div>
+                        </DialogContent>
+                      </Dialog>
+                    </div>
                   </div>
                   <div className="w-24">
                     <Label>Qty</Label>
