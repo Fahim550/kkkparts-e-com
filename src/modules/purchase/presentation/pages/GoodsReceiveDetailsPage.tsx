@@ -8,13 +8,35 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { ArrowLeft, Loader2 } from "lucide-react";
+import { ArrowLeft, BookOpen, CheckCircle2, Loader2 } from "lucide-react";
 import { Link, useParams } from "react-router-dom";
-import { useGoodsReceipt } from "../hooks/useGoodsReceive";
+import {
+  useGoodsReceipt,
+  usePostReceiptToJournal,
+  useReceiptJournalStatus,
+} from "../hooks/useGoodsReceive";
 
 export default function GoodsReceiveDetailsPage() {
   const { id } = useParams<{ id: string }>();
   const { data: receipt, isLoading } = useGoodsReceipt(id || "");
+  const { data: journalEntry, isLoading: isJournalLoading } = useReceiptJournalStatus(id || "");
+  const { mutateAsync: postToJournal, isPending: isPosting } = usePostReceiptToJournal();
+
+  const handlePostToJournal = async () => {
+    if (!receipt) return;
+    try {
+      // @ts-ignore
+      const supplierPayableAccId = receipt.suppliers?.payable_account_id;
+      await postToJournal({
+        receiptId: receipt.id,
+        totalAmount: Number(receipt.total_amount) || 0,
+        receiptNumber: receipt.receipt_number,
+        customPayableAccountId: supplierPayableAccId,
+      });
+    } catch (e) {
+      // Handled in hook toast
+    }
+  };
 
   if (isLoading) {
     return (
@@ -34,21 +56,52 @@ export default function GoodsReceiveDetailsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-4 mb-6">
-        <Link to="/admin/goods-receive">
-          <Button variant="outline" size="icon">
-            <ArrowLeft className="w-4 h-4" />
-          </Button>
-        </Link>
+      <div className="flex items-center justify-between gap-4 mb-6">
+        <div className="flex items-center gap-4">
+          <Link to="/admin/goods-receive">
+            <Button variant="outline" size="icon">
+              <ArrowLeft className="w-4 h-4" />
+            </Button>
+          </Link>
+          <div>
+            <div className="flex items-center gap-2">
+              <h1 className="text-2xl font-bold tracking-tight">
+                Goods Receipt {receipt.receipt_number}
+              </h1>
+              {journalEntry ? (
+                <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-300 flex items-center gap-1">
+                  <CheckCircle2 className="w-3.5 h-3.5" /> Journal Posted ({journalEntry.entry_number})
+                </Badge>
+              ) : (
+                <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-300">
+                  Journal Pending
+                </Badge>
+              )}
+            </div>
+            <p className="text-sm text-muted-foreground">
+              View detailed information for this goods receipt.
+            </p>
+          </div>
+        </div>
+
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">
-            Goods Receipt {receipt.receipt_number}
-          </h1>
-          <p className="text-sm text-muted-foreground">
-            View detailed information for this goods receipt.
-          </p>
+          {!journalEntry && (
+            <Button
+              onClick={handlePostToJournal}
+              disabled={isPosting || isJournalLoading}
+              className="bg-indigo-600 hover:bg-indigo-700 text-white gap-2 shadow-sm"
+            >
+              {isPosting ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <BookOpen className="w-4 h-4" />
+              )}
+              Post to Journal (জাবেদা পোস্ট করুন)
+            </Button>
+          )}
         </div>
       </div>
+
 
       <div className="grid md:grid-cols-2 gap-6">
         <div className="border rounded-lg p-6 bg-card space-y-4">

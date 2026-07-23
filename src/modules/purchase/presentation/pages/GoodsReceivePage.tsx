@@ -23,16 +23,19 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { ArrowDownToLine, Eye, Loader2, Plus, Search, X } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { ArrowDownToLine, BookOpen, CheckCircle2, Eye, Loader2, Plus, Search, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { useSuppliers } from "../../../supplier/presentation/hooks/useSuppliers";
 import { useWarehouses } from "../../../warehouse/presentation/hooks/useWarehouses";
 import { ReceiptItemPayload } from "../../application/services/receipt.service";
-import { useGoodsReceive } from "../hooks/useGoodsReceive";
+import { useGoodsReceive, usePostReceiptToJournal, useReceiptsJournalMap } from "../hooks/useGoodsReceive";
 import { usePurchaseOrders } from "../hooks/usePurchaseOrders";
 
+
 export default function GoodsReceivePage() {
+
   // ── Filter state (backend-driven) ──────────────────────────────────────
   const [filterSearch, setFilterSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState("");
@@ -50,9 +53,33 @@ export default function GoodsReceivePage() {
 
   const { receipts, isLoading, receiveGoods, isReceiving } =
     useGoodsReceive(receiptFilters);
+  const receiptIds = receipts?.map((r) => r.id) || [];
+  const { data: journalMap = {} } = useReceiptsJournalMap(receiptIds);
+
+  const { mutateAsync: postToJournal, isPending: isPostingJournal } = usePostReceiptToJournal();
+  const [postingReceiptId, setPostingReceiptId] = useState<string | null>(null);
+
+
+  const handleQuickPostJournal = async (rec: any) => {
+    try {
+      setPostingReceiptId(rec.id);
+      await postToJournal({
+        receiptId: rec.id,
+        totalAmount: Number(rec.total_amount) || 0,
+        receiptNumber: rec.receipt_number,
+        customPayableAccountId: rec.suppliers?.payable_account_id,
+      });
+    } catch (e) {
+      // Toast handled by hook
+    } finally {
+      setPostingReceiptId(null);
+    }
+  };
+
   const { warehouses } = useWarehouses();
   const { suppliers } = useSuppliers();
   const { orders } = usePurchaseOrders();
+
 
   const [isOpen, setIsOpen] = useState(false);
   const [receiptNumber, setReceiptNumber] = useState(`REC-${Date.now()}`);
@@ -420,13 +447,36 @@ export default function GoodsReceivePage() {
                       {rec.status}
                     </span>
                   </TableCell>
-                  <TableCell className="text-right">
+                  <TableCell className="text-right flex items-center justify-end gap-1">
+                    {journalMap[rec.id] ? (
+                      <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-300 text-xs flex items-center gap-1 py-1 font-normal">
+                        <CheckCircle2 className="w-3 h-3" /> Posted ({journalMap[rec.id].entry_number})
+                      </Badge>
+                    ) : (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleQuickPostJournal(rec)}
+                        disabled={isPostingJournal && postingReceiptId === rec.id}
+                        title="Post to Journal (জাবেদা পোস্ট করুন)"
+                        className="text-xs gap-1.5 h-8 border-indigo-200 text-indigo-700 hover:bg-indigo-50"
+                      >
+                        {isPostingJournal && postingReceiptId === rec.id ? (
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        ) : (
+                          <BookOpen className="w-3.5 h-3.5" />
+                        )}
+                        Post Journal
+                      </Button>
+                    )}
                     <Link to={`/admin/goods-receive/${rec.id}`}>
-                      <Button variant="ghost" size="icon">
+                      <Button variant="ghost" size="icon" className="h-8 w-8">
                         <Eye className="w-4 h-4 text-muted-foreground" />
                       </Button>
                     </Link>
                   </TableCell>
+
+
                 </TableRow>
               ))
             )}

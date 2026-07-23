@@ -36,17 +36,27 @@ export class AccountingEngine {
     });
   }
 
-  static async postPurchaseReceipt(receiptId: string, totalAmount: number, receiptNumber: string) {
+  static async postPurchaseReceipt(receiptId: string, totalAmount: number, receiptNumber: string, customPayableAccountId?: string) {
+    const existingJe = await JournalRepository.getJournalEntryByReference("purchase_receipt", receiptId);
+    if (existingJe) {
+      throw new Error(`Journal Entry (${existingJe.entry_number}) has already been posted for receipt ${receiptNumber}.`);
+    }
+
     const invAcc = await CoaRepository.getAccountByNumber(SYSTEM_ACCOUNTS.INVENTORY_ASSET);
-    const apAcc = await CoaRepository.getAccountByNumber(SYSTEM_ACCOUNTS.ACCOUNTS_PAYABLE);
+    let apAccountId = customPayableAccountId;
+
+    if (!apAccountId) {
+      const apAcc = await CoaRepository.getAccountByNumber(SYSTEM_ACCOUNTS.ACCOUNTS_PAYABLE);
+      apAccountId = apAcc.id;
+    }
 
     const lines = [
-      { account_id: invAcc.id, debit_amount: totalAmount, credit_amount: 0, narration: "Goods Receive" },
-      { account_id: apAcc.id, debit_amount: 0, credit_amount: totalAmount, narration: "Accounts Payable" }
+      { account_id: invAcc.id, debit_amount: totalAmount, credit_amount: 0, narration: `Goods Received ${receiptNumber}` },
+      { account_id: apAccountId, debit_amount: 0, credit_amount: totalAmount, narration: `Accounts Payable - ${receiptNumber}` }
     ];
 
     return JournalRepository.createJournalEntry({
-      posting_date: new Date().toISOString(),
+      posting_date: new Date().toISOString().split("T")[0],
       reference_type: "purchase_receipt",
       reference_id: receiptId,
       narration: `Purchase Receipt ${receiptNumber}`,

@@ -2,6 +2,13 @@ import { supabase } from "@/integrations/supabase/client";
 import { CreateJournalEntryPayload, JournalEntry } from "../../domain/types";
 import { CoaRepository } from "./coa.repository";
 
+export type JournalEntryFilters = {
+  search?: string;
+  referenceType?: string;
+  dateFrom?: string;
+  dateTo?: string;
+};
+
 export class JournalRepository {
   static async createJournalEntry(payload: CreateJournalEntryPayload): Promise<JournalEntry> {
     const fiscalYear = await CoaRepository.getActiveFiscalYear();
@@ -16,7 +23,8 @@ export class JournalRepository {
     }
 
     const dateStr = new Date().toISOString().replace(/[-T:.Z]/g, "").slice(0, 14);
-    const entryNumber = `JE-${dateStr}`;
+    const randomSuffix = Math.floor(100 + Math.random() * 900);
+    const entryNumber = `JE-${dateStr}-${randomSuffix}`;
 
     // 1. Insert Journal Entry
     const { data: je, error: jeError } = await supabase
@@ -51,10 +59,7 @@ export class JournalRepository {
     if (linesError) throw linesError;
 
     // 3. Update Account Balances
-    // In a production environment, this should ideally be an RPC (stored procedure) for atomicity
-    // or handled via DB triggers. For now, we update them manually.
     for (const line of payload.lines) {
-      // Check if balance exists
       const { data: balanceRecord } = await supabase
         .from("account_balances")
         .select("*")
@@ -63,24 +68,18 @@ export class JournalRepository {
         .maybeSingle();
 
       if (balanceRecord) {
-        // Calculate new balance
-        // Typical logic: 
-        // Assets/Expenses: Balance = Debit - Credit
-        // Liabilities/Equity/Revenue: Balance = Credit - Debit
-        // For simplicity, we can just track absolute total_debit and total_credit, 
-        // and let the report calculate the net based on account_type.
-        
+        const newDebit = Number(balanceRecord.total_debit) + line.debit_amount;
+        const newCredit = Number(balanceRecord.total_credit) + line.credit_amount;
         await supabase
           .from("account_balances")
           .update({
-            total_debit: Number(balanceRecord.total_debit) + line.debit_amount,
-            total_credit: Number(balanceRecord.total_credit) + line.credit_amount,
-            // Assuming absolute diff for standard balance column, or leave it to reports.
-            // Let's just track raw debits/credits.
+            total_debit: newDebit,
+            total_credit: newCredit,
+            balance: newDebit - newCredit,
+            last_updated_at: new Date().toISOString(),
           })
           .eq("id", balanceRecord.id);
       } else {
-        // Create balance record
         await supabase
           .from("account_balances")
           .insert({
@@ -88,10 +87,78 @@ export class JournalRepository {
             fiscal_year_id: fiscalYear.id,
             total_debit: line.debit_amount,
             total_credit: line.credit_amount,
+            balance: line.debit_amount - line.credit_amount,
           });
       }
     }
 
     return je;
+
   }
+
+  static async getJournalEntryByReference(referenceType: string, referenceId: string): Promise<JournalEntry | null> {
+    const { data, error } = await supabase
+      .from("journal_entries")
+      .select("*")
+      .eq("reference_type", referenceType)
+      .eq("reference_id", referenceId)
+      .maybeSingle();
+
+    if (error) throw error;
+    return data;
+  }
+
+  static async getJournalEntriesByReferences(referenceType: string, referenceIds: string[]): Promise<JournalEntry[]> {
+    if (!referenceIds.length) return [];
+    const { data, error } = await supabase
+      .from("journal_entries")
+      .select("*")
+      .eq("reference_type", referenceType)
+      .in("reference_id", referenceIds);
+
+    if (error) throw error;
+    return data || [];
+  }
+
+  static async getAllJournalEntries(filters?: JournalEntryFilters) {
+    let query = supabase
+      .from("journal_entries")
+      .select(`
+        *,
+        journal_entry_lines (
+          *,
+          chart_of_accounts (
+            id,
+            account_number,
+            name,
+            account_type
+          )
+        )
+      `);
+
+    if (filters?.search) {
+      const term = `%${filters.search}%`;
+      query = query.or(`entry_number.ilike.${term},narration.ilike.${term}`);
+    }
+
+    if (filters?.referenceType && filters.referenceType !== "all") {
+      query = query.eq("reference_type", filters.referenceType);
+    }
+
+    if (filters?.dateFrom) {
+      query = query.gte("posting_date", filters.dateFrom);
+    }
+
+    if (filters?.dateTo) {
+      query = query.lte("posting_date", filters.dateTo);
+    }
+
+    const { data, error } = await query.order("created_at", { ascending: false });
+
+    if (error) throw error;
+    return data || [];
+  }
+
 }
+
+

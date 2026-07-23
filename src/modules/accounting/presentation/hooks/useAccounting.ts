@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { CoaRepository } from "../../infrastructure/repositories/coa.repository";
-import { JournalRepository } from "../../infrastructure/repositories/journal.repository";
+import { JournalRepository, JournalEntryFilters } from "../../infrastructure/repositories/journal.repository";
 import { ReportsRepository } from "../../infrastructure/repositories/reports.repository";
 import { CreateJournalEntryPayload } from "../../domain/types";
 import { useToast } from "@/hooks/use-toast";
@@ -12,14 +12,22 @@ export const useChartOfAccounts = () => {
   });
 };
 
-export const useJournalEntries = () => {
+export const useJournalEntries = (filters?: JournalEntryFilters) => {
   const queryClient = useQueryClient();
   const { toast } = useToast();
+
+  const entriesQuery = useQuery({
+    queryKey: ["journal-entries", filters ?? {}],
+    queryFn: () => JournalRepository.getAllJournalEntries(filters),
+  });
+
 
   const createMutation = useMutation({
     mutationFn: (payload: CreateJournalEntryPayload) => JournalRepository.createJournalEntry(payload),
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["journal-entries"] });
       queryClient.invalidateQueries({ queryKey: ["trial-balance"] });
+      queryClient.invalidateQueries({ queryKey: ["chart-of-accounts"] });
       toast({ title: "Success", description: "Journal Entry posted successfully." });
     },
     onError: (error: any) => {
@@ -28,6 +36,8 @@ export const useJournalEntries = () => {
   });
 
   return {
+    journalEntries: entriesQuery.data,
+    isLoading: entriesQuery.isLoading,
     postJournal: createMutation.mutateAsync,
     isPosting: createMutation.isPending
   };
