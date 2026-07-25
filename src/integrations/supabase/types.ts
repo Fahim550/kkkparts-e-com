@@ -1212,6 +1212,10 @@ export type Database = {
           is_active: boolean | null;
           item_code: string;
           name: string;
+          price: number | null;
+          original_price: number | null;
+          dealer_price: number | null;
+          dealer_original_price: number | null;
           updated_at: string | null;
         };
         Insert: {
@@ -1226,6 +1230,10 @@ export type Database = {
           is_active?: boolean | null;
           item_code: string;
           name: string;
+          price?: number | null;
+          original_price?: number | null;
+          dealer_price?: number | null;
+          dealer_original_price?: number | null;
           updated_at?: string | null;
         };
         Update: {
@@ -1240,6 +1248,10 @@ export type Database = {
           is_active?: boolean | null;
           item_code?: string;
           name?: string;
+          price?: number | null;
+          original_price?: number | null;
+          dealer_price?: number | null;
+          dealer_original_price?: number | null;
           updated_at?: string | null;
         };
         Relationships: [

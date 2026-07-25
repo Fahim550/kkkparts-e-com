@@ -76,13 +76,17 @@ export default function ProductFormModal({ isOpen, onOpenChange, product }: Prod
       setValue("item_code", product.item_code);
       setValue("description", product.description || "");
       setValue("image_url", product.image_url || "");
+      setValue("price", (product as any).price ?? 0);
+      setValue("original_price", (product as any).original_price ?? undefined);
+      setValue("dealer_price", (product as any).dealer_price ?? undefined);
+      setValue("dealer_original_price", (product as any).dealer_original_price ?? undefined);
       setValue("category_id", product.category_id);
       setValue("brand_id", product.brand_id || undefined);
       setValue("base_uom_id", product.base_uom_id);
       setValue("has_variants", product.has_variants ?? false);
       setValue("is_active", product.is_active ?? true);
     } else {
-      reset({ is_active: true, has_variants: false, image_url: "" });
+      reset({ is_active: true, has_variants: false, image_url: "", price: 0 });
     }
   }, [product, isOpen, reset, setValue]);
 
@@ -139,20 +143,18 @@ export default function ProductFormModal({ isOpen, onOpenChange, product }: Prod
         product_id: product.id,
         is_active: true,
       });
-      toast.success("Variation added with auto-generated SKU and Barcode");
+      toast.success("Variation added");
     } catch (error) {
       toast.error("Failed to add variation");
     }
   };
 
   const handleDeleteVariation = async (id: string) => {
-    if (confirm("Delete this variation?")) {
-      try {
-        await deleteVariation.mutateAsync(id);
-        toast.success("Variation deleted");
-      } catch (error) {
-        toast.error("Failed to delete variation");
-      }
+    try {
+      await deleteVariation.mutateAsync(id);
+      toast.success("Variation deleted");
+    } catch (error) {
+      toast.error("Failed to delete variation");
     }
   };
 
@@ -160,17 +162,15 @@ export default function ProductFormModal({ isOpen, onOpenChange, product }: Prod
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>
-            {product ? "Edit Product" : "Create New Product"}
-          </DialogTitle>
+          <DialogTitle>{product ? "Edit Product" : "Create Product"}</DialogTitle>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-          {/* Product Image Field */}
-          <div>
-            <Label className="mb-2 block font-medium">Product Image</Label>
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 pt-4">
+          {/* Image Upload Section */}
+          <div className="space-y-2">
+            <Label>Product Image</Label>
             <div className="flex items-center gap-4">
-              <div className="relative w-24 h-24 rounded-lg border-2 border-dashed border-muted-foreground/30 flex items-center justify-center bg-muted/40 overflow-hidden shrink-0">
+              <div className="relative w-24 h-24 rounded-lg border border-border bg-accent/30 flex items-center justify-center overflow-hidden shrink-0">
                 {imageUrl ? (
                   <>
                     <img
@@ -233,6 +233,52 @@ export default function ProductFormModal({ isOpen, onOpenChange, product }: Prod
               {errors.name && (
                 <p className="text-sm text-red-500 mt-1">{errors.name.message}</p>
               )}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+            <div>
+              <Label>Price (OMR) *</Label>
+              <Input
+                type="number"
+                step="0.01"
+                min="0"
+                {...register("price", { valueAsNumber: true })}
+                placeholder="e.g. 15.00"
+              />
+              {errors.price && (
+                <p className="text-sm text-red-500 mt-1">{errors.price.message}</p>
+              )}
+            </div>
+            <div>
+              <Label>Original Price</Label>
+              <Input
+                type="number"
+                step="0.01"
+                min="0"
+                {...register("original_price", { valueAsNumber: true })}
+                placeholder="e.g. 20.00"
+              />
+            </div>
+            <div>
+              <Label>Dealer Price</Label>
+              <Input
+                type="number"
+                step="0.01"
+                min="0"
+                {...register("dealer_price", { valueAsNumber: true })}
+                placeholder="e.g. 12.00"
+              />
+            </div>
+            <div>
+              <Label>Dealer Orig. Price</Label>
+              <Input
+                type="number"
+                step="0.01"
+                min="0"
+                {...register("dealer_original_price", { valueAsNumber: true })}
+                placeholder="e.g. 18.00"
+              />
             </div>
           </div>
 

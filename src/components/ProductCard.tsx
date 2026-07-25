@@ -20,12 +20,14 @@ const ProductCard = ({ product }: ProductCardProps) => {
 
   const activePrice =
     isDealer && product.dealerPrice != null
-      ? product.dealerPrice
-      : product.price;
+      ? Number(product.dealerPrice)
+      : Number(product.price ?? 0);
   const activeOriginalPrice =
     isDealer && product.dealerOriginalPrice != null
-      ? product.dealerOriginalPrice
-      : product.originalPrice;
+      ? Number(product.dealerOriginalPrice)
+      : product.originalPrice != null
+        ? Number(product.originalPrice)
+        : undefined;
 
   const discountPercentage = activeOriginalPrice
     ? Math.round(
@@ -85,21 +87,23 @@ const ProductCard = ({ product }: ProductCardProps) => {
 
           <div className="flex items-center gap-2 flex-wrap">
             <span className="font-bold text-[18px] text-blue-500 leading-none flex items-center gap-1">
-              <DirhamIcon /> <span>{activePrice}</span>
+              <DirhamIcon /> <span>{activePrice.toFixed(2)}</span>
               {isDealer && product.dealerPrice != null && (
                 <span className="text-neon text-[10px] uppercase tracking-wider bg-neon/10 px-1 py-0.5 rounded ml-1">
                   Dealer Price
                 </span>
               )}
             </span>
-            {activeOriginalPrice && (
+            {activeOriginalPrice != null && activeOriginalPrice > 0 && (
               <>
                 <span className="text-gray-400 font-medium line-through text-[14px] leading-none flex items-center gap-1">
-                  <DirhamIcon /> <span>{activeOriginalPrice}</span>
+                  <DirhamIcon /> <span>{activeOriginalPrice.toFixed(2)}</span>
                 </span>
-                <span className="text-hot text-[12px] font-bold leading-none">
-                  ({discountPercentage}% OFF)
-                </span>
+                {discountPercentage > 0 && (
+                  <span className="text-hot text-[12px] font-bold leading-none">
+                    ({discountPercentage}% OFF)
+                  </span>
+                )}
               </>
             )}
           </div>

@@ -85,6 +85,7 @@ export default function ProductsPage() {
               <TableHead>Name</TableHead>
               <TableHead>Category</TableHead>
               <TableHead>Brand</TableHead>
+              <TableHead>Price (OMR)</TableHead>
               <TableHead>Variants</TableHead>
               <TableHead>Status</TableHead>
               <TableHead className="text-right">Actions</TableHead>
@@ -110,6 +111,9 @@ export default function ProductsPage() {
                 <TableCell className="font-medium">{product.name}</TableCell>
                 <TableCell>{product.category?.name}</TableCell>
                 <TableCell>{product.brand?.name || "—"}</TableCell>
+                <TableCell className="font-semibold text-blue-600">
+                  {(product as any).price != null ? Number((product as any).price).toFixed(2) : "0.00"}
+                </TableCell>
                 <TableCell>
                   <div className="flex items-center gap-1 text-sm">
                     <Box className="w-4 h-4 text-muted-foreground" />

@@ -288,7 +288,7 @@ const ProductPage = () => {
               <div className="flex flex-wrap items-center gap-3 mb-8">
                 <span className="font-heading lg:text-3xl md:text-2xl text-2xl font-bold text-blue-500">
                   <DirhamIcon className="mr-2" />
-                  {displayPrice}
+                  {Number(displayPrice || 0).toFixed(2)}
                 </span>
                 {isDealer &&
                   product.dealerPrice != null &&
@@ -297,11 +297,11 @@ const ProductPage = () => {
                       Dealer Price
                     </span>
                   )}
-                {product.originalPrice && (
+                {product.originalPrice != null && Number(product.originalPrice) > 0 && (
                   <>
                     <span className="font-body text-lg text-muted-foreground line-through">
                       <DirhamIcon className="mr-1" />
-                      {product.originalPrice}
+                      {Number(product.originalPrice).toFixed(2)}
                     </span>
                     <span className="bg-destructive text-destructive-foreground px-2 py-1 text-xs font-body font-bold tracking-wider uppercase rounded-sm">
                       {Math.round(
