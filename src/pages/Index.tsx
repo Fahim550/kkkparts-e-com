@@ -775,51 +775,6 @@ const Index = () => {
         </div>
       </section>
 
-      {/* Newsletter */}
-      <section className="py-16 bg-primary text-primary-foreground">
-        <div className="container mx-auto px-4 lg:px-8">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            className="max-w-xl mx-auto text-center"
-          >
-            <span className="text-neon font-body text-sm font-bold tracking-[0.3em] uppercase">
-              {t("newsletter.label")}
-            </span>
-            <h2 className="heading-display text-2xl md:text-4xl font-bold mt-2 mb-4">
-              {t("newsletter.title")}
-            </h2>
-            <p className="font-body text-primary-foreground/60 mb-8">
-              {t("newsletter.subtitle")}
-            </p>
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                setEmail("");
-              }}
-              className="flex flex-col sm:flex-row gap-0"
-            >
-              <input
-                type="email"
-                aria-label="Email address for newsletter"
-                placeholder={t("newsletter.placeholder")}
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="flex-1 px-4 py-3 sm:py-4 border border-primary-foreground/20 bg-primary-foreground/5 font-body text-sm text-primary-foreground placeholder:text-primary-foreground/40 focus:outline-none focus:border-neon transition-colors rounded-sm sm:rounded-l-sm sm:rounded-r-none"
-                required
-              />
-              <button
-                type="submit"
-                className="bg-neon text-accent-foreground px-6 py-3 sm:px-8 sm:py-4 font-body text-sm font-bold tracking-wider uppercase hover:bg-neon-glow transition-colors duration-300 rounded-sm sm:rounded-r-sm sm:rounded-l-none"
-              >
-                {t("newsletter.subscribe")}
-              </button>
-            </form>
-          </motion.div>
-        </div>
-      </section>
-
       <Footer />
     </div>
   );
