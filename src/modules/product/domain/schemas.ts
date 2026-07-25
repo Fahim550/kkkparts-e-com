@@ -49,6 +49,9 @@ export const ProductSchema = z.object({
   base_uom_id: z.string().uuid("Base UOM is required"),
   has_variants: z.boolean().default(false),
   is_active: z.boolean().default(true),
+  is_offer: z.boolean().default(false),
+  is_trending: z.boolean().default(false),
+  is_new: z.boolean().default(false),
 });
 
 export const ProductVariationSchema = z.object({

@@ -2,6 +2,7 @@ import { useLanguage } from "@/context/LanguageContext";
 import { useActiveCategories } from "@/hooks/useCategories";
 import { useSettings } from "@/hooks/useDatabase";
 import {
+  ArrowUp,
   ChevronRight,
   Clock,
   Facebook,
@@ -229,21 +230,13 @@ const Footer = () => {
             </h4>
             <ul className="space-y-2.5 font-body text-sm">
               {categories.length > 0 ? (
-                categories.slice(0, 8).map((cat) => (
+                categories.slice(0, 7).map((cat) => (
                   <li key={cat.id}>
                     <Link
                       to={`/parts?category=${encodeURIComponent(cat.slug || cat.name)}`}
                       className="group inline-flex items-center gap-2.5 text-slate-400 hover:text-neon transition-colors"
                     >
-                      {cat.image_url ? (
-                        <img
-                          src={cat.image_url}
-                          alt={cat.name}
-                          className="w-5 h-5 rounded object-cover border border-slate-800 shrink-0 group-hover:border-neon/50 transition-colors"
-                        />
-                      ) : (
-                        <ChevronRight className="w-3.5 h-3.5 text-slate-600 group-hover:text-neon group-hover:translate-x-0.5 transition-all shrink-0" />
-                      )}
+                      <ChevronRight className="w-3.5 h-3.5 text-slate-600 group-hover:text-neon group-hover:translate-x-0.5 transition-all shrink-0" />
                       <span className="truncate">{cat.name}</span>
                     </Link>
                   </li>
@@ -402,16 +395,22 @@ const Footer = () => {
         </div>
 
         {/* Bottom copyright & back to top strip */}
-        {/* <div className="mt-12 pt-6 border-t border-slate-800/80 flex flex-col sm:flex-row items-center justify-between gap-4">
+        <div className="mt-12 pt-6 border-t border-slate-800/80 flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="text-center sm:text-left space-y-1">
             <p className="font-body text-xs text-slate-500">
               {s?.footer_copyright || "© 2026 kkkparts.com All rights reserved."}
             </p>
-            {s?.footer_tagline && (
-              <p className="font-body text-[11px] text-slate-600">
-                {s.footer_tagline}
-              </p>
-            )}
+            <p className="font-body text-[11px] text-slate-400">
+              Designed & Developed by{" "}
+              <a
+                href="https://softzeniqit.xyz"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-neon hover:underline font-semibold"
+              >
+                SoftZeniq IT
+              </a>
+            </p>
           </div>
 
           <div className="flex items-center gap-4">
@@ -423,7 +422,7 @@ const Footer = () => {
               <ArrowUp className="w-3.5 h-3.5 text-neon" />
             </button>
           </div>
-        </div> */}
+        </div>
       </div>
     </footer>
   );

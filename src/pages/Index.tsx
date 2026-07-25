@@ -106,8 +106,9 @@ const Index = () => {
   const newFiltered = products.filter((p) => p.isNew);
   const newProducts = newFiltered.length > 0 ? newFiltered : products;
 
-  const offerFiltered = products.filter((p) => p.isOffer);
-  const offerProducts = offerFiltered.length > 0 ? offerFiltered : products.slice(0, 4);
+  const offerProducts = products.filter(
+    (p) => p.isOffer || (p.originalPrice != null && Number(p.originalPrice) > Number(p.price)),
+  );
   const [email, setEmail] = useState("");
   const isLoading = productsLoading || categoriesLoading || bannersLoading;
 

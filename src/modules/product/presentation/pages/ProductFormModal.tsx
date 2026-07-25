@@ -85,8 +85,11 @@ export default function ProductFormModal({ isOpen, onOpenChange, product }: Prod
       setValue("base_uom_id", product.base_uom_id);
       setValue("has_variants", product.has_variants ?? false);
       setValue("is_active", product.is_active ?? true);
+      setValue("is_offer", (product as any).is_offer ?? false);
+      setValue("is_trending", (product as any).is_trending ?? false);
+      setValue("is_new", (product as any).is_new ?? false);
     } else {
-      reset({ is_active: true, has_variants: false, image_url: "", price: 0 });
+      reset({ is_active: true, has_variants: false, image_url: "", price: 0, is_offer: false, is_trending: false, is_new: false });
     }
   }, [product, isOpen, reset, setValue]);
 
@@ -328,12 +331,12 @@ export default function ProductFormModal({ isOpen, onOpenChange, product }: Prod
                 <p className="text-sm text-red-500 mt-1">{errors.base_uom_id.message}</p>
               )}
             </div>
-            <div className="flex items-center space-x-4 pt-6">
+            <div className="flex flex-wrap items-center gap-4 pt-6">
               <div className="flex items-center space-x-2">
                 <Switch
                   checked={watch("has_variants")}
                   onCheckedChange={(val) => setValue("has_variants", val)}
-                  disabled={!!product} // Disable changing variant status after creation to simplify logic
+                  disabled={!!product}
                 />
                 <Label>Has Variants</Label>
               </div>
@@ -343,6 +346,27 @@ export default function ProductFormModal({ isOpen, onOpenChange, product }: Prod
                   onCheckedChange={(val) => setValue("is_active", val)}
                 />
                 <Label>Active</Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Switch
+                  checked={watch("is_offer")}
+                  onCheckedChange={(val) => setValue("is_offer", val)}
+                />
+                <Label>Special Offer</Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Switch
+                  checked={watch("is_trending")}
+                  onCheckedChange={(val) => setValue("is_trending", val)}
+                />
+                <Label>Trending</Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Switch
+                  checked={watch("is_new")}
+                  onCheckedChange={(val) => setValue("is_new", val)}
+                />
+                <Label>New Arrival</Label>
               </div>
             </div>
           </div>
