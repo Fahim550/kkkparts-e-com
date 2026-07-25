@@ -1,26 +1,25 @@
-import { Link, useNavigate, useLocation } from "react-router-dom";
-import {
-  ShoppingCart,
-  Search,
-  Menu,
-  X,
-  User as UserIcon,
-  LogOut,
-  Phone,
-  Mail,
-  Clock,
-  ChevronDown,
-  ChevronRight,
-  ShieldCheck,
-} from "lucide-react";
-import { useCart } from "@/context/CartContext";
-import { useActiveCategories } from "@/hooks/useCategories";
-import { useLanguage } from "@/context/LanguageContext";
-import { useState, useEffect } from "react";
-import { useSettings } from "@/hooks/useDatabase";
 import { useAuth } from "@/context/AuthContext";
+import { useCart } from "@/context/CartContext";
+import { useLanguage } from "@/context/LanguageContext";
+import { useActiveCategories } from "@/hooks/useCategories";
+import { useSettings } from "@/hooks/useDatabase";
+import {
+  ChevronDown,
+  Clock,
+  LogOut,
+  Mail,
+  Menu,
+  Phone,
+  Search,
+  ShieldCheck,
+  ShoppingCart,
+  User as UserIcon,
+  X
+} from "lucide-react";
+import { useEffect, useState } from "react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 
-import { motion, AnimatePresence } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
 import LanguageSwitcher from "./LanguageSwitcher";
 
 const Navbar = () => {
@@ -114,7 +113,7 @@ const Navbar = () => {
 
       {/* Main Navbar */}
       <nav
-        className={`bg-background/95 backdrop-blur-xl border-b border-border/40 transition-all duration-300 ${isScrolled ? "shadow-lg py-2" : "shadow-sm py-4"}`}
+        className={`bg-background/95 backdrop-blur-xl border-b border-border/40 transition-all duration-300 ${isScrolled ? "shadow-lg py-1" : "shadow-sm py-2"}`}
       >
         <div className="container mx-auto px-4 lg:px-8">
           <div className="flex items-center justify-between">
