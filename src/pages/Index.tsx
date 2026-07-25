@@ -69,37 +69,45 @@ const Index = () => {
   const [direction, setDirection] = useState(1);
   const [searchQuery, setSearchQuery] = useState("");
   const [isSearchExpanded, setIsSearchExpanded] = useState(false);
-  const products = dbProducts.map((p: any) => ({
-    id: p.id,
-    name: p.name,
-    brand: p.brand || "",
-    price: Number(p.price) || 0,
-    originalPrice: p.original_price ? Number(p.original_price) : undefined,
-    dealerPrice: p.dealer_price ? Number(p.dealer_price) : undefined,
-    dealerOriginalPrice: p.dealer_original_price
-      ? Number(p.dealer_original_price)
-      : undefined,
-    category: p.category as any,
-    image: p.image || "",
-    images: p.images || [p.image || ""],
-    stock: p.stock || 0,
-    sizes: p.sizes || [],
-    colors: p.colors || [],
-    description: p.description || "",
-    rating: Number(p.rating) || 4.5,
-    reviews: p.reviews || 0,
-    isTrending: p.is_trending || false,
-    isNew: p.is_new || false,
-    isOffer: p.is_offer || false,
-  }));
+  const products = dbProducts.map((p: any) => {
+    const imageUrl = p.image_url || p.image || fallbackImage;
+    return {
+      id: p.id,
+      name: p.name,
+      brand: p.brand || p.brands?.name || "",
+      price: Number(p.price) || 0,
+      originalPrice: p.original_price ? Number(p.original_price) : undefined,
+      dealerPrice: p.dealer_price ? Number(p.dealer_price) : undefined,
+      dealerOriginalPrice: p.dealer_original_price
+        ? Number(p.dealer_original_price)
+        : undefined,
+      category: (p.category?.slug || p.categories?.slug || p.category) as any,
+      image: imageUrl,
+      images: p.image_url ? [p.image_url] : (p.images || [imageUrl]),
+      stock: p.stock || 0,
+      sizes: p.sizes || [],
+      colors: p.colors || [],
+      description: p.description || "",
+      rating: Number(p.rating) || 4.5,
+      reviews: p.reviews || 0,
+      isTrending: p.is_trending || false,
+      isNew: p.is_new || false,
+      isOffer: p.is_offer || false,
+    };
+  });
   const dynamicBrands = Array.from(
     new Set(products.map((p) => (p.brand || "").trim().toUpperCase())),
   )
     .filter(Boolean)
     .sort();
-  const trendingProducts = products.filter((p) => p.isTrending);
-  const newProducts = products.filter((p) => p.isNew);
-  const offerProducts = products.filter((p) => p.isOffer);
+  const trendingFiltered = products.filter((p) => p.isTrending);
+  const trendingProducts = trendingFiltered.length > 0 ? trendingFiltered : products;
+
+  const newFiltered = products.filter((p) => p.isNew);
+  const newProducts = newFiltered.length > 0 ? newFiltered : products;
+
+  const offerFiltered = products.filter((p) => p.isOffer);
+  const offerProducts = offerFiltered.length > 0 ? offerFiltered : products.slice(0, 4);
   const [email, setEmail] = useState("");
   const isLoading = productsLoading || categoriesLoading || bannersLoading;
 

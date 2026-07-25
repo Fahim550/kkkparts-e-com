@@ -27,29 +27,32 @@ const ShopPage = () => {
 
   const products = useMemo(() => {
     return (
-      dbProducts.map((p) => ({
-        id: p.id,
-        name: p.name,
-        brand: p.brand,
-        price: Number(p.price),
-        originalPrice: p.original_price ? Number(p.original_price) : undefined,
-        dealerPrice: p.dealer_price ? Number(p.dealer_price) : undefined,
-        dealerOriginalPrice: p.dealer_original_price
-          ? Number(p.dealer_original_price)
-          : undefined,
-        category: p.category as any,
-        image: p.image,
-        images: p.images || [p.image],
-        stock: p.stock || 0,
-        sizes: p.sizes || [],
-        colors: p.colors || [],
-        description: p.description || "",
-        rating: Number(p.rating) || 4.5,
-        reviews: p.reviews || 0,
-        isTrending: p.is_trending || false,
-        isNew: p.is_new || false,
-        isOffer: (p as any).is_offer || false,
-      })) || []
+      dbProducts.map((p: any) => {
+        const imageUrl = p.image_url || p.image || "/placeholder.svg";
+        return {
+          id: p.id,
+          name: p.name,
+          brand: p.brand || p.brands?.name || "",
+          price: Number(p.price) || 0,
+          originalPrice: p.original_price ? Number(p.original_price) : undefined,
+          dealerPrice: p.dealer_price ? Number(p.dealer_price) : undefined,
+          dealerOriginalPrice: p.dealer_original_price
+            ? Number(p.dealer_original_price)
+            : undefined,
+          category: (p.category?.slug || p.categories?.slug || p.category) as any,
+          image: imageUrl,
+          images: p.image_url ? [p.image_url] : (p.images || [imageUrl]),
+          stock: p.stock || 0,
+          sizes: p.sizes || [],
+          colors: p.colors || [],
+          description: p.description || "",
+          rating: Number(p.rating) || 4.5,
+          reviews: p.reviews || 0,
+          isTrending: p.is_trending || false,
+          isNew: p.is_new || false,
+          isOffer: (p as any).is_offer || false,
+        };
+      }) || []
     );
   }, [dbProducts]);
 
