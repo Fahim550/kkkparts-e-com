@@ -15,6 +15,7 @@ export const CategorySchema = z.object({
       /^[a-z0-9-]+$/,
       "Slug can only contain lowercase letters, numbers, and hyphens",
     ),
+  image_url: z.string().nullable().optional(),
   parent_id: z.string().uuid().nullable().optional(),
   is_active: z.boolean().default(true),
 });
@@ -38,6 +39,7 @@ export const ProductSchema = z.object({
   item_code: z.string().min(2, "Item code must be at least 2 characters"),
   name: z.string().min(2, "Name must be at least 2 characters"),
   description: z.string().nullable().optional(),
+  image_url: z.string().nullable().optional(),
   category_id: z.string().uuid("Category is required"),
   brand_id: z.string().uuid().nullable().optional(),
   base_uom_id: z.string().uuid("Base UOM is required"),

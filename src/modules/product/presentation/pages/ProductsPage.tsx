@@ -14,7 +14,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Loader2, Plus, Edit, Trash2, Box } from "lucide-react";
+import { Loader2, Plus, Edit, Trash2, Box, ImageIcon } from "lucide-react";
 import ProductFormModal from "./ProductFormModal";
 
 export default function ProductsPage() {
@@ -80,6 +80,7 @@ export default function ProductsPage() {
         <Table>
           <TableHeader>
             <TableRow>
+              <TableHead className="w-14">Image</TableHead>
               <TableHead>Item Code</TableHead>
               <TableHead>Name</TableHead>
               <TableHead>Category</TableHead>
@@ -92,6 +93,19 @@ export default function ProductsPage() {
           <TableBody>
             {filteredProducts.map((product) => (
               <TableRow key={product.id}>
+                <TableCell>
+                  <div className="w-10 h-10 rounded-md border bg-muted/30 flex items-center justify-center overflow-hidden shrink-0">
+                    {product.image_url ? (
+                      <img
+                        src={product.image_url}
+                        alt={product.name}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <ImageIcon className="w-4 h-4 text-muted-foreground/40" />
+                    )}
+                  </div>
+                </TableCell>
                 <TableCell className="font-mono text-sm">{product.item_code}</TableCell>
                 <TableCell className="font-medium">{product.name}</TableCell>
                 <TableCell>{product.category?.name}</TableCell>
@@ -130,7 +144,7 @@ export default function ProductsPage() {
             {filteredProducts.length === 0 && (
               <TableRow>
                 <TableCell
-                  colSpan={7}
+                  colSpan={8}
                   className="text-center py-8 text-muted-foreground"
                 >
                   No products found.

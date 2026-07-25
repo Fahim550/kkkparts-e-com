@@ -171,6 +171,7 @@ export type Database = {
         Row: {
           created_at: string | null;
           id: string;
+          image_url: string | null;
           is_active: boolean | null;
           name: string;
           parent_id: string | null;
@@ -180,6 +181,7 @@ export type Database = {
         Insert: {
           created_at?: string | null;
           id?: string;
+          image_url?: string | null;
           is_active?: boolean | null;
           name: string;
           parent_id?: string | null;
@@ -189,6 +191,7 @@ export type Database = {
         Update: {
           created_at?: string | null;
           id?: string;
+          image_url?: string | null;
           is_active?: boolean | null;
           name?: string;
           parent_id?: string | null;
@@ -1205,6 +1208,7 @@ export type Database = {
           description: string | null;
           has_variants: boolean | null;
           id: string;
+          image_url: string | null;
           is_active: boolean | null;
           item_code: string;
           name: string;
@@ -1218,6 +1222,7 @@ export type Database = {
           description?: string | null;
           has_variants?: boolean | null;
           id?: string;
+          image_url?: string | null;
           is_active?: boolean | null;
           item_code: string;
           name: string;
@@ -1231,6 +1236,7 @@ export type Database = {
           description?: string | null;
           has_variants?: boolean | null;
           id?: string;
+          image_url?: string | null;
           is_active?: boolean | null;
           item_code?: string;
           name?: string;

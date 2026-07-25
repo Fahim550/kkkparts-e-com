@@ -1,30 +1,13 @@
-import React, { useEffect } from "react";
+import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { ProductSchema } from "../../domain/schemas";
-import { z } from "zod";
-import { ProductTemplateWithDetails } from "../../domain/types";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { Loader2, Plus, Trash2 } from "lucide-react";
-import {
-  useCreateProductTemplate,
-  useUpdateProductTemplate,
-  useCreateProductVariation,
-  useDeleteProductVariation,
-} from "../hooks/useProducts";
-import { useBrands } from "../hooks/useBrands";
-import { useCategories } from "../hooks/useCategories";
-import { useUOMs } from "../hooks/useUOMs";
-import { toast } from "sonner";
 import {
   Table,
   TableBody,
@@ -33,6 +16,24 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { uploadProductImage } from "@/lib/image-upload";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { ImageIcon, Loader2, Plus, Trash2, Upload, X } from "lucide-react";
+import React, { useEffect, useState } from "react";
+import { useForm } from "react-hook-form";
+import { toast } from "sonner";
+import { z } from "zod";
+import { ProductSchema } from "../../domain/schemas";
+import { ProductTemplateWithDetails } from "../../domain/types";
+import { useBrands } from "../hooks/useBrands";
+import { useCategories } from "../hooks/useCategories";
+import {
+  useCreateProductTemplate,
+  useCreateProductVariation,
+  useDeleteProductVariation,
+  useUpdateProductTemplate,
+} from "../hooks/useProducts";
+import { useUOMs } from "../hooks/useUOMs";
 
 type ProductFormData = z.infer<typeof ProductSchema>;
 
@@ -53,6 +54,8 @@ export default function ProductFormModal({ isOpen, onOpenChange, product }: Prod
   const createVariation = useCreateProductVariation();
   const deleteVariation = useDeleteProductVariation();
 
+  const [isUploading, setIsUploading] = useState(false);
+
   const {
     register,
     handleSubmit,
@@ -65,20 +68,43 @@ export default function ProductFormModal({ isOpen, onOpenChange, product }: Prod
     defaultValues: { is_active: true, has_variants: false },
   });
 
+  const imageUrl = watch("image_url");
+
   useEffect(() => {
     if (product) {
       setValue("name", product.name);
       setValue("item_code", product.item_code);
       setValue("description", product.description || "");
+      setValue("image_url", product.image_url || "");
       setValue("category_id", product.category_id);
       setValue("brand_id", product.brand_id || undefined);
       setValue("base_uom_id", product.base_uom_id);
       setValue("has_variants", product.has_variants ?? false);
       setValue("is_active", product.is_active ?? true);
     } else {
-      reset({ is_active: true, has_variants: false });
+      reset({ is_active: true, has_variants: false, image_url: "" });
     }
   }, [product, isOpen, reset, setValue]);
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+      setIsUploading(true);
+      const url = await uploadProductImage(file);
+      setValue("image_url", url);
+      toast.success("Product image uploaded successfully");
+    } catch (error: any) {
+      toast.error(error.message || "Failed to upload product image");
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const handleRemoveImage = () => {
+    setValue("image_url", "");
+  };
 
   const onSubmit = async (data: ProductFormData) => {
     try {
@@ -140,6 +166,59 @@ export default function ProductFormModal({ isOpen, onOpenChange, product }: Prod
         </DialogHeader>
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+          {/* Product Image Field */}
+          <div>
+            <Label className="mb-2 block font-medium">Product Image</Label>
+            <div className="flex items-center gap-4">
+              <div className="relative w-24 h-24 rounded-lg border-2 border-dashed border-muted-foreground/30 flex items-center justify-center bg-muted/40 overflow-hidden shrink-0">
+                {imageUrl ? (
+                  <>
+                    <img
+                      src={imageUrl}
+                      alt="Product Preview"
+                      className="w-full h-full object-cover"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleRemoveImage}
+                      className="absolute top-1 right-1 bg-black/60 text-white rounded-full p-1 hover:bg-black/80 transition-colors"
+                      title="Remove image"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </>
+                ) : (
+                  <ImageIcon className="w-8 h-8 text-muted-foreground/50" />
+                )}
+              </div>
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <Label
+                    htmlFor="product-image-upload"
+                    className="cursor-pointer inline-flex items-center gap-2 px-4 py-2 rounded-md border border-input bg-background hover:bg-accent text-sm font-medium transition-colors"
+                  >
+                    {isUploading ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Upload className="w-4 h-4" />
+                    )}
+                    {isUploading ? "Uploading..." : "Upload Image"}
+                  </Label>
+                  <input
+                    id="product-image-upload"
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={handleImageUpload}
+                    disabled={isUploading}
+                  />
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  PNG, JPG, WEBP up to 5MB. Storage bucket: product-images.
+                </p>
+              </div>
+            </div>
+          </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
               <Label>Item Code *</Label>

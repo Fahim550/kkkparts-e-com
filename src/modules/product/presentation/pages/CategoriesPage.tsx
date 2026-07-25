@@ -27,9 +27,11 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { CategorySchema } from "../../domain/schemas";
 import { z } from "zod";
-import { Loader2, Plus, Edit, Trash2 } from "lucide-react";
+import { Loader2, Plus, Edit, Trash2, Upload, ImageIcon, X } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import { uploadProductImage } from "@/lib/image-upload";
+import { toast } from "sonner";
 
 type CategoryFormData = z.infer<typeof CategorySchema>;
 
@@ -41,6 +43,7 @@ export default function CategoriesPage() {
 
   const [isOpen, setIsOpen] = useState(false);
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
 
   const {
     register,
@@ -51,8 +54,30 @@ export default function CategoriesPage() {
     formState: { errors },
   } = useForm<CategoryFormData>({
     resolver: zodResolver(CategorySchema),
-    defaultValues: { is_active: true },
+    defaultValues: { is_active: true, image_url: "" },
   });
+
+  const imageUrl = watch("image_url");
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+      setIsUploading(true);
+      const url = await uploadProductImage(file, "categories");
+      setValue("image_url", url);
+      toast.success("Category image uploaded successfully");
+    } catch (error: any) {
+      toast.error(error.message || "Failed to upload category image");
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const handleRemoveImage = () => {
+    setValue("image_url", "");
+  };
 
   const onSubmit = async (data: CategoryFormData) => {
     if (editingCategory) {
@@ -61,7 +86,7 @@ export default function CategoriesPage() {
       await createCategory.mutateAsync(data);
     }
     setIsOpen(false);
-    reset();
+    reset({ is_active: true, image_url: "" });
     setEditingCategory(null);
   };
 
@@ -69,6 +94,7 @@ export default function CategoriesPage() {
     setEditingCategory(category);
     setValue("name", category.name);
     setValue("slug", category.slug);
+    setValue("image_url", category.image_url || "");
     setValue("parent_id", category.parent_id || undefined);
     setValue("is_active", category.is_active ?? true);
     setIsOpen(true);
@@ -83,7 +109,7 @@ export default function CategoriesPage() {
   const handleOpenChange = (open: boolean) => {
     setIsOpen(open);
     if (!open) {
-      reset();
+      reset({ is_active: true, image_url: "" });
       setEditingCategory(null);
     }
   };
@@ -117,6 +143,58 @@ export default function CategoriesPage() {
               </DialogTitle>
             </DialogHeader>
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+              {/* Category Image Field */}
+              <div>
+                <Label className="mb-2 block font-medium">Category Image</Label>
+                <div className="flex items-center gap-4">
+                  <div className="relative w-20 h-20 rounded-lg border-2 border-dashed border-muted-foreground/30 flex items-center justify-center bg-muted/40 overflow-hidden shrink-0">
+                    {imageUrl ? (
+                      <>
+                        <img
+                          src={imageUrl}
+                          alt="Category Preview"
+                          className="w-full h-full object-cover"
+                        />
+                        <button
+                          type="button"
+                          onClick={handleRemoveImage}
+                          className="absolute top-1 right-1 bg-black/60 text-white rounded-full p-1 hover:bg-black/80 transition-colors"
+                          title="Remove image"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      </>
+                    ) : (
+                      <ImageIcon className="w-7 h-7 text-muted-foreground/50" />
+                    )}
+                  </div>
+                  <div className="space-y-1">
+                    <Label
+                      htmlFor="category-image-upload"
+                      className="cursor-pointer inline-flex items-center gap-2 px-3 py-1.5 rounded-md border border-input bg-background hover:bg-accent text-xs font-medium transition-colors"
+                    >
+                      {isUploading ? (
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      ) : (
+                        <Upload className="w-3.5 h-3.5" />
+                      )}
+                      {isUploading ? "Uploading..." : "Upload Image"}
+                    </Label>
+                    <input
+                      id="category-image-upload"
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={handleImageUpload}
+                      disabled={isUploading}
+                    />
+                    <p className="text-[11px] text-muted-foreground">
+                      PNG, JPG, WEBP up to 5MB.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
               <div>
                 <Label>Name</Label>
                 <Input
@@ -180,6 +258,7 @@ export default function CategoriesPage() {
         <Table>
           <TableHeader>
             <TableRow>
+              <TableHead className="w-14">Image</TableHead>
               <TableHead>Name</TableHead>
               <TableHead>Slug</TableHead>
               <TableHead>Parent Category</TableHead>
@@ -190,6 +269,19 @@ export default function CategoriesPage() {
           <TableBody>
             {categories?.map((category) => (
               <TableRow key={category.id}>
+                <TableCell>
+                  <div className="w-10 h-10 rounded-md border bg-muted/30 flex items-center justify-center overflow-hidden shrink-0">
+                    {category.image_url ? (
+                      <img
+                        src={category.image_url}
+                        alt={category.name}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <ImageIcon className="w-4 h-4 text-muted-foreground/40" />
+                    )}
+                  </div>
+                </TableCell>
                 <TableCell className="font-medium">{category.name}</TableCell>
                 <TableCell>{category.slug}</TableCell>
                 <TableCell>
@@ -225,7 +317,7 @@ export default function CategoriesPage() {
             {(!categories || categories.length === 0) && (
               <TableRow>
                 <TableCell
-                  colSpan={5}
+                  colSpan={6}
                   className="text-center py-8 text-muted-foreground"
                 >
                   No categories found. Create one to get started.
@@ -238,3 +330,4 @@ export default function CategoriesPage() {
     </div>
   );
 }
+
