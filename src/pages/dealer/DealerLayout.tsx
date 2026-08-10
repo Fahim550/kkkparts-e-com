@@ -81,7 +81,7 @@ const DealerLayout: React.FC<DealerLayoutProps> = ({ children }) => {
   const navItems = [
     {
       path: "/dealer/dashboard",
-      label: "Wholesale Catalog",
+      label: "Product Catalog",
       icon: Package,
     },
     {
@@ -94,19 +94,7 @@ const DealerLayout: React.FC<DealerLayoutProps> = ({ children }) => {
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col lg:flex-row font-body">
       {/* Sidebar - Desktop */}
-      <aside className="hidden lg:flex flex-col w-64 bg-slate-900 text-white shrink-0 min-h-screen border-r border-slate-800 sticky top-0 h-screen overflow-y-auto">
-        {/* Brand Header */}
-        <div className="p-6 border-b border-slate-800 flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-primary/20 flex items-center justify-center text-primary font-bold border border-primary/30">
-            <ShieldCheck className="w-6 h-6" />
-          </div>
-          <div>
-            <h2 className="font-heading font-extrabold uppercase tracking-wider text-base text-white">
-              Dealer Portal
-            </h2>
-            <p className="text-xs text-slate-400">Wholesale Dashboard</p>
-          </div>
-        </div>
+      <aside className="hidden lg:flex flex-col w-64 bg-slate-900 text-white shrink-0 min-h-screen border-r border-slate-800 sticky top-0 h-screen overflow-y-auto">      
 
         {/* Profile Brief */}
         <div className="p-5 border-b border-slate-800 bg-slate-950/50">
@@ -137,7 +125,7 @@ const DealerLayout: React.FC<DealerLayoutProps> = ({ children }) => {
                 >
                   {profile?.is_approved ? (
                     <>
-                      <ShieldCheck className="w-3 h-3" /> Approved Dealer
+                      <ShieldCheck className="w-3 h-3" /> Approved Partner
                     </>
                   ) : (
                     <>
@@ -235,10 +223,10 @@ const DealerLayout: React.FC<DealerLayoutProps> = ({ children }) => {
               <h1 className="font-heading text-lg sm:text-xl font-bold uppercase tracking-wider text-gray-900">
                 {location.pathname === "/dealer/orders"
                   ? "Order History"
-                  : "Wholesale Product Catalog"}
+                  : "Product Catalog"}
               </h1>
               <p className="text-xs text-gray-500 hidden sm:block">
-                Welcome back, {profile?.full_name || "Dealer User"}
+                Welcome back, {profile?.full_name || "Partner"}
               </p>
             </div>
           </div>
@@ -257,13 +245,6 @@ const DealerLayout: React.FC<DealerLayoutProps> = ({ children }) => {
               )}
             </Link>
 
-            <button
-              onClick={handleLogout}
-              className="hidden sm:flex items-center gap-2 text-gray-500 hover:text-red-600 px-3 py-2 text-xs font-bold uppercase tracking-wider transition-colors"
-            >
-              <LogOut className="w-4 h-4" />
-              <span>Logout</span>
-            </button>
           </div>
         </header>
 
@@ -320,7 +301,7 @@ const DealerLayout: React.FC<DealerLayoutProps> = ({ children }) => {
           <div className="bg-amber-50 border-b border-amber-200 px-6 py-3.5 text-amber-900 flex items-center gap-3">
             <Clock className="w-5 h-5 text-amber-600 shrink-0" />
             <div className="text-xs sm:text-sm font-body">
-              <strong>Account Approval Pending:</strong> An admin is reviewing your wholesale registration. In the meantime, you can browse products and place regular orders. Once approved, exclusive wholesale prices will be unlocked!
+              <strong>Account Approval Pending:</strong> An admin is reviewing your registration. In the meantime, you can browse products and place orders. Once approved, exclusive partner pricing will be unlocked!
             </div>
           </div>
         )}

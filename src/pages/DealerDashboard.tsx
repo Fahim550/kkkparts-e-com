@@ -16,7 +16,6 @@ import {
   Plus,
   Search,
   ShoppingCart,
-  Sparkles,
   Warehouse,
   XCircle
 } from "lucide-react";
@@ -327,36 +326,8 @@ export default function DealerDashboard() {
 
   return (
     <DealerLayout>
-      <div className="space-y-6">
+      <div className="space-y-4">
         {/* Top Summary Banner */}
-        <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-primary/90 rounded-2xl p-6 sm:p-8 text-white shadow-md relative overflow-hidden">
-          <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
-            <div>
-              <div className="inline-flex items-center gap-2 bg-white/10 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider mb-3 backdrop-blur-sm">
-                <Sparkles className="w-3.5 h-3.5 text-yellow-300" />
-                Wholesale Portal
-              </div>
-              <h2 className="font-heading text-2xl sm:text-3xl font-extrabold uppercase tracking-wider">
-                Wholesale Product Catalog
-              </h2>
-              <p className="text-slate-300 text-xs sm:text-sm mt-1 max-w-xl">
-                Browse our complete catalog of genuine parts. Place bulk orders directly with wholesale dealer rates.
-              </p>
-            </div>
-
-            <div className="flex items-center gap-3 bg-white/10 p-4 rounded-xl backdrop-blur-sm border border-white/10 shrink-0">
-              <div className="text-right">
-                <p className="text-[10px] font-bold text-slate-300 uppercase tracking-wider">
-                  Pricing Tier
-                </p>
-                <p className="text-sm font-extrabold text-white">
-                  {isApproved ? "Wholesale Dealer Rate" : "Standard Rate (Pending)"}
-                </p>
-              </div>
-              <div className={`w-3 h-3 rounded-full ${isApproved ? "bg-emerald-400 animate-pulse" : "bg-amber-400"}`} />
-            </div>
-          </div>
-        </div>
 
         {/* Filter & Search Bar */}
         <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm flex flex-col md:flex-row items-center justify-between gap-4">
@@ -447,7 +418,7 @@ export default function DealerDashboard() {
             </div>
           ) : isLoading || isLoadingBalances ? (
             <div className="p-12 text-center text-gray-500 font-medium">
-              Loading wholesale products &amp; stock...
+              Loading products &amp; stock...
             </div>
           ) : filteredProducts.length === 0 ? (
             <div className="p-12 text-center">
@@ -535,7 +506,7 @@ export default function DealerDashboard() {
                                   {product.price.toLocaleString()}
                                 </span>
                                 <span className="bg-emerald-100 text-emerald-800 text-[10px] font-bold px-1.5 py-0.2 rounded uppercase">
-                                  Wholesale Rate
+                                  Partner Rate
                                 </span>
                               </div>
                             ) : (
