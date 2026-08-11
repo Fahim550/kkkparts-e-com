@@ -1,17 +1,17 @@
-import { useState, useEffect } from "react";
-import { Link, useNavigate, useLocation } from "react-router-dom";
+import Footer from "@/components/Footer";
+import Navbar from "@/components/Navbar";
 import { supabase } from "@/lib/supabase";
-import { toast } from "sonner";
 import {
-  Mail,
-  Lock,
   ArrowRight,
+  Lock,
+  Mail,
+  Phone,
   ShieldCheck,
   User as UserIcon,
-  Phone,
 } from "lucide-react";
-import Navbar from "@/components/Navbar";
-import Footer from "@/components/Footer";
+import { useEffect, useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
+import { toast } from "sonner";
 
 const DealerLoginPage = () => {
   const location = useLocation();
@@ -43,7 +43,18 @@ const DealerLoginPage = () => {
 
       if (isLogin) {
         if (authEmail && !authEmail.includes("@")) {
-          authEmail = `${authEmail}@dealer.local`;
+          // It's a phone number. Look up the dealer's actual email by phone.
+          const { data: dealerData } = await supabase
+            .from("dealers")
+            .select("email")
+            .eq("phone", authEmail)
+            .maybeSingle();
+
+          if (dealerData && dealerData.email) {
+            authEmail = dealerData.email;
+          } else {
+            authEmail = `${authEmail}@dealer.local`;
+          }
         }
 
         const { data, error } = await supabase.auth.signInWithPassword({
@@ -81,8 +92,8 @@ const DealerLoginPage = () => {
         const from = (location.state as any)?.from || "/dealer/dashboard";
         navigate(from);
       } else {
-        if (!phone.trim()) {
-          toast.error("Phone number is required for registration");
+        if (!phone.trim() && !email.trim()) {
+          toast.error("Please provide either a mobile number or an email address");
           setLoading(false);
           return;
         }
@@ -258,9 +269,8 @@ const DealerLoginPage = () => {
                       </div>
                       <input
                         type="tel"
-                        required
                         className="text-left appearance-none rounded-xl relative block w-full px-4 py-4 pl-12 border border-gray-200 bg-gray-50 lg:bg-white text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary sm:text-sm transition-all shadow-sm"
-                        placeholder="Phone Number"
+                        placeholder="Mobile Number (Optional if Email is provided)"
                         value={phone}
                         onChange={(e) => setPhone(e.target.value)}
                       />
@@ -318,12 +328,16 @@ const DealerLoginPage = () => {
               <div>
                 <label className="sr-only">
                   {isLogin
-                    ? "Email or Phone Number"
-                    : "Email address (Optional)"}
+                    ? "Mobile Number or Email"
+                    : "Email address (Optional if Mobile is provided)"}
                 </label>
                 <div className="relative group">
                   <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none z-10">
-                    <Mail className="h-5 w-5 text-gray-400 group-focus-within:text-primary transition-colors" />
+                    {isLogin && !email.includes('@') && email.length > 0 ? (
+                      <Phone className="h-5 w-5 text-gray-400 group-focus-within:text-primary transition-colors" />
+                    ) : (
+                      <Mail className="h-5 w-5 text-gray-400 group-focus-within:text-primary transition-colors" />
+                    )}
                   </div>
                   <input
                     type="text"
@@ -331,8 +345,8 @@ const DealerLoginPage = () => {
                     className="text-left appearance-none rounded-xl relative block w-full px-4 py-4 pl-12 border border-gray-200 bg-gray-50 lg:bg-white text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary sm:text-sm transition-all shadow-sm"
                     placeholder={
                       isLogin
-                        ? "Email or Phone Number"
-                        : "Email address (Optional)"
+                        ? "Mobile Number or Email"
+                        : "Email address (Optional if Mobile is provided)"
                     }
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
