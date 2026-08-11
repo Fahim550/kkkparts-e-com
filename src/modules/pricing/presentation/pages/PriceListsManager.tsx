@@ -1,8 +1,8 @@
-import React, { useState } from "react";
-import { usePriceLists, usePriceListItems } from "../hooks/usePricing";
-import { useProducts } from "@/hooks/useDatabase";
-import { Button } from "@/components/ui/button";
+import { useState, useMemo } from "react";
+import { useProducts, useUpdateProduct } from "@/hooks/useDatabase";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import {
   Table,
   TableBody,
@@ -12,184 +12,283 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import { Loader2, Plus, Tag, DollarSign, Check, X } from "lucide-react";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+  Pencil,
+  Check,
+  X,
+  Search,
+  Tag,
+  ShoppingBag,
+  Users,
+} from "lucide-react";
+import { toast } from "sonner";
 
-export default function PriceListsManager() {
-  const { priceLists, isLoading, createPriceList } = usePriceLists();
-  const [selectedList, setSelectedList] = useState<string | null>(null);
-
-  // New list state
-  const [isNewListOpen, setIsNewListOpen] = useState(false);
-  const [listName, setListName] = useState("");
-  const [listCurrency, setListCurrency] = useState("BDT");
-  
-  const handleCreateList = async () => {
-    if (!listName) return;
-    try {
-      await createPriceList({ name: listName, currency: listCurrency, is_tax_included: false, is_active: true });
-      setIsNewListOpen(false);
-      setListName("");
-    } catch (e) {}
-  };
-
-  return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold tracking-tight">Price Lists</h1>
-        <Dialog open={isNewListOpen} onOpenChange={setIsNewListOpen}>
-          <DialogTrigger asChild>
-            <Button><Plus className="w-4 h-4 mr-2" /> New Price List</Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Create Price List</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4 mt-4">
-              <div className="space-y-2">
-                <Label>List Name (e.g. Retail, Wholesale)</Label>
-                <Input value={listName} onChange={e => setListName(e.target.value)} />
-              </div>
-              <div className="space-y-2">
-                <Label>Currency</Label>
-                <Input value={listCurrency} onChange={e => setListCurrency(e.target.value)} />
-              </div>
-              <Button onClick={handleCreateList} className="w-full">Create List</Button>
-            </div>
-          </DialogContent>
-        </Dialog>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <div className="col-span-1 border rounded-md p-4 bg-muted/20">
-          <h2 className="font-semibold mb-4 text-sm text-muted-foreground uppercase tracking-wider">Available Lists</h2>
-          {isLoading ? <Loader2 className="w-6 h-6 animate-spin mx-auto" /> : (
-            <div className="space-y-2">
-              {priceLists?.map(list => (
-                <button
-                  key={list.id}
-                  onClick={() => setSelectedList(list.id)}
-                  className={`w-full text-left px-3 py-2 rounded-md text-sm transition-colors ${selectedList === list.id ? 'bg-primary text-primary-foreground font-medium' : 'hover:bg-muted'}`}
-                >
-                  <Tag className="w-4 h-4 inline-block mr-2 opacity-70" />
-                  {list.name}
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-        
-        <div className="col-span-1 md:col-span-3 border rounded-md p-6 bg-card">
-          {selectedList ? (
-            <PriceListDetails listId={selectedList} listName={priceLists?.find(l => l.id === selectedList)?.name || ""} />
-          ) : (
-            <div className="text-center text-muted-foreground py-12 flex flex-col items-center">
-              <DollarSign className="w-12 h-12 mb-4 text-muted-foreground/30" />
-              <p>Select a price list from the sidebar to manage item prices.</p>
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
-  );
+interface EditingRow {
+  id: string;
+  price: string;
+  dealer_price: string;
 }
 
-function PriceListDetails({ listId, listName }: { listId: string, listName: string }) {
-  const { items, isLoading, setItemPrice } = usePriceListItems(listId);
-  const { data: products = [] } = useProducts();
-  
-  const [variationId, setVariationId] = useState("");
-  const [price, setPrice] = useState(0);
+export default function PriceListsManager() {
+  const { data: products = [], isLoading } = useProducts();
+  const updateProduct = useUpdateProduct();
+  const [search, setSearch] = useState("");
+  const [editing, setEditing] = useState<EditingRow | null>(null);
 
-  const handleSetPrice = async () => {
-    if (!variationId || price <= 0) return;
-    
-    // Find the product to get its uom
-    let uomId = "";
-    for (const p of products || []) {
-      const v = p.product_variations?.find((x: any) => x.id === variationId);
-      if (v) {
-        uomId = p.base_uom_id;
-        break;
-      }
-    }
-    
-    if (!uomId) return;
+  const filtered = useMemo(
+    () =>
+      products.filter(
+        (p) =>
+          (p.name || "").toLowerCase().includes(search.toLowerCase()) ||
+          (p.brand || "").toLowerCase().includes(search.toLowerCase()) ||
+          ((p as any).sku || "").toLowerCase().includes(search.toLowerCase())
+      ),
+    [products, search]
+  );
 
-    try {
-      await setItemPrice({
-        price_list_id: listId,
-        variation_id: variationId,
-        uom_id: uomId,
-        price: price
-      });
-      setVariationId("");
-      setPrice(0);
-    } catch(e) {}
+  const startEdit = (p: any) => {
+    setEditing({
+      id: p.id,
+      price: p.price != null ? String(p.price) : "",
+      dealer_price: p.dealer_price != null ? String(p.dealer_price) : "",
+    });
   };
+
+  const cancelEdit = () => setEditing(null);
+
+  const saveEdit = async () => {
+    if (!editing) return;
+    const retailPrice = parseFloat(editing.price) || 0;
+    const dealerPrice = editing.dealer_price ? parseFloat(editing.dealer_price) : null;
+    try {
+      await updateProduct.mutateAsync({
+        id: editing.id,
+        price: retailPrice,
+        dealer_price: dealerPrice,
+      } as any);
+      toast.success("Prices updated successfully");
+      setEditing(null);
+    } catch {
+      toast.error("Failed to update prices");
+    }
+  };
+
+  const totalWithRetail = products.filter((p) => p.price && Number(p.price) > 0).length;
+  const totalWithDealer = products.filter((p) => p.dealer_price && Number(p.dealer_price) > 0).length;
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center border-b pb-4">
-        <h2 className="text-xl font-semibold flex items-center"><Tag className="w-5 h-5 mr-2 text-indigo-500" /> {listName} Prices</h2>
-      </div>
-
-      <div className="grid grid-cols-3 gap-4 items-end bg-muted/30 p-4 rounded-md border">
-        <div className="col-span-1">
-          <Label>Product Variation</Label>
-          <Select value={variationId} onValueChange={setVariationId}>
-            <SelectTrigger><SelectValue placeholder="Select variation" /></SelectTrigger>
-            <SelectContent>
-              {products?.map(p => (
-                p.product_variations?.map((v: any) => (
-                  <SelectItem key={v.id} value={v.id}>{p.name} - {v.sku}</SelectItem>
-                ))
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="col-span-1">
-          <Label>Price</Label>
-          <Input type="number" min="0" step="0.01" value={price} onChange={e => setPrice(Number(e.target.value))} />
-        </div>
-        <div className="col-span-1">
-          <Button onClick={handleSetPrice} className="w-full" disabled={!variationId || price <= 0}>Set Price</Button>
-        </div>
-      </div>
-
+      {/* Header */}
       <div>
+        <h1 className="text-2xl font-bold tracking-tight">Price List</h1>
+        <p className="text-sm text-muted-foreground mt-1">
+          Manage retail and dealer prices for all products in one place.
+        </p>
+      </div>
+
+      {/* Stats */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="border rounded-lg p-4 bg-card flex items-center gap-3">
+          <div className="p-2 rounded-md bg-blue-500/10">
+            <ShoppingBag className="w-5 h-5 text-blue-500" />
+          </div>
+          <div>
+            <p className="text-xs text-muted-foreground">Total Products</p>
+            <p className="text-xl font-bold">{products.length}</p>
+          </div>
+        </div>
+        <div className="border rounded-lg p-4 bg-card flex items-center gap-3">
+          <div className="p-2 rounded-md bg-green-500/10">
+            <Tag className="w-5 h-5 text-green-500" />
+          </div>
+          <div>
+            <p className="text-xs text-muted-foreground">With Retail Price</p>
+            <p className="text-xl font-bold">{totalWithRetail}</p>
+          </div>
+        </div>
+        <div className="border rounded-lg p-4 bg-card flex items-center gap-3">
+          <div className="p-2 rounded-md bg-purple-500/10">
+            <Users className="w-5 h-5 text-purple-500" />
+          </div>
+          <div>
+            <p className="text-xs text-muted-foreground">With Dealer Price</p>
+            <p className="text-xl font-bold">{totalWithDealer}</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Search */}
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+        <Input
+          placeholder="Search by product name, brand, or SKU..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="pl-10"
+        />
+      </div>
+
+      {/* Table */}
+      <div className="border rounded-lg overflow-hidden bg-card">
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Product SKU</TableHead>
-              <TableHead>UOM</TableHead>
-              <TableHead className="text-right">Set Price</TableHead>
+              <TableHead>Product</TableHead>
+              <TableHead className="hidden sm:table-cell">SKU</TableHead>
+              <TableHead className="hidden md:table-cell">Category</TableHead>
+              <TableHead>Retail Price</TableHead>
+              <TableHead>Dealer Price</TableHead>
+              <TableHead className="hidden sm:table-cell">Discount</TableHead>
+              <TableHead className="text-right">Action</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {isLoading ? (
-              <TableRow><TableCell colSpan={3} className="text-center py-4"><Loader2 className="animate-spin w-6 h-6 mx-auto" /></TableCell></TableRow>
-            ) : items?.map((item) => (
-              <TableRow key={item.id}>
-                {/* @ts-ignore */}
-                <TableCell className="font-medium">{item.product_variations?.products?.name} - {item.product_variations?.sku}</TableCell>
-                {/* @ts-ignore */}
-                <TableCell>{item.units_of_measure?.abbreviation}</TableCell>
-                <TableCell className="text-right font-mono font-bold text-green-600">${Number(item.price).toFixed(2)}</TableCell>
-              </TableRow>
-            ))}
-            {(!items || items.length === 0) && !isLoading && (
               <TableRow>
-                <TableCell colSpan={3} className="text-center py-8 text-muted-foreground">No items have prices set in this list yet.</TableCell>
+                <TableCell colSpan={7} className="text-center py-12 text-muted-foreground">
+                  Loading products...
+                </TableCell>
               </TableRow>
+            ) : filtered.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={7} className="text-center py-12 text-muted-foreground">
+                  No products found.
+                </TableCell>
+              </TableRow>
+            ) : (
+              filtered.map((p: any) => {
+                const isEditing = editing?.id === p.id;
+                const retailPrice = Number(p.price) || 0;
+                const dealerPrice = Number(p.dealer_price) || 0;
+                const discountPct =
+                  retailPrice > 0 && dealerPrice > 0
+                    ? Math.round((1 - dealerPrice / retailPrice) * 100)
+                    : null;
+
+                return (
+                  <TableRow key={p.id}>
+                    {/* Product */}
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        {p.image && (
+                          <img
+                            src={p.image}
+                            alt={p.name}
+                            className="w-8 h-8 rounded object-cover hidden sm:block"
+                          />
+                        )}
+                        <div>
+                          <p className="font-medium text-sm">{p.name}</p>
+                          <p className="text-xs text-muted-foreground">{p.brand}</p>
+                        </div>
+                      </div>
+                    </TableCell>
+
+                    {/* SKU */}
+                    <TableCell className="hidden sm:table-cell text-xs text-muted-foreground font-mono">
+                      {p.sku || "—"}
+                    </TableCell>
+
+                    {/* Category */}
+                    <TableCell className="hidden md:table-cell text-xs">
+                      {p.category || "—"}
+                    </TableCell>
+
+                    {/* Retail Price */}
+                    <TableCell>
+                      {isEditing ? (
+                        <Input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          value={editing.price}
+                          onChange={(e) =>
+                            setEditing((prev) =>
+                              prev ? { ...prev, price: e.target.value } : prev
+                            )
+                          }
+                          className="w-28 h-8 text-sm"
+                          autoFocus
+                        />
+                      ) : (
+                        <span className="font-semibold text-green-600">
+                          {retailPrice > 0 ? `৳${retailPrice.toFixed(2)}` : (
+                            <span className="text-muted-foreground text-xs">Not set</span>
+                          )}
+                        </span>
+                      )}
+                    </TableCell>
+
+                    {/* Dealer Price */}
+                    <TableCell>
+                      {isEditing ? (
+                        <Input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          value={editing.dealer_price}
+                          onChange={(e) =>
+                            setEditing((prev) =>
+                              prev ? { ...prev, dealer_price: e.target.value } : prev
+                            )
+                          }
+                          className="w-28 h-8 text-sm"
+                        />
+                      ) : (
+                        <span className="font-semibold text-purple-600">
+                          {dealerPrice > 0 ? `৳${dealerPrice.toFixed(2)}` : (
+                            <span className="text-muted-foreground text-xs">Not set</span>
+                          )}
+                        </span>
+                      )}
+                    </TableCell>
+
+                    {/* Discount */}
+                    <TableCell className="hidden sm:table-cell">
+                      {discountPct !== null && discountPct > 0 ? (
+                        <Badge variant="secondary" className="bg-orange-100 text-orange-700 border-orange-200">
+                          {discountPct}% off
+                        </Badge>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">—</span>
+                      )}
+                    </TableCell>
+
+                    {/* Action */}
+                    <TableCell className="text-right">
+                      {isEditing ? (
+                        <div className="flex items-center justify-end gap-1">
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-7 w-7 p-0 text-green-600 hover:text-green-700 hover:bg-green-50"
+                            onClick={saveEdit}
+                            disabled={updateProduct.isPending}
+                          >
+                            <Check className="w-4 h-4" />
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-7 w-7 p-0 text-red-500 hover:text-red-600 hover:bg-red-50"
+                            onClick={cancelEdit}
+                          >
+                            <X className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      ) : (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-7 w-7 p-0"
+                          onClick={() => startEdit(p)}
+                        >
+                          <Pencil className="w-3.5 h-3.5" />
+                        </Button>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                );
+              })
             )}
           </TableBody>
         </Table>

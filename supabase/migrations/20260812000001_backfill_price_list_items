@@ -1,0 +1,36 @@
+-- Backfill prices for all existing products into price_list_items
+DO $$
+DECLARE
+  retail_list_id UUID;
+  dealer_list_id UUID;
+  default_uom_id UUID;
+  r RECORD;
+  var RECORD;
+BEGIN
+  SELECT id INTO retail_list_id FROM price_lists WHERE name = 'Standard Retail Price' LIMIT 1;
+  SELECT id INTO dealer_list_id FROM price_lists WHERE name = 'Wholesale Dealer Price' LIMIT 1;
+  SELECT id INTO default_uom_id FROM units_of_measure WHERE abbreviation = 'pcs' LIMIT 1;
+  IF default_uom_id IS NULL THEN
+    SELECT id INTO default_uom_id FROM units_of_measure LIMIT 1;
+  END IF;
+
+  FOR r IN SELECT id, name, price, dealer_price FROM products WHERE price > 0 LOOP
+    -- Get first variation for this product
+    SELECT id INTO var FROM product_variations WHERE product_id = r.id LIMIT 1;
+    IF var.id IS NULL THEN CONTINUE; END IF;
+
+    -- Retail price
+    IF retail_list_id IS NOT NULL AND r.price > 0 THEN
+      INSERT INTO price_list_items (price_list_id, variation_id, uom_id, price)
+      VALUES (retail_list_id, var.id, default_uom_id, r.price)
+      ON CONFLICT (price_list_id, variation_id, uom_id) DO UPDATE SET price = EXCLUDED.price;
+    END IF;
+
+    -- Dealer price
+    IF dealer_list_id IS NOT NULL AND r.dealer_price > 0 THEN
+      INSERT INTO price_list_items (price_list_id, variation_id, uom_id, price)
+      VALUES (dealer_list_id, var.id, default_uom_id, r.dealer_price)
+      ON CONFLICT (price_list_id, variation_id, uom_id) DO UPDATE SET price = EXCLUDED.price;
+    END IF;
+  END LOOP;
+END $$;
