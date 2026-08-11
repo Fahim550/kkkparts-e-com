@@ -7,6 +7,11 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { Switch } from "@/components/ui/switch";
 import {
   Table,
@@ -25,15 +30,15 @@ import { toast } from "sonner";
 import { z } from "zod";
 import { ProductSchema } from "../../domain/schemas";
 import { ProductTemplateWithDetails } from "../../domain/types";
-import { useBrands } from "../hooks/useBrands";
-import { useCategories } from "../hooks/useCategories";
+import { useCreateBrand, useBrands } from "../hooks/useBrands";
+import { useCreateCategory, useCategories } from "../hooks/useCategories";
 import {
   useCreateProductTemplate,
   useCreateProductVariation,
   useDeleteProductVariation,
   useUpdateProductTemplate,
 } from "../hooks/useProducts";
-import { useUOMs } from "../hooks/useUOMs";
+import { useCreateUOM, useUOMs } from "../hooks/useUOMs";
 
 type ProductFormData = z.infer<typeof ProductSchema>;
 
@@ -41,9 +46,89 @@ interface ProductFormModalProps {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
   product: ProductTemplateWithDetails | null;
+  onSuccess?: (product: any, variation?: any) => void;
 }
 
-export default function ProductFormModal({ isOpen, onOpenChange, product }: ProductFormModalProps) {
+// ── Reusable Quick-Create Popover ────────────────────────────────────────────
+interface QuickCreatePopoverProps {
+  label: string;
+  fields: { name: string; placeholder: string; required?: boolean }[];
+  isLoading: boolean;
+  onSave: (values: Record<string, string>) => Promise<void>;
+}
+
+function QuickCreatePopover({ label, fields, isLoading, onSave }: QuickCreatePopoverProps) {
+  const [open, setOpen] = useState(false);
+  const [values, setValues] = useState<Record<string, string>>({});
+
+  const isValid = fields
+    .filter((f) => f.required !== false)
+    .every((f) => (values[f.name] || "").trim() !== "");
+
+  const handleSave = async () => {
+    if (!isValid) return;
+    await onSave(values);
+    setValues({});
+    setOpen(false);
+  };
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button
+          type="button"
+          variant="outline"
+          size="icon"
+          className="h-10 w-10 shrink-0"
+          title={`Quick create ${label}`}
+        >
+          <Plus className="w-4 h-4" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-72 p-4 space-y-3" align="start" side="bottom">
+        <p className="text-sm font-semibold">Quick Create {label}</p>
+        {fields.map((field) => (
+          <div key={field.name} className="space-y-1">
+            <Label className="text-xs">
+              {field.name.charAt(0).toUpperCase() + field.name.slice(1).replace(/_/g, " ")}
+              {field.required !== false && <span className="text-red-500 ml-0.5">*</span>}
+            </Label>
+            <Input
+              placeholder={field.placeholder}
+              value={values[field.name] || ""}
+              onChange={(e) => setValues((v) => ({ ...v, [field.name]: e.target.value }))}
+              onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleSave(); } }}
+              className="h-8 text-sm"
+            />
+          </div>
+        ))}
+        <div className="flex gap-2 pt-1">
+          <Button
+            type="button"
+            size="sm"
+            className="flex-1 h-8"
+            onClick={handleSave}
+            disabled={isLoading || !isValid}
+          >
+            {isLoading && <Loader2 className="w-3 h-3 mr-1.5 animate-spin" />}
+            Create
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="h-8"
+            onClick={() => { setValues({}); setOpen(false); }}
+          >
+            Cancel
+          </Button>
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+export default function ProductFormModal({ isOpen, onOpenChange, product, onSuccess }: ProductFormModalProps) {
   const { data: brands } = useBrands();
   const { data: categories } = useCategories();
   const { data: uoms } = useUOMs();
@@ -53,6 +138,10 @@ export default function ProductFormModal({ isOpen, onOpenChange, product }: Prod
   
   const createVariation = useCreateProductVariation();
   const deleteVariation = useDeleteProductVariation();
+
+  const createCategory = useCreateCategory();
+  const createBrand = useCreateBrand();
+  const createUOM = useCreateUOM();
 
   const [isUploading, setIsUploading] = useState(false);
 
@@ -124,15 +213,18 @@ export default function ProductFormModal({ isOpen, onOpenChange, product }: Prod
         toast.success("Product created successfully");
       }
       
+      let createdVariation = null;
       if (!data.has_variants && !product) {
-         // Create a default variation if no variants
-         await createVariation.mutateAsync({
+         createdVariation = await createVariation.mutateAsync({
            product_id: savedProduct.id,
            sku: savedProduct.item_code,
            is_active: true,
          });
       }
       
+      if (onSuccess) {
+        onSuccess(savedProduct, createdVariation);
+      }
       onOpenChange(false);
     } catch (error) {
       toast.error("Failed to save product");
@@ -161,6 +253,37 @@ export default function ProductFormModal({ isOpen, onOpenChange, product }: Prod
     }
   };
 
+  const handleQuickCreateCategory = async (values: Record<string, string>) => {
+    const slug = values.name.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
+    const created = await createCategory.mutateAsync({
+      name: values.name.trim(),
+      slug,
+      is_active: true,
+      parent_id: null,
+    });
+    setValue("category_id", (created as any).id);
+    toast.success(`Category "${values.name}" created`);
+  };
+
+  const handleQuickCreateBrand = async (values: Record<string, string>) => {
+    const created = await createBrand.mutateAsync({
+      name: values.name.trim(),
+      description: values.description?.trim() || null,
+      is_active: true,
+    });
+    setValue("brand_id", (created as any).id);
+    toast.success(`Brand "${values.name}" created`);
+  };
+
+  const handleQuickCreateUOM = async (values: Record<string, string>) => {
+    const created = await createUOM.mutateAsync({
+      name: values.name.trim(),
+      abbreviation: values.abbreviation.trim(),
+    });
+    setValue("base_uom_id", (created as any).id);
+    toast.success(`UOM "${values.name}" created`);
+  };
+
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
@@ -169,7 +292,6 @@ export default function ProductFormModal({ isOpen, onOpenChange, product }: Prod
         </DialogHeader>
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 pt-4">
-          {/* Image Upload Section */}
           <div className="space-y-2">
             <Label>Product Image</Label>
             <div className="flex items-center gap-4">
@@ -217,7 +339,7 @@ export default function ProductFormModal({ isOpen, onOpenChange, product }: Prod
                   />
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  PNG, JPG, WEBP up to 5MB. Storage bucket: product-images.
+                  PNG, JPG, WEBP up to 5MB.
                 </p>
               </div>
             </div>
@@ -288,48 +410,84 @@ export default function ProductFormModal({ isOpen, onOpenChange, product }: Prod
           <div className="grid grid-cols-2 gap-4">
             <div>
               <Label>Category *</Label>
-              <select
-                {...register("category_id")}
-                className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
-              >
-                <option value="">Select Category</option>
-                {categories?.map((c) => (
-                  <option key={c.id} value={c.id}>{c.name}</option>
-                ))}
-              </select>
-              {errors.category_id && (
-                <p className="text-sm text-red-500 mt-1">{errors.category_id.message}</p>
-              )}
+              <div className="flex items-start gap-2">
+                <div className="flex-1">
+                  <select
+                    {...register("category_id")}
+                    className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
+                  >
+                    <option value="">Select Category</option>
+                    {categories?.map((c) => (
+                      <option key={c.id} value={c.id}>{c.name}</option>
+                    ))}
+                  </select>
+                  {errors.category_id && (
+                    <p className="text-sm text-red-500 mt-1">{errors.category_id.message}</p>
+                  )}
+                </div>
+                <QuickCreatePopover
+                  label="Category"
+                  fields={[{ name: "name", placeholder: "e.g. Engine Parts", required: true }]}
+                  isLoading={createCategory.isPending}
+                  onSave={handleQuickCreateCategory}
+                />
+              </div>
             </div>
             <div>
               <Label>Brand</Label>
-              <select
-                {...register("brand_id")}
-                className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
-              >
-                <option value="">Select Brand (Optional)</option>
-                {brands?.map((b) => (
-                  <option key={b.id} value={b.id}>{b.name}</option>
-                ))}
-              </select>
+              <div className="flex items-start gap-2">
+                <div className="flex-1">
+                  <select
+                    {...register("brand_id")}
+                    className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
+                  >
+                    <option value="">Select Brand (Optional)</option>
+                    {brands?.map((b) => (
+                      <option key={b.id} value={b.id}>{b.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <QuickCreatePopover
+                  label="Brand"
+                  fields={[
+                    { name: "name", placeholder: "e.g. Toyota", required: true },
+                    { name: "description", placeholder: "Description (optional)", required: false },
+                  ]}
+                  isLoading={createBrand.isPending}
+                  onSave={handleQuickCreateBrand}
+                />
+              </div>
             </div>
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div>
               <Label>Base Unit of Measure *</Label>
-              <select
-                {...register("base_uom_id")}
-                className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
-              >
-                <option value="">Select UOM</option>
-                {uoms?.map((u) => (
-                  <option key={u.id} value={u.id}>{u.name} ({u.abbreviation})</option>
-                ))}
-              </select>
-              {errors.base_uom_id && (
-                <p className="text-sm text-red-500 mt-1">{errors.base_uom_id.message}</p>
-              )}
+              <div className="flex items-start gap-2">
+                <div className="flex-1">
+                  <select
+                    {...register("base_uom_id")}
+                    className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
+                  >
+                    <option value="">Select UOM</option>
+                    {uoms?.map((u) => (
+                      <option key={u.id} value={u.id}>{u.name} ({u.abbreviation})</option>
+                    ))}
+                  </select>
+                  {errors.base_uom_id && (
+                    <p className="text-sm text-red-500 mt-1">{errors.base_uom_id.message}</p>
+                  )}
+                </div>
+                <QuickCreatePopover
+                  label="UOM"
+                  fields={[
+                    { name: "name", placeholder: "e.g. Piece", required: true },
+                    { name: "abbreviation", placeholder: "e.g. pcs", required: true },
+                  ]}
+                  isLoading={createUOM.isPending}
+                  onSave={handleQuickCreateUOM}
+                />
+              </div>
             </div>
             <div className="flex flex-wrap items-center gap-4 pt-6">
               <div className="flex items-center space-x-2">
@@ -388,7 +546,6 @@ export default function ProductFormModal({ isOpen, onOpenChange, product }: Prod
           </Button>
         </form>
 
-        {/* Variations Section */}
         {product && product.has_variants && (
           <div className="mt-8 pt-6 border-t border-border">
             <div className="flex justify-between items-center mb-4">

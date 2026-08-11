@@ -36,6 +36,7 @@ import { z } from "zod";
 import { useCategories } from "../../../product/presentation/hooks/useCategories";
 import { useCreateProductVariation } from "../../../product/presentation/hooks/useProducts";
 import { useUOMs } from "../../../product/presentation/hooks/useUOMs";
+import ProductFormModal from "../../../product/presentation/pages/ProductFormModal";
 import { SupplierSchema } from "../../../supplier/domain/validations";
 import { useSuppliers } from "../../../supplier/presentation/hooks/useSuppliers";
 import { usePurchaseOrders } from "../hooks/usePurchaseOrders";
@@ -88,71 +89,6 @@ export default function PurchaseOrdersPage() {
 
   // ── Quick-create: Product ──
   const [productDialogOpen, setProductDialogOpen] = useState(false);
-  const [newItemCode, setNewItemCode] = useState("");
-  const [newProductName, setNewProductName] = useState("");
-  const [newProductDesc, setNewProductDesc] = useState("");
-  const [newCategoryId, setNewCategoryId] = useState("");
-  const [newUomId, setNewUomId] = useState("");
-  const [isCreatingProduct, setIsCreatingProduct] = useState(false);
-  const { mutateAsync: addProduct } = useAddProduct();
-  const { data: categories = [] } = useCategories();
-  const { data: uoms = [] } = useUOMs();
-  const createVariation = useCreateProductVariation();
-
-  const handleQuickCreateProduct = async () => {
-    if (!newProductName.trim()) return;
-
-    const itemCodeToUse = newItemCode.trim() || `PRD-${Date.now().toString().slice(-6)}`;
-    const categoryIdToUse = newCategoryId || categories[0]?.id;
-    const uomIdToUse = newUomId || uoms[0]?.id;
-
-    if (!categoryIdToUse || !uomIdToUse) {
-      toast({
-        variant: "destructive",
-        title: "Validation Error",
-        description: "Category and Base UOM are required to create a product template.",
-      });
-      return;
-    }
-
-    setIsCreatingProduct(true);
-    try {
-      const newProduct = await addProduct({
-        item_code: itemCodeToUse,
-        name: newProductName.trim(),
-        description: newProductDesc.trim() || null,
-        category_id: categoryIdToUse,
-        base_uom_id: uomIdToUse,
-        is_active: true,
-        has_variants: false,
-      } as any);
-
-      if (newProduct?.id) {
-        await createVariation.mutateAsync({
-          product_id: newProduct.id,
-          sku: itemCodeToUse,
-          is_active: true,
-        });
-      }
-
-      await refetchProducts();
-      queryClient.invalidateQueries({ queryKey: ["products"] });
-      setProductDialogOpen(false);
-      setNewItemCode("");
-      setNewProductName("");
-      setNewProductDesc("");
-      setNewCategoryId("");
-      setNewUomId("");
-      toast({
-        title: "Product created",
-        description: `${newProductName} (${itemCodeToUse}) created successfully.`,
-      });
-    } catch (e: any) {
-      toast({ variant: "destructive", title: "Error", description: e.message });
-    } finally {
-      setIsCreatingProduct(false);
-    }
-  };
 
   const [isOpen, setIsOpen] = useState(false);
   const [poNumber, setPoNumber] = useState(`PO-${Date.now()}`);
@@ -368,89 +304,29 @@ export default function PurchaseOrdersPage() {
                         </SelectContent>
                       </Select>
                       {/* Quick-create Product */}
-                      <Dialog open={productDialogOpen} onOpenChange={setProductDialogOpen}>
-                        <DialogTrigger asChild>
-                          <Button type="button" variant="outline" size="icon" title="Create new product">
-                            <Plus className="w-4 h-4" />
-                          </Button>
-                        </DialogTrigger>
-                        <DialogContent className="max-w-md">
-                          <DialogHeader>
-                            <DialogTitle>Quick Create Product</DialogTitle>
-                          </DialogHeader>
-                          <div className="space-y-3">
-                            <p className="text-xs text-muted-foreground">
-                              Create a product template. A default variation will be created automatically for purchase order selection.
-                            </p>
-                            <div className="grid grid-cols-2 gap-2">
-                              <div className="space-y-1">
-                                <Label>Item Code</Label>
-                                <Input
-                                  placeholder="e.g. PRD-001 (Auto if empty)"
-                                  value={newItemCode}
-                                  onChange={(e) => setNewItemCode(e.target.value)}
-                                />
-                              </div>
-                              <div className="space-y-1">
-                                <Label>Product Name <span className="text-red-500">*</span></Label>
-                                <Input
-                                  placeholder="e.g. Toyota Brake Pad"
-                                  value={newProductName}
-                                  onChange={(e) => setNewProductName(e.target.value)}
-                                />
-                              </div>
-                            </div>
-                            <div className="grid grid-cols-2 gap-2">
-                              <div className="space-y-1">
-                                <Label>Category <span className="text-red-500">*</span></Label>
-                                <select
-                                  value={newCategoryId || categories[0]?.id || ""}
-                                  onChange={(e) => setNewCategoryId(e.target.value)}
-                                  className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm"
-                                >
-                                  {categories.length === 0 && <option value="">No categories found</option>}
-                                  {categories.map((c) => (
-                                    <option key={c.id} value={c.id}>
-                                      {c.name}
-                                    </option>
-                                  ))}
-                                </select>
-                              </div>
-                              <div className="space-y-1">
-                                <Label>Base UOM <span className="text-red-500">*</span></Label>
-                                <select
-                                  value={newUomId || uoms[0]?.id || ""}
-                                  onChange={(e) => setNewUomId(e.target.value)}
-                                  className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm"
-                                >
-                                  {uoms.length === 0 && <option value="">No UOMs found</option>}
-                                  {uoms.map((u) => (
-                                    <option key={u.id} value={u.id}>
-                                      {u.name} ({u.abbreviation})
-                                    </option>
-                                  ))}
-                                </select>
-                              </div>
-                            </div>
-                            <div className="space-y-1">
-                              <Label>Description</Label>
-                              <Input
-                                placeholder="Optional description"
-                                value={newProductDesc}
-                                onChange={(e) => setNewProductDesc(e.target.value)}
-                              />
-                            </div>
-                            <Button
-                              className="w-full"
-                              onClick={handleQuickCreateProduct}
-                              disabled={isCreatingProduct || !newProductName.trim()}
-                            >
-                              {isCreatingProduct && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                              Create Product
-                            </Button>
-                          </div>
-                        </DialogContent>
-                      </Dialog>
+                      <Button 
+                        type="button" 
+                        variant="outline" 
+                        size="icon" 
+                        title="Create new product"
+                        onClick={() => setProductDialogOpen(true)}
+                      >
+                        <Plus className="w-4 h-4" />
+                      </Button>
+                      <ProductFormModal 
+                        isOpen={productDialogOpen}
+                        onOpenChange={setProductDialogOpen}
+                        product={null}
+                        onSuccess={async (product, variation) => {
+                          await refetchProducts();
+                          queryClient.invalidateQueries({ queryKey: ["products"] });
+                          if (variation) {
+                            setSelectedVariation(variation.id);
+                          } else if (product?.product_variations?.[0]) {
+                            setSelectedVariation(product.product_variations[0].id);
+                          }
+                        }}
+                      />
                     </div>
                   </div>
                   <div className="w-24">
