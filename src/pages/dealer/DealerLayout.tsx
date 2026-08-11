@@ -11,9 +11,11 @@ import {
   Package,
   ShieldCheck,
   ShoppingCart,
+  UserCircle,
   User as UserIcon,
   X
 } from "lucide-react";
+
 import React, { useEffect, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 
@@ -89,7 +91,13 @@ const DealerLayout: React.FC<DealerLayoutProps> = ({ children }) => {
       label: "My Orders",
       icon: ShoppingCart,
     },
+    {
+      path: "/dealer/profile",
+      label: "My Profile",
+      icon: UserCircle,
+    },
   ];
+
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col lg:flex-row font-body">
@@ -223,11 +231,10 @@ const DealerLayout: React.FC<DealerLayoutProps> = ({ children }) => {
               <h1 className="font-heading text-lg sm:text-xl font-bold uppercase tracking-wider text-gray-900">
                 {location.pathname === "/dealer/orders"
                   ? "Order History"
+                  : location.pathname === "/dealer/profile"
+                  ? "My Profile"
                   : "Product Catalog"}
               </h1>
-              <p className="text-xs text-gray-500 hidden sm:block">
-                Welcome back, {profile?.full_name || "Partner"}
-              </p>
             </div>
           </div>
 

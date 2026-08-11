@@ -10,9 +10,22 @@ import {
   Search,
   Trash2,
   User as UserIcon,
+  Plus,
+  Loader2,
 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { createClient } from "@supabase/supabase-js";
 
 interface DbUser {
   id: string;
@@ -30,6 +43,16 @@ interface DbUser {
 const UsersManager = () => {
   const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [newDealerData, setNewDealerData] = useState({
+    full_name: "",
+    email: "",
+    phone: "",
+    password: "",
+    license_number: "",
+    area: "",
+    sponsored_details: "",
+  });
 
   const { data: users = [], isLoading, error } = useQuery({
     queryKey: ["dealers_list"],
@@ -88,6 +111,82 @@ const UsersManager = () => {
     },
   });
 
+  const createDealerMutation = useMutation({
+    mutationFn: async (data: typeof newDealerData) => {
+      // Create a temporary client to prevent the admin from being logged out
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || "https://placeholder.supabase.co";
+      const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY || import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || "placeholder-key";
+      const tempClient = createClient(supabaseUrl, supabaseKey, {
+        auth: { persistSession: false, autoRefreshToken: false }
+      });
+
+      let authEmail = data.email.trim();
+      if (!authEmail) {
+        if (data.phone.trim()) {
+          authEmail = `${data.phone.trim()}@dealer.local`;
+        } else {
+          authEmail = `${data.full_name.replace(/\s+/g, "").toLowerCase()}_${Date.now()}@dealer.local`;
+        }
+      } else if (!authEmail.includes("@")) {
+        authEmail = `${authEmail}@dealer.local`;
+      }
+
+      const { data: authData, error: authError } = await tempClient.auth.signUp({
+        email: authEmail,
+        password: data.password,
+        options: {
+          data: {
+            full_name: data.full_name,
+            phone: data.phone,
+            role: "dealer",
+            sponsored_details: data.sponsored_details,
+            area: data.area,
+            license_number: data.license_number,
+            is_approved: true, // Auto approve when created by admin
+            plain_password: data.password,
+          },
+        },
+      });
+
+      if (authError) throw authError;
+
+      if (authData.user) {
+        const { error: insertError } = await supabase.from("dealers").upsert({
+          id: authData.user.id,
+          full_name: data.full_name,
+          email: authEmail,
+          phone: data.phone,
+          sponsored_details: data.sponsored_details,
+          area: data.area,
+          license_number: data.license_number,
+          is_approved: true,
+          plain_password: data.password,
+        });
+
+        if (insertError) throw insertError;
+      }
+      
+      return authData;
+    },
+    onSuccess: () => {
+      toast.success("Dealer created successfully");
+      setIsCreateModalOpen(false);
+      setNewDealerData({
+        full_name: "",
+        email: "",
+        phone: "",
+        password: "",
+        license_number: "",
+        area: "",
+        sponsored_details: "",
+      });
+      queryClient.invalidateQueries({ queryKey: ["dealers_list"] });
+    },
+    onError: (error: any) => {
+      toast.error(error.message || "Failed to create dealer");
+    }
+  });
+
   const handleRoleChange = async (id: string, newRole: string) => {
     try {
       await updateRole.mutateAsync({ id, role: newRole });
@@ -117,6 +216,19 @@ const UsersManager = () => {
         toast.error("Failed to delete dealer");
       }
     }
+  };
+
+  const handleCreateDealer = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newDealerData.full_name.trim()) {
+      toast.error("Full Name is required");
+      return;
+    }
+    if (!newDealerData.password.trim() || newDealerData.password.length < 6) {
+      toast.error("Password is required and must be at least 6 characters");
+      return;
+    }
+    createDealerMutation.mutate(newDealerData);
   };
 
   const searchTerms = search
@@ -167,6 +279,111 @@ const UsersManager = () => {
             Manage wholesale dealer registrations and approvals
           </p>
         </div>
+        <Dialog open={isCreateModalOpen} onOpenChange={setIsCreateModalOpen}>
+          <DialogTrigger asChild>
+            <Button className="bg-primary hover:bg-primary/90 text-white font-bold uppercase tracking-widest px-6 rounded-xl shadow-[0_4px_15px_rgba(0,0,0,0.1)] transition-all flex items-center gap-2">
+              <Plus className="w-5 h-5" />
+              Add Dealer
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="sm:max-w-[600px] bg-white max-h-[90vh] overflow-y-auto rounded-2xl">
+            <DialogHeader>
+              <DialogTitle className="font-heading text-2xl font-bold uppercase tracking-widest text-gray-900">
+                Create New Dealer
+              </DialogTitle>
+            </DialogHeader>
+            <form onSubmit={handleCreateDealer} className="space-y-5 mt-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <div className="space-y-2">
+                  <Label className="text-sm font-bold text-gray-700">Full Name / Company <span className="text-red-500">*</span></Label>
+                  <Input
+                    required
+                    value={newDealerData.full_name}
+                    onChange={(e) => setNewDealerData({...newDealerData, full_name: e.target.value})}
+                    placeholder="Enter full name"
+                    className="rounded-xl border-gray-200"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-sm font-bold text-gray-700">Password <span className="text-red-500">*</span></Label>
+                  <Input
+                    required
+                    minLength={6}
+                    value={newDealerData.password}
+                    onChange={(e) => setNewDealerData({...newDealerData, password: e.target.value})}
+                    placeholder="Min 6 characters"
+                    className="rounded-xl border-gray-200"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-sm font-bold text-gray-700">Email Address <span className="text-gray-400 font-normal">(Optional)</span></Label>
+                  <Input
+                    type="email"
+                    value={newDealerData.email}
+                    onChange={(e) => setNewDealerData({...newDealerData, email: e.target.value})}
+                    placeholder="Email"
+                    className="rounded-xl border-gray-200"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-sm font-bold text-gray-700">Phone Number <span className="text-gray-400 font-normal">(Optional)</span></Label>
+                  <Input
+                    type="tel"
+                    value={newDealerData.phone}
+                    onChange={(e) => setNewDealerData({...newDealerData, phone: e.target.value})}
+                    placeholder="Phone"
+                    className="rounded-xl border-gray-200"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-sm font-bold text-gray-700">License Number <span className="text-gray-400 font-normal">(Optional)</span></Label>
+                  <Input
+                    value={newDealerData.license_number}
+                    onChange={(e) => setNewDealerData({...newDealerData, license_number: e.target.value})}
+                    placeholder="License number"
+                    className="rounded-xl border-gray-200"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-sm font-bold text-gray-700">Area <span className="text-gray-400 font-normal">(Optional)</span></Label>
+                  <Input
+                    value={newDealerData.area}
+                    onChange={(e) => setNewDealerData({...newDealerData, area: e.target.value})}
+                    placeholder="e.g. Muscat"
+                    className="rounded-xl border-gray-200"
+                  />
+                </div>
+                <div className="space-y-2 md:col-span-2">
+                  <Label className="text-sm font-bold text-gray-700">Dealer Address Details <span className="text-gray-400 font-normal">(Optional)</span></Label>
+                  <Input
+                    value={newDealerData.sponsored_details}
+                    onChange={(e) => setNewDealerData({...newDealerData, sponsored_details: e.target.value})}
+                    placeholder="Full address details"
+                    className="rounded-xl border-gray-200"
+                  />
+                </div>
+              </div>
+              <div className="pt-4 flex justify-end gap-3 border-t border-gray-100">
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  onClick={() => setIsCreateModalOpen(false)}
+                  className="rounded-xl uppercase font-bold tracking-wider"
+                >
+                  Cancel
+                </Button>
+                <Button 
+                  type="submit" 
+                  disabled={createDealerMutation.isPending}
+                  className="bg-primary hover:bg-primary/90 text-white rounded-xl uppercase font-bold tracking-wider px-6"
+                >
+                  {createDealerMutation.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                  Create Dealer
+                </Button>
+              </div>
+            </form>
+          </DialogContent>
+        </Dialog>
       </div>
 
       <div className="relative mb-6">
