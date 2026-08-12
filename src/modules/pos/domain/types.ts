@@ -24,9 +24,11 @@ export type CartItem = {
 export type CheckoutPayload = {
   shift_id: string;
   customer_id?: string | null;
+  walk_in_customer_name?: string;
+  walk_in_customer_phone?: string;
   items: CartItem[];
   payments: {
-    method: "Cash" | "Card" | "Bank Transfer";
+    method: "Cash" | "Card" | "Bank Transfer" | "Due";
     amount: number;
     reference_code?: string;
   }[];

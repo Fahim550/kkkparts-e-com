@@ -20,9 +20,12 @@ const statusColors: Record<string, string> = {
   shipped: "bg-purple-100 text-purple-700",
   delivered: "bg-green-100 text-green-700",
   cancelled: "bg-red-100 text-red-700",
+  paid: "bg-green-100 text-green-700",
+  partial: "bg-orange-100 text-orange-700",
+  unpaid: "bg-red-100 text-red-700",
 };
 
-const statuses = ["pending", "confirmed", "shipped", "delivered", "cancelled"];
+const statuses = ["pending", "confirmed", "shipped", "delivered", "cancelled", "paid", "partial", "unpaid"];
 
 const OrdersManager = () => {
   const { data: orders = [], isLoading } = useOrders();
@@ -134,11 +137,19 @@ const OrdersManager = () => {
                   </p>
                 </div>
                 <div className="flex items-center gap-2 flex-wrap">
-                  <Link to={`/admin/orders/${order.id}`}>
-                    <Button variant="outline" size="sm" className="gap-1.5">
-                      <Eye className="h-3.5 w-3.5" /> View
-                    </Button>
-                  </Link>
+                  {order.type === 'pos_receipt' ? (
+                    <Link to={`/admin/pos/receipt/${order.id}`}>
+                      <Button variant="outline" size="sm" className="gap-1.5">
+                        <Eye className="h-3.5 w-3.5" /> View Receipt
+                      </Button>
+                    </Link>
+                  ) : (
+                    <Link to={`/admin/orders/${order.id}`}>
+                      <Button variant="outline" size="sm" className="gap-1.5">
+                        <Eye className="h-3.5 w-3.5" /> View
+                      </Button>
+                    </Link>
+                  )}
                   <Button
                     variant="outline"
                     size="sm"
@@ -147,35 +158,41 @@ const OrdersManager = () => {
                   >
                     <Printer className="h-3.5 w-3.5" /> Invoice
                   </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => printCourierSlip(order)}
-                    className="gap-1.5"
-                  >
-                    <Truck className="h-3.5 w-3.5" /> Courier Slip
-                  </Button>
-                  <select
-                    value={order.status}
-                    onChange={(e) =>
-                      handleStatusChange(order.id, e.target.value)
-                    }
-                    className="px-4 py-2 border border-border bg-background rounded-md font-body text-sm text-foreground focus:outline-none focus:border-primary"
-                  >
-                    {statuses.map((s) => (
-                      <option key={s} value={s}>
-                        {s.charAt(0).toUpperCase() + s.slice(1)}
-                      </option>
-                    ))}
-                  </select>
-                  <Button
-                    variant="destructive"
-                    size="sm"
-                    onClick={() => handleDelete(order.id, order.order_number)}
-                    className="gap-1.5"
-                  >
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </Button>
+                  {order.type !== 'pos_receipt' && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => printCourierSlip(order)}
+                      className="gap-1.5"
+                    >
+                      <Truck className="h-3.5 w-3.5" /> Courier Slip
+                    </Button>
+                  )}
+                  {order.type !== 'pos_receipt' && (
+                    <select
+                      value={order.status}
+                      onChange={(e) =>
+                        handleStatusChange(order.id, e.target.value)
+                      }
+                      className="px-4 py-2 border border-border bg-background rounded-md font-body text-sm text-foreground focus:outline-none focus:border-primary"
+                    >
+                      {statuses.map((s) => (
+                        <option key={s} value={s}>
+                          {s.charAt(0).toUpperCase() + s.slice(1)}
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                  {order.type !== 'pos_receipt' && (
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={() => handleDelete(order.id, order.order_number)}
+                      className="gap-1.5"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  )}
                 </div>
               </div>
               <div className="grid md:grid-cols-2 gap-4">

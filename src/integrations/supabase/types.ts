@@ -900,6 +900,8 @@ export type Database = {
           total_amount: number;
           transaction_date: string;
           updated_at: string | null;
+          walk_in_customer_name: string | null;
+          walk_in_customer_phone: string | null;
         };
         Insert: {
           created_at?: string | null;
@@ -913,6 +915,8 @@ export type Database = {
           total_amount: number;
           transaction_date: string;
           updated_at?: string | null;
+          walk_in_customer_name?: string | null;
+          walk_in_customer_phone?: string | null;
         };
         Update: {
           created_at?: string | null;
@@ -926,6 +930,8 @@ export type Database = {
           total_amount?: number;
           transaction_date?: string;
           updated_at?: string | null;
+          walk_in_customer_name?: string | null;
+          walk_in_customer_phone?: string | null;
         };
         Relationships: [
           {

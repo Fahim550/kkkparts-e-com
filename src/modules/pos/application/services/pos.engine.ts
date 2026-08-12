@@ -39,8 +39,12 @@ export class PosEngine {
     }
 
     // 3. Post Accounting Entries
+    const dueAmount = payload.payments
+      .filter(p => p.method === "Due")
+      .reduce((sum, p) => sum + p.amount, 0);
+
     const { AccountingEngine } = await import("../../../accounting/application/services/accounting.engine");
-    await AccountingEngine.postPosSale(receipt.id, payload.total_amount, totalCogs, receipt.receipt_number);
+    await AccountingEngine.postPosSale(receipt.id, payload.total_amount, totalCogs, receipt.receipt_number, dueAmount);
 
     return receipt;
   }

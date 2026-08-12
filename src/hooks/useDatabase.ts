@@ -130,13 +130,53 @@ export const useOrders = () =>
   useQuery({
     queryKey: ["orders"],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data: salesData, error: salesError } = await supabase
         .from("sales_orders")
         .select("*")
         .order("created_at", { ascending: false });
 
-      if (error || !data) return [];
-      return (data as any[]).filter((o: any) => !o.is_hidden);
+      const { data: posData, error: posError } = await supabase
+        .from("pos_receipts")
+        .select(`
+          *,
+          customers(name, contact_email, contact_phone),
+          pos_receipt_items(
+            *,
+            product_variations(sku, products(name))
+          )
+        `);
+
+      let combined: any[] = [];
+      
+      if (!salesError && salesData) {
+        combined = [...salesData.filter((o: any) => !o.is_hidden).map((o: any) => ({ ...o, type: 'sales_order' }))];
+      }
+
+      if (!posError && posData) {
+        const mappedPos = posData.map((r: any) => ({
+          id: r.id,
+          order_number: r.receipt_number,
+          status: r.status.toLowerCase(), // "paid", "partial", "unpaid"
+          created_at: r.transaction_date,
+          customer_name: r.walk_in_customer_name || r.customers?.name || "Walk-in Customer",
+          customer_email: r.customers?.contact_email || "",
+          customer_phone: r.walk_in_customer_phone || r.customers?.contact_phone || "",
+          shipping_address: "POS In-store",
+          total: r.total_amount,
+          is_hidden: false,
+          type: 'pos_receipt',
+          items: r.pos_receipt_items?.map((i: any) => ({
+            productName: i.product_variations?.products?.name || "Item",
+            size: "",
+            color: "",
+            quantity: i.quantity,
+            price: i.unit_price
+          })) || []
+        }));
+        combined = [...combined, ...mappedPos];
+      }
+
+      return combined.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
     },
   });
 

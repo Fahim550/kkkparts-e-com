@@ -1,7 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { useProductTemplates } from "../../../product/presentation/hooks/useProducts";
 import {
   ArrowLeft,
   CreditCard,
@@ -13,6 +12,7 @@ import {
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useCustomers } from "../../../customer/presentation/hooks/useCustomers";
+import { useProductTemplates } from "../../../product/presentation/hooks/useProducts";
 import PosPaymentModal from "../components/PosPaymentModal";
 import { usePosCart } from "../hooks/usePosCart";
 import { usePosSession } from "../hooks/usePosSession";
@@ -25,6 +25,8 @@ export default function PosTerminal() {
 
   const [barcodeInput, setBarcodeInput] = useState("");
   const [selectedCustomerId, setSelectedCustomerId] = useState<string>("");
+  const [walkInName, setWalkInName] = useState("");
+  const [walkInPhone, setWalkInPhone] = useState("");
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
 
   const selectedCustomer = customers?.find((c) => c.id === selectedCustomerId);
@@ -86,9 +88,11 @@ export default function PosTerminal() {
 
   const handlePaymentComplete = async (payments: any[]) => {
     try {
-      await checkout(payments);
+      await checkout({ payments, walkInName, walkInPhone });
       setIsPaymentModalOpen(false);
       setSelectedCustomerId("");
+      setWalkInName("");
+      setWalkInPhone("");
       // Could navigate to receipt view here
     } catch (e) {}
   };
@@ -149,13 +153,19 @@ export default function PosTerminal() {
 
       {/* Right Panel: Cart & Checkout */}
       <div className="w-96 flex flex-col bg-background flex-shrink-0">
-        <div className="p-4 border-b">
+        <div className="p-4 border-b space-y-3">
           <div className="flex items-center space-x-2">
             <User className="w-4 h-4 text-muted-foreground" />
             <select
               className="flex-1 border-0 bg-transparent text-sm focus:ring-0 p-1"
               value={selectedCustomerId}
-              onChange={(e) => setSelectedCustomerId(e.target.value)}
+              onChange={(e) => {
+                setSelectedCustomerId(e.target.value);
+                if (e.target.value) {
+                  setWalkInName("");
+                  setWalkInPhone("");
+                }
+              }}
             >
               <option value="">Walk-in Customer</option>
               {customers?.map((c) => (
@@ -165,6 +175,23 @@ export default function PosTerminal() {
               ))}
             </select>
           </div>
+          
+          {selectedCustomerId === "" && (
+            <div className="grid grid-cols-2 gap-2 mt-2">
+              <Input
+                placeholder="Customer Name"
+                className="text-sm h-8"
+                value={walkInName}
+                onChange={(e) => setWalkInName(e.target.value)}
+              />
+              <Input
+                placeholder="Phone Number"
+                className="text-sm h-8"
+                value={walkInPhone}
+                onChange={(e) => setWalkInPhone(e.target.value)}
+              />
+            </div>
+          )}
         </div>
 
         <ScrollArea className="flex-1 p-4">

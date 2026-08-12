@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Loader2, Plus, Trash2, Banknote, CreditCard, Landmark } from "lucide-react";
 
-type PaymentMethod = "Cash" | "Card" | "Bank Transfer";
+type PaymentMethod = "Cash" | "Card" | "Bank Transfer" | "Due";
 
 interface PaymentEntry {
   method: PaymentMethod;
@@ -86,6 +86,7 @@ export default function PosPaymentModal({
                         <option value="Cash">Cash</option>
                         <option value="Card">Card</option>
                         <option value="Bank Transfer">Bank Transfer</option>
+                        <option value="Due">Due</option>
                       </select>
                     </div>
                     <div className="space-y-1">

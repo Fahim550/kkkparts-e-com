@@ -99,13 +99,19 @@ export default function PosReceiptViewer() {
           <p className="text-sm mt-1">{new Date(receipt.transaction_date).toLocaleString()}</p>
         </CardHeader>
         <CardContent className="pt-6 space-y-6">
-          {receipt.customers && (
+          {receipt.customers ? (
             <div className="text-sm">
               <p className="font-semibold">Customer:</p>
               <p>{receipt.customers.name}</p>
               <p>{receipt.customers.contact_phone}</p>
             </div>
-          )}
+          ) : receipt.walk_in_customer_name ? (
+            <div className="text-sm">
+              <p className="font-semibold">Customer (Walk-in):</p>
+              <p>{receipt.walk_in_customer_name}</p>
+              {receipt.walk_in_customer_phone && <p>{receipt.walk_in_customer_phone}</p>}
+            </div>
+          ) : null}
 
           <table className="w-full text-sm">
             <thead>

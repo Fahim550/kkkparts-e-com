@@ -7,17 +7,22 @@ export class PosCheckoutRepository {
     const dateStr = new Date().toISOString().replace(/[-T:.Z]/g, "").slice(0, 14);
     const receiptNumber = `POS-${dateStr}`;
 
+    const dueAmount = payload.payments.filter(p => p.method === "Due").reduce((acc, p) => acc + p.amount, 0);
+    const receiptStatus = dueAmount > 0 ? (dueAmount >= payload.total_amount ? "Unpaid" : "Partial") : "Paid";
+
     const { data: receipt, error: receiptError } = await supabase
       .from("pos_receipts")
       .insert({
         receipt_number: receiptNumber,
         shift_id: payload.shift_id,
         customer_id: payload.customer_id,
+        walk_in_customer_name: payload.walk_in_customer_name,
+        walk_in_customer_phone: payload.walk_in_customer_phone,
         transaction_date: new Date().toISOString(),
         total_amount: payload.total_amount,
         tax_amount: payload.tax_amount,
         discount_amount: payload.discount_amount,
-        status: "Paid",
+        status: receiptStatus,
       })
       .select()
       .single();

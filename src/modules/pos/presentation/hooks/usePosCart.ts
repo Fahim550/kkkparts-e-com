@@ -88,16 +88,20 @@ export const usePosCart = (
   const total = cart.reduce((sum, item) => sum + item.total_price, 0); // final total
 
   const checkoutMutation = useMutation({
-    mutationFn: (
-      payments: { method: any; amount: number; reference_code?: string }[],
-    ) => {
+    mutationFn: (payload: {
+      payments: { method: any; amount: number; reference_code?: string }[];
+      walkInName?: string;
+      walkInPhone?: string;
+    }) => {
       if (!shiftId) throw new Error("No active shift");
       return PosEngine.checkout({
         shift_id: shiftId,
         customer_id: customerId || undefined,
+        walk_in_customer_name: payload.walkInName,
+        walk_in_customer_phone: payload.walkInPhone,
         warehouse_id: warehouseId,
         items: cart,
-        payments,
+        payments: payload.payments,
         total_amount: total,
         tax_amount: 0,
         discount_amount: totalDiscount,
