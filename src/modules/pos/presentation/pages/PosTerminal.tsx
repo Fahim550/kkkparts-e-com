@@ -16,12 +16,14 @@ import { useProductTemplates } from "../../../product/presentation/hooks/useProd
 import PosPaymentModal from "../components/PosPaymentModal";
 import { usePosCart } from "../hooks/usePosCart";
 import { usePosSession } from "../hooks/usePosSession";
+import { usePreviousWalkIns } from "../hooks/usePreviousWalkIns";
 
 export default function PosTerminal() {
   const navigate = useNavigate();
   const { currentShift, isLoadingShift, registers } = usePosSession();
   const { data: products = [] } = useProductTemplates();
   const { customers } = useCustomers();
+  const { data: previousWalkIns } = usePreviousWalkIns();
 
   const [barcodeInput, setBarcodeInput] = useState("");
   const [selectedCustomerId, setSelectedCustomerId] = useState<string>("");
@@ -47,8 +49,8 @@ export default function PosTerminal() {
   } = usePosCart(
     register?.warehouse_id || "",
     currentShift?.id,
-    selectedCustomerId,
-    selectedCustomer?.customer_group || "",
+    selectedCustomerId === "dealer" ? undefined : selectedCustomerId,
+    selectedCustomerId === "dealer" ? "Dealer" : selectedCustomer?.customer_group || "",
   );
 
   if (isLoadingShift)
@@ -88,7 +90,13 @@ export default function PosTerminal() {
 
   const handlePaymentComplete = async (payments: any[]) => {
     try {
-      await checkout({ payments, walkInName, walkInPhone });
+      await checkout({ 
+        payments, 
+        walkInName: selectedCustomerId === "" ? walkInName : undefined, 
+        walkInPhone: selectedCustomerId === "" ? walkInPhone : undefined,
+        walkInDealerName: selectedCustomerId === "dealer" ? walkInName : undefined,
+        walkInDealerPhone: selectedCustomerId === "dealer" ? walkInPhone : undefined,
+      });
       setIsPaymentModalOpen(false);
       setSelectedCustomerId("");
       setWalkInName("");
@@ -161,13 +169,14 @@ export default function PosTerminal() {
               value={selectedCustomerId}
               onChange={(e) => {
                 setSelectedCustomerId(e.target.value);
-                if (e.target.value) {
+                if (e.target.value && e.target.value !== "dealer") {
                   setWalkInName("");
                   setWalkInPhone("");
                 }
               }}
             >
               <option value="">Walk-in Customer</option>
+              <option value="dealer">Walk-in Dealer</option>
               {customers?.map((c) => (
                 <option key={c.id} value={c.id}>
                   {c.name} ({c.customer_group})
@@ -176,14 +185,28 @@ export default function PosTerminal() {
             </select>
           </div>
           
-          {selectedCustomerId === "" && (
+          {(selectedCustomerId === "" || selectedCustomerId === "dealer") && (
             <div className="grid grid-cols-2 gap-2 mt-2">
               <Input
-                placeholder="Customer Name"
+                placeholder={selectedCustomerId === "dealer" ? "Dealer Name" : "Customer Name"}
                 className="text-sm h-8"
                 value={walkInName}
-                onChange={(e) => setWalkInName(e.target.value)}
+                list="walk-in-names"
+                onChange={(e) => {
+                  setWalkInName(e.target.value);
+                  const match = previousWalkIns?.find(w => w.name === e.target.value && w.type === (selectedCustomerId === "dealer" ? "dealer" : "customer"));
+                  if (match && match.phone) {
+                    setWalkInPhone(match.phone);
+                  }
+                }}
               />
+              <datalist id="walk-in-names">
+                {previousWalkIns
+                  ?.filter(w => w.type === (selectedCustomerId === "dealer" ? "dealer" : "customer"))
+                  .map((w, idx) => (
+                    <option key={idx} value={w.name} />
+                ))}
+              </datalist>
               <Input
                 placeholder="Phone Number"
                 className="text-sm h-8"

@@ -18,6 +18,8 @@ export class PosCheckoutRepository {
         customer_id: payload.customer_id,
         walk_in_customer_name: payload.walk_in_customer_name,
         walk_in_customer_phone: payload.walk_in_customer_phone,
+        walk_in_dealer_name: payload.walk_in_dealer_name,
+        walk_in_dealer_phone: payload.walk_in_dealer_phone,
         transaction_date: new Date().toISOString(),
         total_amount: payload.total_amount,
         tax_amount: payload.tax_amount,

@@ -26,6 +26,8 @@ export type CheckoutPayload = {
   customer_id?: string | null;
   walk_in_customer_name?: string;
   walk_in_customer_phone?: string;
+  walk_in_dealer_name?: string;
+  walk_in_dealer_phone?: string;
   items: CartItem[];
   payments: {
     method: "Cash" | "Card" | "Bank Transfer" | "Due";

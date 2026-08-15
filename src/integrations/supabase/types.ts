@@ -902,6 +902,8 @@ export type Database = {
           updated_at: string | null;
           walk_in_customer_name: string | null;
           walk_in_customer_phone: string | null;
+          walk_in_dealer_name: string | null;
+          walk_in_dealer_phone: string | null;
         };
         Insert: {
           created_at?: string | null;
@@ -917,6 +919,8 @@ export type Database = {
           updated_at?: string | null;
           walk_in_customer_name?: string | null;
           walk_in_customer_phone?: string | null;
+          walk_in_dealer_name?: string | null;
+          walk_in_dealer_phone?: string | null;
         };
         Update: {
           created_at?: string | null;
@@ -932,6 +936,8 @@ export type Database = {
           updated_at?: string | null;
           walk_in_customer_name?: string | null;
           walk_in_customer_phone?: string | null;
+          walk_in_dealer_name?: string | null;
+          walk_in_dealer_phone?: string | null;
         };
         Relationships: [
           {

@@ -92,13 +92,17 @@ export const usePosCart = (
       payments: { method: any; amount: number; reference_code?: string }[];
       walkInName?: string;
       walkInPhone?: string;
+      walkInDealerName?: string;
+      walkInDealerPhone?: string;
     }) => {
       if (!shiftId) throw new Error("No active shift");
       return PosEngine.checkout({
         shift_id: shiftId,
-        customer_id: customerId || undefined,
+        customer_id: customerId && customerId !== "dealer" ? customerId : undefined,
         walk_in_customer_name: payload.walkInName,
         walk_in_customer_phone: payload.walkInPhone,
+        walk_in_dealer_name: payload.walkInDealerName,
+        walk_in_dealer_phone: payload.walkInDealerPhone,
         warehouse_id: warehouseId,
         items: cart,
         payments: payload.payments,
