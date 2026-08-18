@@ -1,3 +1,4 @@
+import { InvoiceData, InvoicePreviewModal } from "@/components/admin/InvoicePreviewModal";
 import { CustomerCombobox } from "@/components/CustomerCombobox";
 import { ProductCombobox } from "@/components/ProductCombobox";
 import { Button } from "@/components/ui/button";
@@ -47,6 +48,9 @@ export default function AddSalePage() {
   const [roundOffAmount, setRoundOffAmount] = useState(0);
   const [isReceived, setIsReceived] = useState(false);
   const [receivedAmount, setReceivedAmount] = useState(0);
+
+  const [showPreview, setShowPreview] = useState(false);
+  const [previewData, setPreviewData] = useState<InvoiceData | null>(null);
 
   const [items, setItems] = useState([
     { id: 1, variation_id: "", qty: 0, uom: "NONE", price: 0, discountPct: 0, discountAmt: 0, taxPct: 0, taxAmt: 0, amount: 0 }
@@ -156,7 +160,59 @@ export default function AddSalePage() {
   }
   let balance = totalAmount - (isReceived ? (Number(receivedAmount) || 0) : 0);
 
-  const handleSave = async () => {
+  const handleShowPreview = () => {
+    if (!customerId) {
+      toast({ variant: "destructive", title: "Error", description: "Please select a customer." });
+      return;
+    }
+    
+    const validItems = items.filter(i => i.variation_id && i.qty > 0);
+    if (validItems.length === 0) {
+      toast({ variant: "destructive", title: "Error", description: "Please add at least one valid item." });
+      return;
+    }
+
+    const customer = customers?.find(c => c.id === customerId);
+    let partyName = customer?.name || "CASH CUSTOMER";
+    if (customerId.startsWith("NEW:")) {
+       partyName = customerId.substring(4);
+    }
+
+    const invoiceItems = validItems.map(item => {
+       const product = products.find(p => p.product_variations?.some((v: any) => v.id === item.variation_id));
+       const variation = product?.product_variations?.find((v: any) => v.id === item.variation_id);
+       return {
+         name: variation?.name ? `${product?.name} - ${variation.name}` : (product?.name || 'Unknown'),
+         qty: item.qty,
+         price: item.price,
+         taxPct: item.taxPct,
+         amount: item.amount
+       };
+    });
+
+    const subTotal = validItems.reduce((sum, item) => sum + (item.price * item.qty), 0);
+
+    setPreviewData({
+      type: "Sale",
+      partyName,
+      partyPhone: phone,
+      invoiceNo: invoiceNumber || "Draft",
+      date: invoiceDate,
+      items: invoiceItems,
+      totalQty,
+      subTotal,
+      discount: totalDiscount,
+      tax: totalTax,
+      roundOff: roundOff ? roundOffAmount : 0,
+      total: totalAmount,
+      received: isReceived ? receivedAmount : 0,
+      balance: balance
+    });
+    
+    setShowPreview(true);
+  };
+
+  const handleCommitSave = async () => {
     if (!customerId) {
       toast({ variant: "destructive", title: "Error", description: "Please select a customer." });
       return;
@@ -503,7 +559,7 @@ export default function AddSalePage() {
 
             <div className="flex justify-end gap-3 pt-2">
               <Button variant="outline" onClick={() => navigate("/admin/orders")}>Cancel</Button>
-              <Button onClick={handleSave} disabled={isCreating} className="bg-red-500 hover:bg-red-600 w-32 text-white shadow-sm">
+              <Button onClick={handleShowPreview} disabled={isCreating} className="bg-red-500 hover:bg-red-600 w-32 text-white shadow-sm">
                 {isCreating && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
                 Save
               </Button>
@@ -511,6 +567,15 @@ export default function AddSalePage() {
           </div>
         </div>
       </div>
+      <InvoicePreviewModal 
+        open={showPreview} 
+        onOpenChange={setShowPreview} 
+        onSave={() => {
+          setShowPreview(false);
+          handleCommitSave();
+        }} 
+        data={previewData} 
+      />
     </div>
   );
 }
