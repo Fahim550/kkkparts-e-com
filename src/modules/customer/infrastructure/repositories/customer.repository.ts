@@ -5,10 +5,7 @@ export class CustomerRepository {
   static async getAll(): Promise<Customer[]> {
     const { data, error } = await supabase
       .from("customers")
-      .select(`
-        *,
-        chart_of_accounts (id, name, code)
-      `)
+      .select("*")
       .order("name", { ascending: true });
 
     if (error) throw error;

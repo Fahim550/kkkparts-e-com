@@ -15,9 +15,15 @@ export const useCustomers = () => {
 
   const createMutation = useMutation({
     mutationFn: (data: CreateCustomerDTO) => CustomerService.createCustomer(data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["customers"] });
+    onSuccess: async (newCustomer) => {
+      // Optimistically update the cache to show the customer immediately
+      queryClient.setQueryData(["customers"], (old: any) => {
+        if (!old) return [newCustomer];
+        return [...old, newCustomer].sort((a, b) => a.name.localeCompare(b.name));
+      });
       toast({ title: "Success", description: "Customer created successfully." });
+      // Ensure background refetch finishes
+      await queryClient.invalidateQueries({ queryKey: ["customers"] });
     },
     onError: (error: any) => {
       toast({ variant: "destructive", title: "Error", description: error.message });
@@ -27,9 +33,13 @@ export const useCustomers = () => {
   const updateMutation = useMutation({
     mutationFn: ({ id, data }: { id: string; data: UpdateCustomerDTO }) =>
       CustomerService.updateCustomer(id, data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["customers"] });
+    onSuccess: async (updatedCustomer) => {
+      queryClient.setQueryData(["customers"], (old: any) => {
+        if (!old) return [updatedCustomer];
+        return old.map((c: any) => c.id === updatedCustomer.id ? { ...c, ...updatedCustomer } : c);
+      });
       toast({ title: "Success", description: "Customer updated successfully." });
+      await queryClient.invalidateQueries({ queryKey: ["customers"] });
     },
     onError: (error: any) => {
       toast({ variant: "destructive", title: "Error", description: error.message });

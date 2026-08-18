@@ -1,3 +1,4 @@
+import { ProductCombobox } from "@/components/ProductCombobox";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
@@ -19,13 +20,12 @@ import {
 } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
 import { useProducts } from "@/hooks/useDatabase";
+import { useUOMs } from "@/modules/product/presentation/hooks/useUOMs";
 import { usePurchaseOrders } from "@/modules/purchase/presentation/hooks/usePurchaseOrders";
 import { useSuppliers } from "@/modules/supplier/presentation/hooks/useSuppliers";
 import { Loader2, Plus, Trash2, Upload } from "lucide-react";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useUOMs } from "@/modules/product/presentation/hooks/useUOMs";
-import { ProductCombobox } from "@/components/ProductCombobox";
 
 export default function AddPurchasePage() {
   const navigate = useNavigate();
@@ -386,8 +386,8 @@ export default function AddPurchasePage() {
         </div>
 
         {/* Footer Area */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-4">
-          <div className="space-y-4">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 pt-4">
+          <div className="space-y-4 md:col-span-1">
             <div className="border rounded-md p-4 bg-muted/10">
               <Label className="text-xs font-semibold text-muted-foreground uppercase mb-2 block">Terms & Conditions</Label>
               <Select>
@@ -404,7 +404,7 @@ export default function AddPurchasePage() {
             </Button>
           </div>
 
-          <div className="space-y-2">
+          <div className="space-y-2 md:col-span-1">
             <Label className="text-xs font-semibold text-muted-foreground uppercase">Payment Type</Label>
             <Select value={paymentType} onValueChange={setPaymentType}>
               <SelectTrigger className="bg-background">
@@ -418,36 +418,40 @@ export default function AddPurchasePage() {
             </Select>
           </div>
 
-          <div className="space-y-4">
-            <div className="flex items-center justify-end gap-2 text-sm">
-              <Checkbox id="round-off" checked={roundOff} onCheckedChange={(c) => setRoundOff(!!c)} />
-              <Label htmlFor="round-off" className="cursor-pointer">Round Off</Label>
+          <div className="space-y-4 md:col-span-2">
+            <div className="flex flex-wrap sm:flex-nowrap items-center justify-end gap-3 text-sm">
+              <div className="flex items-center gap-2">
+                <Checkbox id="round-off" checked={roundOff} onCheckedChange={(c) => setRoundOff(!!c)} />
+                <Label htmlFor="round-off" className="cursor-pointer whitespace-nowrap">Round Off</Label>
+              </div>
               <Input 
                 type="number" 
                 value={roundOffAmount === 0 ? '' : roundOffAmount} 
                 onChange={e => setRoundOffAmount(Number(e.target.value))}
-                className="w-20 h-8 text-right bg-transparent border-gray-300 shadow-none"
+                className="w-24 h-9 text-right bg-transparent border-gray-300 shadow-none"
               />
-              <div className="flex items-center w-48 bg-muted/20 border border-gray-300 rounded overflow-hidden">
-                <span className="px-3 py-1.5 font-bold text-muted-foreground border-r bg-muted/10 w-20 text-center">Total</span>
+              <div className="flex items-center w-full sm:w-56 bg-muted/20 border border-gray-300 rounded overflow-hidden">
+                <span className="px-3 py-1.5 font-bold text-muted-foreground border-r bg-muted/10 w-20 text-center whitespace-nowrap">Total</span>
                 <span className="px-3 py-1.5 font-bold flex-1 text-right">{totalAmount.toFixed(2)}</span>
               </div>
             </div>
 
-            <div className="flex items-center justify-end gap-2 text-sm">
-              <Checkbox id="is-received" checked={isReceived} onCheckedChange={(c) => setIsReceived(!!c)} />
-              <Label htmlFor="is-received" className="cursor-pointer font-bold ml-1 w-20 text-right">Paid</Label>
+            <div className="flex flex-wrap sm:flex-nowrap items-center justify-end gap-3 text-sm">
+              <div className="flex items-center gap-2">
+                <Checkbox id="is-received" checked={isReceived} onCheckedChange={(c) => setIsReceived(!!c)} />
+                <Label htmlFor="is-received" className="cursor-pointer font-bold whitespace-nowrap">Paid</Label>
+              </div>
               <Input 
                 type="number" 
                 value={receivedAmount === 0 ? '' : receivedAmount} 
                 onChange={e => setReceivedAmount(Number(e.target.value))}
-                className="w-48 h-8 text-right bg-transparent border-gray-300 shadow-none font-bold"
+                className="w-full sm:w-56 h-9 text-right bg-transparent border-gray-300 shadow-none font-bold"
               />
             </div>
             
             <div className="flex justify-end pr-3">
-              <span className="font-bold mr-6">Balance</span>
-              <span className="font-bold w-12 text-right">{balance.toFixed(2)}</span>
+              <span className="font-bold mr-6 whitespace-nowrap">Balance</span>
+              <span className="font-bold min-w-[3rem] text-right">{balance.toFixed(2)}</span>
             </div>
 
             <div className="flex justify-end gap-3 pt-2">
