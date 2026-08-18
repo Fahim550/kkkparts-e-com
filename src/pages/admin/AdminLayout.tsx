@@ -1,3 +1,5 @@
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useAdminAuth } from "@/hooks/useAdminAuth";
@@ -24,8 +26,12 @@ import {
   Menu,
   MessageSquare,
   Monitor,
+  MoreVertical,
   Package,
   Percent,
+  Plus,
+  Printer,
+  Search,
   Settings,
   Settings2,
   ShoppingCart,
@@ -374,9 +380,43 @@ const AdminLayout = () => {
       </aside>
 
       <main
-        className={`flex-1 ${collapsed ? "ml-16" : "ml-64"} transition-all duration-300`}
+        className={`flex-1 ${collapsed ? "ml-16" : "ml-64"} transition-all duration-300 flex flex-col`}
       >
-        <div className="p-6 lg:p-8">
+        <header className="h-16 border-b border-gray-400 bg-gray-100 flex items-center justify-between px-6 sticky top-0 z-30">
+          <div className="flex-1 flex items-center">
+            <div className="relative w-64">
+              <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Input
+                type="search"
+                placeholder="Search Transactions"
+                className="pl-9 bg-secondary/50 border-gray-700 rounded-full h-9 shadow-none text-sm focus-visible:ring-1"
+              />
+            </div>
+          </div>
+          <div className="flex items-center space-x-3">
+            <Link to="/admin/sales/new">
+              <Button className="bg-red-500 hover:bg-red-600 text-white rounded-full h-9 px-4 font-semibold shadow-sm">
+                + Add Sale
+              </Button>
+            </Link>
+            <Link to="/admin/purchases/new">
+              <Button className="bg-blue-600 hover:bg-blue-700 text-white rounded-full h-9 px-4 font-semibold shadow-sm">
+                + Add Purchase
+              </Button>
+            </Link>
+            <Button variant="ghost" size="icon" className="rounded-full bg-secondary/50 h-9 w-9 text-primary">
+              <Plus className="h-4 w-4" />
+            </Button>
+            <Button variant="ghost" size="icon" className="rounded-full h-9 w-9 text-muted-foreground">
+              <Printer className="h-4 w-4" />
+            </Button>
+            <Button variant="ghost" size="icon" className="rounded-full h-9 w-9 text-muted-foreground">
+              <MoreVertical className="h-4 w-4" />
+            </Button>
+          </div>
+        </header>
+
+        <div className="p-6 lg:p-8 flex-1">
           <Outlet />
         </div>
       </main>

@@ -39,6 +39,9 @@ const DealerOrdersManager = lazy(
 const OrderDetailsPage = lazy(
   () => import("./pages/admin/OrderDetailsPage.tsx"),
 );
+const AddSalePage = lazy(
+  () => import("./pages/admin/AddSalePage.tsx"),
+);
 const CouponsManager = lazy(() => import("./pages/admin/CouponsManager.tsx"));
 const CheckoutLeadsManager = lazy(
   () => import("./pages/admin/CheckoutLeadsManager.tsx"),
@@ -116,6 +119,9 @@ const DiscountRulesManager = lazy(
 );
 const PurchaseOrdersPage = lazy(
   () => import("./modules/purchase/presentation/pages/PurchaseOrdersPage.tsx"),
+);
+const AddPurchasePage = lazy(
+  () => import("./modules/purchase/presentation/pages/AddPurchasePage.tsx"),
 );
 const PurchaseOrderDetailsPage = lazy(
   () => import("./modules/purchase/presentation/pages/PurchaseOrderDetailsPage.tsx"),
@@ -248,6 +254,7 @@ const App = () => (
                       }
                     >
                       <Route index element={<Dashboard />} />
+                      <Route path="sales/new" element={<AddSalePage />} />
                       <Route path="products" element={<ProductsPage />} />
                       <Route path="orders" element={<OrdersManager />} />
                       <Route
@@ -317,6 +324,10 @@ const App = () => (
                       <Route
                         path="purchase-orders"
                         element={<PurchaseOrdersPage />}
+                      />
+                      <Route
+                        path="purchases/new"
+                        element={<AddPurchasePage />}
                       />
                       <Route
                         path="purchase-orders/:id"
