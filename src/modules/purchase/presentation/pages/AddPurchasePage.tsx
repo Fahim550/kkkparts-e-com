@@ -1,4 +1,5 @@
 import { ProductCombobox } from "@/components/ProductCombobox";
+import { SupplierCombobox } from "@/components/SupplierCombobox";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
@@ -169,9 +170,46 @@ export default function AddPurchasePage() {
     }
 
     try {
+      let finalSupplierId = supplierId;
+      
+      // Handle inline supplier creation
+      if (supplierId.startsWith("NEW:")) {
+        const newName = supplierId.substring(4);
+        
+        // Fetch a Liability account for the new supplier
+        const { supabase } = await import("@/integrations/supabase/client");
+        const { data: accounts } = await supabase
+          .from("chart_of_accounts")
+          .select("id")
+          .eq("account_type", "Liability")
+          .limit(1);
+          
+        if (!accounts || accounts.length === 0) {
+          toast({ variant: "destructive", title: "Error", description: "No Liability account available to assign to the new supplier." });
+          return;
+        }
+
+        const { data: newSupp, error } = await supabase
+          .from("suppliers")
+          .insert({
+            name: newName,
+            contact_phone: phone || null,
+            payable_account_id: accounts[0].id,
+            is_active: true
+          })
+          .select()
+          .single();
+
+        if (error || !newSupp) {
+          toast({ variant: "destructive", title: "Error", description: "Failed to create supplier: " + (error?.message || "Unknown error") });
+          return;
+        }
+        finalSupplierId = newSupp.id;
+      }
+
       await createOrder({
         po: {
-          supplier_id: supplierId,
+          supplier_id: finalSupplierId,
           po_number: billNumber || `PO-${Date.now()}`,
           order_date: billDate,
           status: "Draft",
@@ -203,20 +241,15 @@ export default function AddPurchasePage() {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
           <div className="space-y-2">
             <Label className="text-xs font-semibold text-muted-foreground uppercase">Party *</Label>
-            <Select value={supplierId} onValueChange={(val) => {
-              setSupplierId(val);
-              const supp = suppliers?.find(s => s.id === val);
-              if (supp && supp.contact_phone) setPhone(supp.contact_phone);
-            }}>
-              <SelectTrigger className="bg-background">
-                <SelectValue placeholder="Select Supplier" />
-              </SelectTrigger>
-              <SelectContent>
-                {suppliers?.map(s => (
-                  <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <SupplierCombobox
+              suppliers={suppliers || []}
+              value={supplierId}
+              onChange={(val) => {
+                setSupplierId(val);
+                const supp = suppliers?.find(s => s.id === val);
+                if (supp && supp.contact_phone) setPhone(supp.contact_phone);
+              }}
+            />
           </div>
           
           <div className="space-y-2">
@@ -438,7 +471,19 @@ export default function AddPurchasePage() {
 
             <div className="flex flex-wrap sm:flex-nowrap items-center justify-end gap-3 text-sm">
               <div className="flex items-center gap-2">
-                <Checkbox id="is-received" checked={isReceived} onCheckedChange={(c) => setIsReceived(!!c)} />
+                <Checkbox 
+                  id="is-received" 
+                  checked={isReceived} 
+                  onCheckedChange={(c) => {
+                    const checked = !!c;
+                    setIsReceived(checked);
+                    if (checked) {
+                      setReceivedAmount(totalAmount);
+                    } else {
+                      setReceivedAmount(0);
+                    }
+                  }} 
+                />
                 <Label htmlFor="is-received" className="cursor-pointer font-bold whitespace-nowrap">Paid</Label>
               </div>
               <Input 

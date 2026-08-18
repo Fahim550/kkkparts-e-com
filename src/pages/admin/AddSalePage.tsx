@@ -1,3 +1,4 @@
+import { CustomerCombobox } from "@/components/CustomerCombobox";
 import { ProductCombobox } from "@/components/ProductCombobox";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -168,8 +169,45 @@ export default function AddSalePage() {
     }
 
     try {
+      let finalCustomerId = customerId;
+      
+      // Handle inline customer creation
+      if (customerId.startsWith("NEW:")) {
+        const newName = customerId.substring(4);
+        
+        // Fetch an Asset account for the new customer
+        const { supabase } = await import("@/integrations/supabase/client");
+        const { data: accounts } = await supabase
+          .from("chart_of_accounts")
+          .select("id")
+          .eq("account_type", "Asset")
+          .limit(1);
+          
+        if (!accounts || accounts.length === 0) {
+          toast({ variant: "destructive", title: "Error", description: "No Asset account available to assign to the new customer." });
+          return;
+        }
+
+        const { data: newCust, error } = await supabase
+          .from("customers")
+          .insert({
+            name: newName,
+            contact_phone: phone || null,
+            receivable_account_id: accounts[0].id,
+            is_active: true
+          })
+          .select()
+          .single();
+
+        if (error || !newCust) {
+          toast({ variant: "destructive", title: "Error", description: "Failed to create customer: " + (error?.message || "Unknown error") });
+          return;
+        }
+        finalCustomerId = newCust.id;
+      }
+
       await createOrder({
-        customer_id: customerId,
+        customer_id: finalCustomerId,
         total: totalAmount.toString(),
         subtotal: (totalAmount + totalDiscount - totalTax).toString(),
         discount_amount: totalDiscount.toString(),
@@ -208,20 +246,15 @@ export default function AddSalePage() {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
           <div className="space-y-2">
             <Label className="text-xs font-semibold text-muted-foreground uppercase">Customer *</Label>
-            <Select value={customerId} onValueChange={(val) => {
-              setCustomerId(val);
-              const cust = customers?.find(c => c.id === val);
-              if (cust && cust.contact_phone) setPhone(cust.contact_phone);
-            }}>
-              <SelectTrigger className="bg-background">
-                <SelectValue placeholder="Select Customer" />
-              </SelectTrigger>
-              <SelectContent>
-                {customers?.map(c => (
-                  <SelectItem key={c.id} value={c.id}>{c.name} {c.customer_group ? `(${c.customer_group})` : ''}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <CustomerCombobox
+              customers={customers || []}
+              value={customerId}
+              onChange={(val) => {
+                setCustomerId(val);
+                const cust = customers?.find(c => c.id === val);
+                if (cust && cust.contact_phone) setPhone(cust.contact_phone);
+              }}
+            />
           </div>
           
           <div className="space-y-2">
@@ -440,7 +473,19 @@ export default function AddSalePage() {
 
             <div className="flex flex-wrap sm:flex-nowrap items-center justify-end gap-3 text-sm">
               <div className="flex items-center gap-2">
-                <Checkbox id="is-received" checked={isReceived} onCheckedChange={(c) => setIsReceived(!!c)} />
+                <Checkbox 
+                  id="is-received" 
+                  checked={isReceived} 
+                  onCheckedChange={(c) => {
+                    const checked = !!c;
+                    setIsReceived(checked);
+                    if (checked) {
+                      setReceivedAmount(totalAmount);
+                    } else {
+                      setReceivedAmount(0);
+                    }
+                  }} 
+                />
                 <Label htmlFor="is-received" className="cursor-pointer font-bold whitespace-nowrap">Received</Label>
               </div>
               <Input 
