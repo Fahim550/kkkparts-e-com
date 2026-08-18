@@ -25,6 +25,7 @@ import { Loader2, Plus, Trash2, Upload } from "lucide-react";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useUOMs } from "@/modules/product/presentation/hooks/useUOMs";
+import { ProductCombobox } from "@/components/ProductCombobox";
 
 export default function AddPurchasePage() {
   const navigate = useNavigate();
@@ -42,16 +43,19 @@ export default function AddPurchasePage() {
   );
   
   const [paymentType, setPaymentType] = useState("Cash");
-  const [roundOff, setRoundOff] = useState(true);
+  const [roundOff, setRoundOff] = useState(false);
+  const [roundOffAmount, setRoundOffAmount] = useState(0);
+  const [isReceived, setIsReceived] = useState(false);
+  const [receivedAmount, setReceivedAmount] = useState(0);
 
   const [items, setItems] = useState([
-    { id: 1, variation_id: "", qty: 1, uom: "NONE", price: 0, discountPct: 0, discountAmt: 0, taxPct: 0, taxAmt: 0, amount: 0 }
+    { id: 1, variation_id: "", qty: 0, uom: "NONE", price: 0, discountPct: 0, discountAmt: 0, taxPct: 0, taxAmt: 0, amount: 0 }
   ]);
 
   const handleAddRow = () => {
     setItems([
       ...items,
-      { id: Date.now(), variation_id: "", qty: 1, uom: "NONE", price: 0, discountPct: 0, discountAmt: 0, taxPct: 0, taxAmt: 0, amount: 0 }
+      { id: Date.now(), variation_id: "", qty: 0, uom: "NONE", price: 0, discountPct: 0, discountAmt: 0, taxPct: 0, taxAmt: 0, amount: 0 }
     ]);
   };
 
@@ -107,9 +111,10 @@ export default function AddPurchasePage() {
             isLastRow = true;
           }
           const price = Number(variation.cost_price || product.original_price || product.price || 0);
-          const qty = item.qty || 1;
+          const qty = item.qty === 0 ? 1 : (item.qty || 1);
           return {
             ...item,
+            qty: qty,
             variation_id: variationId,
             uom: product.base_uom_id || "NONE",
             price: price,
@@ -127,7 +132,7 @@ export default function AddPurchasePage() {
         updatedItems.push({ 
           id: Date.now(), 
           variation_id: "", 
-          qty: 1, 
+          qty: 0, 
           uom: "NONE", 
           price: 0, 
           discountPct: 0, 
@@ -145,11 +150,11 @@ export default function AddPurchasePage() {
   const totalQty = items.reduce((sum, item) => sum + (Number(item.qty) || 0), 0);
   const totalDiscount = items.reduce((sum, item) => sum + (Number(item.discountAmt) || 0), 0);
   const totalTax = items.reduce((sum, item) => sum + (Number(item.taxAmt) || 0), 0);
-  let totalAmount = items.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
-  
+  let totalAmount = items.reduce((sum, item) => sum + (item.amount || 0), 0);
   if (roundOff) {
-    totalAmount = Math.round(totalAmount);
+    totalAmount += (Number(roundOffAmount) || 0);
   }
+  let balance = totalAmount - (isReceived ? (Number(receivedAmount) || 0) : 0);
 
   const handleSave = async () => {
     if (!supplierId) {
@@ -280,25 +285,18 @@ export default function AddPurchasePage() {
                       </button>
                     </div>
                   </TableCell>
-                  <TableCell className="p-1 border-r">
-                    <Select value={item.variation_id} onValueChange={(v) => handleProductSelect(item.id, v)}>
-                      <SelectTrigger className="border-0 shadow-none focus:ring-1 h-9 rounded bg-transparent">
-                        <SelectValue placeholder="Select Item..." />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {products.map(p => 
-                          p.product_variations?.map((v: any) => (
-                            <SelectItem key={v.id} value={v.id}>{p.name} {v.sku ? `(${v.sku})` : ''}</SelectItem>
-                          ))
-                        )}
-                      </SelectContent>
-                    </Select>
+                  <TableCell className="p-0 border-r">
+                    <ProductCombobox 
+                      products={products}
+                      value={item.variation_id}
+                      onChange={(v) => handleProductSelect(item.id, v)}
+                    />
                   </TableCell>
                   <TableCell className="p-1 border-r">
-                    <Input 
-                      type="number" 
-                      min="1" 
-                      value={item.qty || ''} 
+                    <Input
+                      type="number"
+                      min="0"
+                      value={item.qty === 0 ? '' : item.qty}
                       onChange={e => updateItem(item.id, 'qty', Number(e.target.value))}
                       className="border-0 shadow-none focus-visible:ring-1 text-center h-9 rounded bg-transparent"
                     />
@@ -381,7 +379,7 @@ export default function AddPurchasePage() {
                 <TableCell className="text-right border-r align-middle pr-4">{totalDiscount.toFixed(2)}</TableCell>
                 <TableCell className="border-r"></TableCell>
                 <TableCell className="text-right border-r align-middle pr-4">{totalTax.toFixed(2)}</TableCell>
-                <TableCell className="text-right pr-4 align-middle">{totalAmount.toFixed(2)}</TableCell>
+                <TableCell className="text-right pr-4 align-middle">{items.reduce((sum, item) => sum + item.amount, 0).toFixed(2)}</TableCell>
               </TableRow>
             </TableBody>
           </Table>
@@ -421,19 +419,40 @@ export default function AddPurchasePage() {
           </div>
 
           <div className="space-y-4">
-            <div className="flex items-center justify-end gap-2">
+            <div className="flex items-center justify-end gap-2 text-sm">
               <Checkbox id="round-off" checked={roundOff} onCheckedChange={(c) => setRoundOff(!!c)} />
-              <Label htmlFor="round-off" className="text-sm">Round Off</Label>
+              <Label htmlFor="round-off" className="cursor-pointer">Round Off</Label>
+              <Input 
+                type="number" 
+                value={roundOffAmount === 0 ? '' : roundOffAmount} 
+                onChange={e => setRoundOffAmount(Number(e.target.value))}
+                className="w-20 h-8 text-right bg-transparent border-gray-300 shadow-none"
+              />
+              <div className="flex items-center w-48 bg-muted/20 border border-gray-300 rounded overflow-hidden">
+                <span className="px-3 py-1.5 font-bold text-muted-foreground border-r bg-muted/10 w-20 text-center">Total</span>
+                <span className="px-3 py-1.5 font-bold flex-1 text-right">{totalAmount.toFixed(2)}</span>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 text-sm">
+              <Checkbox id="is-received" checked={isReceived} onCheckedChange={(c) => setIsReceived(!!c)} />
+              <Label htmlFor="is-received" className="cursor-pointer font-bold ml-1 w-20 text-right">Paid</Label>
+              <Input 
+                type="number" 
+                value={receivedAmount === 0 ? '' : receivedAmount} 
+                onChange={e => setReceivedAmount(Number(e.target.value))}
+                className="w-48 h-8 text-right bg-transparent border-gray-300 shadow-none font-bold"
+              />
             </div>
             
-            <div className="flex items-center justify-between text-xl font-bold bg-muted/20 p-4 rounded-lg border">
-              <span>Total</span>
-              <span>{totalAmount.toFixed(2)}</span>
+            <div className="flex justify-end pr-3">
+              <span className="font-bold mr-6">Balance</span>
+              <span className="font-bold w-12 text-right">{balance.toFixed(2)}</span>
             </div>
 
             <div className="flex justify-end gap-3 pt-2">
-              <Button variant="outline" onClick={() => navigate("/admin/purchase-orders")}>Cancel</Button>
-              <Button onClick={handleSave} disabled={isCreating} className="bg-blue-600 hover:bg-blue-700 w-32">
+              <Button variant="outline" onClick={() => navigate("/admin/purchases")}>Cancel</Button>
+              <Button onClick={handleSave} disabled={isCreating} className="bg-red-500 hover:bg-red-600 w-32 text-white shadow-sm">
                 {isCreating && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
                 Save
               </Button>

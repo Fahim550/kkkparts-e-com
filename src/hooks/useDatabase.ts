@@ -22,7 +22,7 @@ export const useProducts = () =>
     queryFn: async () => {
       const { data, error } = await supabase
         .from("products")
-        .select("*, categories(name), brands(name), product_variations(*)");
+        .select("*, categories(name), brands(name), product_variations(*, stock_balances(*, warehouse_bins(*)))");
 
       if (error) {
         const { data: fallbackData } = await supabase
@@ -40,7 +40,7 @@ export const useActiveProducts = () =>
     queryFn: async () => {
       const { data, error } = await supabase
         .from("products")
-        .select("*, categories(name), brands(name)")
+        .select("*, categories(name), brands(name), product_variations(*, stock_balances(*, warehouse_bins(*)))")
         .eq("is_active", true);
 
       if (error) {
@@ -60,7 +60,7 @@ export const useProduct = (id: string) =>
     queryFn: async () => {
       const { data, error } = await supabase
         .from("products")
-        .select("*, categories(name), brands(name)")
+        .select("*, categories(name), brands(name), product_variations(*, stock_balances(*, warehouse_bins(*)))")
         .eq("id", id)
         .maybeSingle();
       if (error) throw error;
