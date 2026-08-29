@@ -1,8 +1,14 @@
-import React, { useState } from "react";
-import { useCustomers } from "../hooks/useCustomers";
-import { useAccounts } from "../../../accounting/presentation/hooks/useAccounts"; // Assuming we have accounts hook or similar to fetch chart of accounts
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Table,
   TableBody,
@@ -11,37 +17,18 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import { Loader2, Plus, Users, Search, Edit } from "lucide-react";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { Edit, Loader2, Plus, Search, Users } from "lucide-react";
+import { useState } from "react";
 import { Link } from "react-router-dom";
+import { useCustomers } from "../hooks/useCustomers";
 
 // Mocking useAccounts since it might not be fully built yet, or we fetch accounts directly here if needed
-import { supabase } from "@/integrations/supabase/client";
-import { useQuery } from "@tanstack/react-query";
 
-const useReceivableAccounts = () => {
-  return useQuery({
-    queryKey: ["receivable-accounts"],
-    queryFn: async () => {
-      const { data } = await supabase.from("chart_of_accounts").select("*").eq("account_type", "Asset");
-      return data || [];
-    },
-    staleTime: 1000 * 60 * 10,
-  });
-};
+
 
 export default function CustomersManager() {
   const { customers, isLoading, createCustomer, isCreating, updateCustomer, isUpdating } = useCustomers();
-  const { data: accounts } = useReceivableAccounts();
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -53,7 +40,6 @@ export default function CustomersManager() {
     contact_phone: "",
     tax_id: "",
     credit_limit: 0,
-    receivable_account_id: "",
     billing_address: "",
     shipping_address: "",
     is_active: true
@@ -68,7 +54,6 @@ export default function CustomersManager() {
       contact_phone: c.contact_phone || "",
       tax_id: c.tax_id || "",
       credit_limit: Number(c.credit_limit) || 0,
-      receivable_account_id: c.receivable_account_id || "",
       billing_address: c.billing_address || "",
       shipping_address: c.shipping_address || "",
       is_active: c.is_active ?? true
@@ -92,7 +77,7 @@ export default function CustomersManager() {
     setEditingId(null);
     setFormData({
       name: "", customer_group: "Retail", contact_email: "", contact_phone: "",
-      tax_id: "", credit_limit: 0, receivable_account_id: "", billing_address: "", shipping_address: "", is_active: true
+      tax_id: "", credit_limit: 0, billing_address: "", shipping_address: "", is_active: true
     });
   };
 
@@ -143,17 +128,7 @@ export default function CustomersManager() {
                 <h3 className="text-sm font-semibold mb-4">Financial & Accounting</h3>
               </div>
               
-              <div className="space-y-2">
-                <Label>Receivable Account</Label>
-                <Select value={formData.receivable_account_id} onValueChange={v => setFormData({...formData, receivable_account_id: v})}>
-                  <SelectTrigger><SelectValue placeholder="Select AR account" /></SelectTrigger>
-                  <SelectContent>
-                    {accounts?.map(acc => (
-                      <SelectItem key={acc.id} value={acc.id}>{acc.code} - {acc.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+
               <div className="space-y-2">
                 <Label>Credit Limit ($)</Label>
                 <Input type="number" min="0" value={formData.credit_limit} onChange={e => setFormData({...formData, credit_limit: Number(e.target.value)})} />
@@ -173,7 +148,7 @@ export default function CustomersManager() {
               </div>
             </div>
             <div className="flex justify-end mt-6">
-              <Button onClick={handleSave} disabled={isCreating || isUpdating || !formData.name || !formData.receivable_account_id}>
+              <Button onClick={handleSave} disabled={isCreating || isUpdating || !formData.name}>
                 {(isCreating || isUpdating) && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
                 Save Customer
               </Button>

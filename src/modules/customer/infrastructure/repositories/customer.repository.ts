@@ -27,9 +27,25 @@ export class CustomerRepository {
   }
 
   static async create(payload: CreateCustomerDTO): Promise<Customer> {
+    const { data: accData, error: accError } = await supabase
+      .from("chart_of_accounts")
+      .insert({
+        name: `Accounts Receivable - ${payload.name}`,
+        account_type: "Asset",
+        account_number: `AR-${Date.now()}-${Math.floor(Math.random() * 1000)}`
+      })
+      .select("id")
+      .single();
+
+    if (accError) throw accError;
+
+    // 2. Create the customer and link the new account
     const { data, error } = await supabase
       .from("customers")
-      .insert(payload)
+      .insert({
+        ...payload,
+        receivable_account_id: accData.id
+      })
       .select()
       .single();
 

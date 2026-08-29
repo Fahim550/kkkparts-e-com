@@ -297,10 +297,20 @@ export const useDeleteOrder = () => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (id: string) => {
+      // Clean up order items first to prevent foreign key constraint violations
+      const { error: itemsError } = await supabase
+        .from("sales_order_items")
+        .delete()
+        .eq("sales_order_id", id);
+        
+      if (itemsError) throw itemsError;
+
+      // Delete the sales order
       const { error } = await supabase
         .from("sales_orders")
-        .update({ is_hidden: true })
+        .delete()
         .eq("id", id);
+        
       if (error) throw error;
     },
     onSuccess: () => {
@@ -314,10 +324,20 @@ export const useDealerDeleteOrder = () => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (id: string) => {
+      // Clean up order items first to prevent foreign key constraint violations
+      const { error: itemsError } = await supabase
+        .from("sales_order_items")
+        .delete()
+        .eq("sales_order_id", id);
+        
+      if (itemsError) throw itemsError;
+
+      // Delete the sales order
       const { error } = await supabase
         .from("sales_orders")
-        .update({ is_hidden_by_dealer: true })
+        .delete()
         .eq("id", id);
+        
       if (error) throw error;
     },
     onSuccess: () => {

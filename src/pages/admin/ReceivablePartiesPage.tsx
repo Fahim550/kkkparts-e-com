@@ -12,6 +12,7 @@ const ReceivablePartiesPage = () => {
   
   const { customers = [], isLoading: loadingCustomers } = useCustomers();
   const { data: trialBalance = [], isLoading: loadingTb } = useTrialBalance();
+
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedPartyId, setSelectedPartyId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<"customer" | "dealer">(
@@ -22,6 +23,7 @@ const ReceivablePartiesPage = () => {
     if (!customers || !trialBalance) return [];
     
     let filtered = customers;
+
     if (activeTab === "customer") {
       filtered = customers.filter((c: any) => c.customer_group !== 'Dealer');
     } else if (activeTab === "dealer") {

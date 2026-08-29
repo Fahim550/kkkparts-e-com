@@ -22,13 +22,15 @@ import { useTrialBalance } from "@/modules/accounting/presentation/hooks/useAcco
 import { useCustomers } from "@/modules/customer/presentation/hooks/useCustomers";
 import { useInvoices } from "@/modules/purchase/presentation/hooks/useInvoices";
 import { useSuppliers } from "@/modules/supplier/presentation/hooks/useSuppliers";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
+import { Button } from "@/components/ui/button";
 
 const Dashboard = () => {
   const { data: allOrders = [] } = useOrders();
   const { data: products = [] } = useProducts();
   const { invoices = [] } = useInvoices();
   const { data: trialBalance = [] } = useTrialBalance();
-
   const { customers = [] } = useCustomers();
   const { suppliers = [] } = useSuppliers();
 
