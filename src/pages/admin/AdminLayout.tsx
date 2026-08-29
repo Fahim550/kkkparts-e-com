@@ -389,7 +389,7 @@ const AdminLayout = () => {
               <Input
                 type="search"
                 placeholder="Search Transactions"
-                className="pl-9 bg-secondary/50 border-gray-700 rounded-full h-9 shadow-none text-sm focus-visible:ring-1"
+                className="pl-9  bg-transparent border-gray-600 outline-none text-sm w-full focus:ring-0"
               />
             </div>
           </div>
@@ -404,7 +404,7 @@ const AdminLayout = () => {
                 + Add Purchase
               </Button>
             </Link>
-            <Button variant="ghost" size="icon" className="rounded-full bg-secondary/50 h-9 w-9 text-primary">
+            <Button variant="ghost" size="icon" className="p-2 text-blue-500 bg-blue-50 rounded-full hover:bg-blue-100 transition">
               <Plus className="h-4 w-4" />
             </Button>
             <Button variant="ghost" size="icon" className="rounded-full h-9 w-9 text-muted-foreground">
