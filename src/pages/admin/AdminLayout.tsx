@@ -51,6 +51,7 @@ const navCategories = [
     title: "Overview",
     items: [
       { path: "/admin", label: "Dashboard", icon: LayoutDashboard, exact: true },
+      { path: "/admin/receivable-parties", label: "Receivables", icon: Users, exact: false },
     ]
   },
   {

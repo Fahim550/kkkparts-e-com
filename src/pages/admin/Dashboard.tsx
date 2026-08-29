@@ -39,11 +39,13 @@ const Dashboard = () => {
   const regularCustomerAccountIds = new Set(regularCustomers.map((c: any) => c.receivable_account_id));
   const dealerAccountIds = new Set(dealers.map((c: any) => c.receivable_account_id));
 
-  const regularReceivableAccounts = trialBalance.filter((t: any) => regularCustomerAccountIds.has(t.account_id));
+  const regularReceivableAccounts = trialBalance.filter((t: any) => regularCustomerAccountIds.has(t.account_id) && Number(t.balance || 0) > 0);
   const regularReceivable = regularReceivableAccounts.reduce((sum: number, acc: any) => sum + Number(acc.balance || 0), 0);
+  const regularReceivableCount = regularReceivableAccounts.length;
 
-  const dealerReceivableAccounts = trialBalance.filter((t: any) => dealerAccountIds.has(t.account_id));
+  const dealerReceivableAccounts = trialBalance.filter((t: any) => dealerAccountIds.has(t.account_id) && Number(t.balance || 0) > 0);
   const dealerReceivable = dealerReceivableAccounts.reduce((sum: number, acc: any) => sum + Number(acc.balance || 0), 0);
+  const dealerReceivableCount = dealerReceivableAccounts.length;
 
   const totalReceivable = regularReceivable + dealerReceivable;
 
@@ -162,24 +164,24 @@ const Dashboard = () => {
         {/* Left Column */}
         <div className="flex-1 flex flex-col border-r border-gray-200">
           {/* Top Row: Receivable & Payable */}
-          <div className="grid grid-cols-2 border-b border-gray-200 bg-white">
-            <div className="p-6 border-r border-gray-200 relative">
-              <h3 className="text-gray-500 text-sm font-medium mb-2">Total Receivable</h3>
-              <div className="text-2xl font-bold text-gray-900">OMR {totalReceivable.toFixed(0)}</div>
+          <div className="grid grid-cols-2 bg-white border-b border-gray-200">
+            <Link to="/admin/receivable-parties" className="p-6 border-r border-gray-200 relative block hover:bg-gray-50 transition-colors group">
+              <h3 className="text-gray-500 text-sm font-medium mb-2 group-hover:text-gray-700">Total Receivable</h3>
+              <div className="text-2xl font-bold text-gray-900 group-hover:text-blue-600">OMR {totalReceivable.toFixed(0)}</div>
               <div className="text-xs text-gray-500 mt-2 space-y-1">
                 <div className="flex justify-between">
-                  <span>Customers:</span>
+                  <span>Customers ({regularReceivableCount}):</span>
                   <span className="font-medium text-gray-700">OMR {regularReceivable.toFixed(0)}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span>Dealers:</span>
+                  <span>Dealers ({dealerReceivableCount}):</span>
                   <span className="font-medium text-gray-700">OMR {dealerReceivable.toFixed(0)}</span>
                 </div>
               </div>
-              <div className="absolute top-6 right-6 bg-green-50 text-green-500 rounded-full p-1.5">
+              <div className="absolute top-6 right-6 bg-green-50 text-green-500 rounded-full p-1.5 group-hover:bg-green-100 transition-colors">
                 <ArrowDown className="w-5 h-5" />
               </div>
-            </div>
+            </Link>
             <div className="p-6 relative">
               <h3 className="text-gray-500 text-sm font-medium mb-2">Total Payable</h3>
               <div className="text-2xl font-bold text-gray-900">OMR {totalPayable.toFixed(0)}</div>
