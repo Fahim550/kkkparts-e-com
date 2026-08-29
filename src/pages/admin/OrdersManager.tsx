@@ -34,7 +34,7 @@ const OrdersManager = () => {
   const [statusFilter, setStatusFilter] = useState("all");
 
   const filtered = useMemo(() => {
-    let result = orders.filter((o) => !o.customer_email);
+    let result = orders.filter((o) => o.customer_group !== 'Dealer');
     if (statusFilter !== "all") {
       result = result.filter((o) => o.status === statusFilter);
     }
@@ -42,7 +42,7 @@ const OrdersManager = () => {
   }, [orders, statusFilter]);
 
   const statusCounts = useMemo(() => {
-    const guestOrders = orders.filter((o) => !o.customer_email);
+    const guestOrders = orders.filter((o) => o.customer_group !== 'Dealer');
     const counts: Record<string, number> = { all: guestOrders.length };
     statuses.forEach((s) => {
       counts[s] = guestOrders.filter((o) => o.status === s).length;
@@ -144,11 +144,18 @@ const OrdersManager = () => {
                       </Button>
                     </Link>
                   ) : (
-                    <Link to={`/admin/orders/${order.id}`}>
-                      <Button variant="outline" size="sm" className="gap-1.5">
-                        <Eye className="h-3.5 w-3.5" /> View
-                      </Button>
-                    </Link>
+                    <>
+                      <Link to={`/admin/orders/${order.id}`}>
+                        <Button variant="outline" size="sm" className="gap-1.5">
+                          <Eye className="h-3.5 w-3.5" /> View
+                        </Button>
+                      </Link>
+                      <Link to={`/admin/pos/receipt/${order.id}`}>
+                        <Button variant="outline" size="sm" className="gap-1.5">
+                          <Printer className="h-3.5 w-3.5" /> Receipt
+                        </Button>
+                      </Link>
+                    </>
                   )}
                   <Button
                     variant="outline"

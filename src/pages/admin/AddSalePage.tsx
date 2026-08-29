@@ -158,12 +158,12 @@ export default function AddSalePage() {
   if (roundOff) {
     totalAmount += (Number(roundOffAmount) || 0);
   }
-  let balance = totalAmount - (isReceived ? (Number(receivedAmount) || 0) : 0);
+  let balance = totalAmount - (Number(receivedAmount) || 0);
 
   const handleShowPreview = () => {
     if (!customerId) {
       toast({ variant: "destructive", title: "Error", description: "Please select a customer." });
-      return;
+      return; 
     }
     
     const validItems = items.filter(i => i.variation_id && i.qty > 0);
@@ -205,7 +205,7 @@ export default function AddSalePage() {
       tax: totalTax,
       roundOff: roundOff ? roundOffAmount : 0,
       total: totalAmount,
-      received: isReceived ? receivedAmount : 0,
+      received: receivedAmount,
       balance: balance
     });
     
@@ -274,6 +274,7 @@ export default function AddSalePage() {
         shipping_address_id: null,
         status: "confirmed",
         payment_status: paymentType === "Cash" ? "paid" : "pending",
+        paid_amount: receivedAmount,
         coupon_id: null,
         notes: "Created via Add Sale page",
         items: validItems.map(item => ({

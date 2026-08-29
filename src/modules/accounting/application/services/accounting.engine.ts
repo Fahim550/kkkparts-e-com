@@ -46,6 +46,37 @@ export class AccountingEngine {
     });
   }
 
+  static async postSalesOrder(orderId: string, orderNumber: string, totalAmount: number, paidAmount: number, customerAccountId?: string) {
+    const cashAcc = await CoaRepository.getAccountByNumber(SYSTEM_ACCOUNTS.CASH);
+    const revenueAcc = await CoaRepository.getAccountByNumber(SYSTEM_ACCOUNTS.SALES_REVENUE);
+    
+    const dueAmount = totalAmount - paidAmount;
+    const lines: any[] = [];
+    
+    if (paidAmount > 0) {
+      lines.push({ account_id: cashAcc.id, debit_amount: paidAmount, credit_amount: 0, narration: `Sales Order ${orderNumber} - Paid` });
+    }
+    
+    if (dueAmount > 0) {
+      let arAccountId = customerAccountId;
+      if (!arAccountId) {
+        const arAcc = await CoaRepository.getAccountByNumber(SYSTEM_ACCOUNTS.ACCOUNTS_RECEIVABLE);
+        arAccountId = arAcc.id;
+      }
+      lines.push({ account_id: arAccountId, debit_amount: dueAmount, credit_amount: 0, narration: `Sales Order ${orderNumber} - Due` });
+    }
+
+    lines.push({ account_id: revenueAcc.id, debit_amount: 0, credit_amount: totalAmount, narration: `Sales Order ${orderNumber}` });
+
+    return JournalRepository.createJournalEntry({
+      posting_date: new Date().toISOString(),
+      reference_type: "sales_order",
+      reference_id: orderId,
+      narration: `Sales Order ${orderNumber}`,
+      lines: lines
+    });
+  }
+
   static async postPurchaseReceipt(receiptId: string, totalAmount: number, receiptNumber: string, customPayableAccountId?: string) {
     const existingJe = await JournalRepository.getJournalEntryByReference("purchase_receipt", receiptId);
     if (existingJe) {

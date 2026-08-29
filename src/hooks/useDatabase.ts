@@ -1,6 +1,7 @@
 import { supabase } from "@/integrations/supabase/client";
 import type { Database } from "@/integrations/supabase/types";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { AccountingEngine } from "@/modules/accounting/application/services/accounting.engine";
 
 export { useActiveCategories, useCategories } from "./useCategories";
 
@@ -132,7 +133,14 @@ export const useOrders = () =>
     queryFn: async () => {
       const { data: salesData, error: salesError } = await supabase
         .from("sales_orders")
-        .select("*")
+        .select(`
+          *,
+          customers(name, contact_email, contact_phone, customer_group),
+          sales_order_items(
+            *,
+            product_variations(sku, products(name))
+          )
+        `)
         .order("created_at", { ascending: false });
 
       const { data: posData, error: posError } = await supabase
@@ -149,7 +157,28 @@ export const useOrders = () =>
       let combined: any[] = [];
       
       if (!salesError && salesData) {
-        combined = [...salesData.filter((o: any) => !o.is_hidden).map((o: any) => ({ ...o, type: 'sales_order' }))];
+        const mappedSales = salesData.map((o: any) => ({
+          id: o.id,
+          order_number: o.so_number,
+          status: o.status.toLowerCase(),
+          created_at: o.order_date || o.created_at,
+          customer_name: o.customers?.name || "Customer",
+          customer_email: o.customers?.contact_email || "",
+          customer_phone: o.customers?.contact_phone || "",
+          customer_group: o.customers?.customer_group || "Customer",
+          shipping_address: "",
+          total: o.total_amount,
+          is_hidden: false,
+          type: 'sales_order',
+          items: o.sales_order_items?.map((i: any) => ({
+            productName: i.product_variations?.products?.name || "Item",
+            size: "",
+            color: "",
+            quantity: i.quantity_ordered || i.quantity || 1,
+            price: i.unit_price
+          })) || []
+        }));
+        combined = [...mappedSales];
       }
 
       if (!posError && posData) {
@@ -259,15 +288,81 @@ export const useAddOrder = () => {
         .select()
         .single();
 
+      let salesOrderData = data;
+
       if (error) {
         // If select().single() fails due to RLS SELECT restrictions, try insert without select
         const { error: insertOnlyErr } = await supabase
           .from("sales_orders")
           .insert(salesOrderPayload);
         if (insertOnlyErr) throw insertOnlyErr;
-        return { id: salesOrderPayload.so_number, ...salesOrderPayload };
+        
+        // Fetch the inserted order to get its UUID
+        const { data: fetchedData } = await supabase
+          .from("sales_orders")
+          .select("*")
+          .eq("so_number", salesOrderPayload.so_number)
+          .maybeSingle();
+          
+        salesOrderData = fetchedData;
       }
-      return data;
+      
+      const insertedOrderId = salesOrderData?.id; 
+
+      // Insert items if they exist
+      const orderItems = (order as any).items || [];
+      if (orderItems.length > 0 && insertedOrderId) {
+        // We need a uom_id since it's required by the schema
+        const { data: uomData } = await supabase.from("units_of_measure").select("id").limit(1).maybeSingle();
+        const fallbackUomId = uomData?.id || "00000000-0000-0000-0000-000000000000";
+
+        const itemsToInsert = orderItems.map((item: any) => ({
+          sales_order_id: insertedOrderId,
+          variation_id: item.product_variation_id,
+          quantity_ordered: item.quantity,
+          unit_price: Number(item.unit_price),
+          total_price: Number(item.total_price),
+          discount_amount: 0,
+          uom_id: fallbackUomId,
+        }));
+        
+        const { error: itemsError } = await supabase
+          .from("sales_order_items")
+          .insert(itemsToInsert);
+          
+        if (itemsError) {
+          console.error("Failed to insert sales order items:", itemsError);
+          throw new Error("Failed to insert items: " + itemsError.message);
+        }
+      }
+
+      // Accounting Integration
+      try {
+        let receivableAccountId = undefined;
+        if (validCustomerId) {
+          const { data: customerData } = await supabase
+            .from("customers")
+            .select("receivable_account_id")
+            .eq("id", validCustomerId)
+            .single();
+          if (customerData?.receivable_account_id) {
+            receivableAccountId = customerData.receivable_account_id;
+          }
+        }
+
+        const paidAmount = Number((order as any).paid_amount || 0);
+        await AccountingEngine.postSalesOrder(
+          insertedOrderId,
+          salesOrderPayload.so_number,
+          salesOrderPayload.total_amount,
+          paidAmount,
+          receivableAccountId
+        );
+      } catch (accError) {
+        console.error("Failed to post sales order to accounting:", accError);
+      }
+
+      return salesOrderData || { id: salesOrderPayload.so_number, ...salesOrderPayload };
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["orders"] });

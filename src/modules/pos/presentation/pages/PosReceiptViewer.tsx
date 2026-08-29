@@ -17,7 +17,7 @@ export default function PosReceiptViewer() {
   const { data: receipt, isLoading } = useQuery({
     queryKey: ["pos-receipt", id],
     queryFn: async () => {
-      const { data, error } = await supabase
+      let { data, error } = await supabase
         .from("pos_receipts")
         .select(`
           *,
@@ -29,8 +29,63 @@ export default function PosReceiptViewer() {
           pos_payments(*)
         `)
         .eq("id", id)
-        .single();
-      if (error) throw error;
+        .maybeSingle();
+
+      if (!data) {
+        // Fallback to sales_orders if it's not a POS receipt
+        const { data: salesData, error: salesError } = await supabase
+          .from("sales_orders")
+          .select(`
+            *,
+            customers(name, contact_phone),
+            sales_order_items(
+              *,
+              product_variations(sku, products(name))
+            )
+          `)
+          .eq("id", id)
+          .maybeSingle();
+          
+        if (salesError || !salesData) throw new Error("Receipt not found");
+        
+        // Fetch journal entry for sales order to find paid amount
+        const { data: jeData } = await supabase
+          .from("journal_entries")
+          .select("journal_entry_lines(debit_amount, narration)")
+          .eq("reference_id", id)
+          .eq("reference_type", "sales_order")
+          .maybeSingle();
+        
+        let paidAmount = 0;
+        if (jeData?.journal_entry_lines) {
+          const paidLine = jeData.journal_entry_lines.find((l: any) => l.narration?.includes("- Paid"));
+          if (paidLine) {
+            paidAmount = paidLine.debit_amount;
+          }
+        }
+
+        // Map sales order to look like a POS receipt
+        return {
+          id: salesData.id,
+          receipt_number: salesData.so_number,
+          transaction_date: salesData.order_date || salesData.created_at,
+          total_amount: salesData.total_amount,
+          tax_amount: 0,
+          discount_amount: 0,
+          status: salesData.status,
+          customer_id: salesData.customer_id,
+          customers: salesData.customers,
+          walk_in_customer_name: null,
+          pos_payments: paidAmount > 0 ? [{ id: 'payment', payment_method: 'Cash', amount: paidAmount }] : [],
+          pos_receipt_items: (salesData.sales_order_items || []).map((i: any) => ({
+            variation_id: i.variation_id,
+            quantity: i.quantity_ordered,
+            unit_price: i.unit_price,
+            total_price: i.total_price,
+            product_variations: i.product_variations
+          }))
+        };
+      }
       return data;
     },
     enabled: !!id
@@ -79,6 +134,9 @@ export default function PosReceiptViewer() {
 
   if (isLoading) return <div className="p-12 text-center"><Loader2 className="animate-spin w-8 h-8 mx-auto" /></div>;
   if (!receipt) return <div className="p-12 text-center text-red-500">Receipt not found</div>;
+
+  const totalPaid = (receipt.pos_payments || []).reduce((sum: number, p: any) => sum + Number(p.amount), 0);
+  const dueAmount = Number(receipt.total_amount) - totalPaid;
 
   return (
     <div className="max-w-2xl mx-auto space-y-6">
@@ -152,6 +210,12 @@ export default function PosReceiptViewer() {
               <span>Total:</span>
               <span>${Number(receipt.total_amount).toFixed(2)}</span>
             </div>
+            {dueAmount > 0.01 && (
+              <div className="flex justify-between w-48 text-lg font-bold text-red-600 pt-1">
+                <span>Due:</span>
+                <span>${dueAmount.toFixed(2)}</span>
+              </div>
+            )}
           </div>
 
           <div className="border-t pt-4">
