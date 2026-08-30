@@ -31,7 +31,8 @@ export class CustomerHistoryRepository {
         reference_number: o.so_number,
         date: o.order_date,
         status: o.status,
-        amount: Number(o.total_amount)
+        amount: Number(o.total_amount),
+        balance: Number(o.total_amount)
       }));
     }
 
@@ -42,8 +43,40 @@ export class CustomerHistoryRepository {
         reference_number: i.invoice_number,
         date: i.invoice_date,
         status: i.status,
-        amount: Number(i.total_amount)
+        amount: Number(i.total_amount),
+        balance: Number(i.total_amount)
       }));
+    }
+
+    if (history.length > 0) {
+      const referenceIds = history.map(h => h.id);
+      
+      const { data: jeData } = await supabase
+        .from("journal_entries")
+        .select(`
+          reference_id,
+          journal_entry_lines (
+            debit_amount,
+            credit_amount,
+            narration
+          )
+        `)
+        .in("reference_id", referenceIds);
+
+      if (jeData) {
+        history.forEach(h => {
+          const entry = jeData.find((je: any) => je.reference_id === h.id);
+          let paid = 0;
+          if (entry && entry.journal_entry_lines) {
+             entry.journal_entry_lines.forEach((l: any) => {
+               if (l.narration?.includes("- Paid")) {
+                 paid += Number(l.debit_amount || 0);
+               }
+             });
+          }
+          h.balance = Math.max(0, h.amount - paid);
+        });
+      }
     }
 
     // Sort by date descending

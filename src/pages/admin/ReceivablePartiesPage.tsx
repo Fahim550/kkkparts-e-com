@@ -5,6 +5,12 @@ import { useCustomers, useCustomerHistory } from "@/modules/customer/presentatio
 import { useTrialBalance } from "@/modules/accounting/presentation/hooks/useAccounting";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 const ReceivablePartiesPage = () => {
   const [searchParams] = useSearchParams();
@@ -201,8 +207,7 @@ const ReceivablePartiesPage = () => {
                         <tr><td colSpan={6} className="text-center py-8 text-gray-500">No transactions found.</td></tr>
                       ) : (
                         history.map((item: any) => {
-                          const isPaid = item.status?.toLowerCase() === 'paid';
-                          const balance = isPaid ? 0 : Number(item.amount || 0);
+                          const balance = item.balance;
                           const dateObj = new Date(item.date);
                           const formattedDate = `${dateObj.getDate().toString().padStart(2, '0')}/${(dateObj.getMonth()+1).toString().padStart(2, '0')}/${dateObj.getFullYear()}`;
                           
@@ -213,7 +218,29 @@ const ReceivablePartiesPage = () => {
                               <td className="px-6 py-4 text-gray-700">{formattedDate}</td>
                               <td className="px-6 py-4 text-right text-gray-700 font-medium">OMR {Number(item.amount || 0).toFixed(3)}</td>
                               <td className="px-6 py-4 text-right text-gray-700 font-medium">OMR {balance.toFixed(3)}</td>
-                              <td className="px-6 py-4 text-gray-400 text-right"><MoreVertical className="w-4 h-4 inline-block cursor-pointer" /></td>
+                              <td className="px-6 py-4 text-gray-400 text-right">
+                                <DropdownMenu>
+                                  <DropdownMenuTrigger asChild>
+                                    <button className="p-1 hover:bg-gray-100 rounded-full outline-none">
+                                      <MoreVertical className="w-4 h-4 text-gray-500 cursor-pointer" />
+                                    </button>
+                                  </DropdownMenuTrigger>
+                                  <DropdownMenuContent align="end" className="w-48 bg-white border border-gray-200">
+                                    <DropdownMenuItem asChild>
+                                      <Link to={`/admin/sales/new?edit=${item.id}&type=${encodeURIComponent(item.type)}`} className="cursor-pointer">
+                                        View/Edit
+                                      </Link>
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem className="cursor-pointer text-gray-600">Cancel Invoice</DropdownMenuItem>
+                                    <DropdownMenuItem className="cursor-pointer text-red-500">Delete</DropdownMenuItem>
+                                    <DropdownMenuItem className="cursor-pointer text-gray-600">Duplicate</DropdownMenuItem>
+                                    <DropdownMenuItem className="cursor-pointer text-gray-600">Open PDF</DropdownMenuItem>
+                                    <DropdownMenuItem className="cursor-pointer text-gray-600">Preview</DropdownMenuItem>
+                                    <DropdownMenuItem className="cursor-pointer text-gray-600">Print</DropdownMenuItem>
+                                    <DropdownMenuItem className="cursor-pointer text-gray-600">Preview As Delivery Note</DropdownMenuItem>
+                                  </DropdownMenuContent>
+                                </DropdownMenu>
+                              </td>
                             </tr>
                           );
                         })

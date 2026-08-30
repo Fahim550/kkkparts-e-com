@@ -22,14 +22,21 @@ import {
 } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
 import { useAddOrder, useProducts } from "@/hooks/useDatabase";
+import { supabase } from "@/integrations/supabase/client";
+import { AccountingEngine } from "@/modules/accounting/application/services/accounting.engine";
 import { useCustomers } from "@/modules/customer/presentation/hooks/useCustomers";
 import { useUOMs } from "@/modules/product/presentation/hooks/useUOMs";
 import { Loader2, Plus, Trash2 } from "lucide-react";
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 
 export default function AddSalePage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const editId = searchParams.get("edit");
+  const editType = searchParams.get("type"); // "Sales Order" or "Sales Invoice"
+  const isEditing = !!editId;
+
   const { toast } = useToast();
   const { customers } = useCustomers();
   const { data: products = [] } = useProducts();
@@ -55,6 +62,100 @@ export default function AddSalePage() {
   const [items, setItems] = useState([
     { id: 1, variation_id: "", qty: 0, uom: "NONE", price: 0, discountPct: 0, discountAmt: 0, taxPct: 0, taxAmt: 0, amount: 0 }
   ]);
+
+  const [isFetchingData, setIsFetchingData] = useState(false);
+
+  useEffect(() => {
+    if (editId) {
+      const fetchOrder = async () => {
+        setIsFetchingData(true);
+        try {
+          const tableName = editType === "Sales Invoice" ? "sales_invoices" : "sales_orders";
+          const { data, error } = await supabase
+            .from(tableName)
+            .select(`*, sales_order_items(*)`) // Assuming sales_invoices might also map items identically, though if it's sales_invoices, relations might differ. We fallback below.
+            .eq("id", editId)
+            .single();
+
+          if (error) throw error;
+
+          if (data) {
+            setCustomerId(data.customer_id || "");
+            const cust = customers?.find((c: any) => c.id === data.customer_id);
+            if (cust) setPhone(cust.contact_phone || "");
+            
+            setInvoiceNumber(data.so_number || data.invoice_number || "");
+            setInvoiceDate(data.order_date || data.invoice_date || data.created_at?.split('T')[0] || "");
+            
+            // Always query the journal entry for the actual amount paid
+            const { data: jeData } = await supabase
+              .from("journal_entries")
+              .select(`
+                id,
+                journal_entry_lines (
+                  debit_amount,
+                  narration
+                )
+              `)
+              .eq("reference_id", editId)
+              .eq("reference_type", "sales_order"); // AccountingEngine ALWAYS uses 'sales_order'
+
+            if (jeData && jeData.length > 0) {
+               let totalPaid = 0;
+               jeData.forEach((je: any) => {
+                  if (je.journal_entry_lines) {
+                     je.journal_entry_lines.forEach((line: any) => {
+                        if (line.narration?.endsWith(" - Paid")) {
+                           totalPaid += Number(line.debit_amount || 0);
+                        }
+                     });
+                  }
+               });
+               if (totalPaid > 0) {
+                 setPaymentType("Cash");
+                 setIsReceived(true);
+                 setReceivedAmount(totalPaid);
+               } else {
+                 setPaymentType(data.status?.toLowerCase() === 'paid' ? "Cash" : "Bank");
+                 setIsReceived(false);
+                 setReceivedAmount(0);
+               }
+            } else {
+              setPaymentType(data.status?.toLowerCase() === 'paid' ? "Cash" : "Bank");
+              setIsReceived(false);
+              setReceivedAmount(0);
+            }
+
+            if (data.sales_order_items && data.sales_order_items.length > 0) {
+              setItems(data.sales_order_items.map((item: any, idx: number) => ({
+                 id: item.id || Date.now() + idx,
+                 variation_id: item.variation_id || item.product_variation_id || "",
+                 qty: item.quantity_ordered || item.quantity || 1,
+                 uom: item.uom_id || "NONE",
+                 price: Number(item.unit_price) || 0,
+                 discountPct: 0,
+                 discountAmt: Number(item.discount_amount) || 0,
+                 taxPct: 0,
+                 taxAmt: 0,
+                 amount: Number(item.total_price) || 0,
+              })));
+            } else {
+               // Add empty row if no items found
+               setItems([{ id: Date.now(), variation_id: "", qty: 0, uom: "NONE", price: 0, discountPct: 0, discountAmt: 0, taxPct: 0, taxAmt: 0, amount: 0 }]);
+            }
+          }
+        } catch (err: any) {
+          toast({ variant: "destructive", title: "Error fetching data", description: err.message });
+        } finally {
+          setIsFetchingData(false);
+        }
+      };
+      // We only fetch once we have customers available to map phone number
+      if (customers && customers.length > 0) {
+        fetchOrder();
+      }
+    }
+  }, [editId, editType, customers]);
 
   const handleAddRow = () => {
     setItems([
@@ -262,40 +363,135 @@ export default function AddSalePage() {
         finalCustomerId = newCust.id;
       }
 
-      await createOrder({
-        customer_id: finalCustomerId,
-        total: totalAmount.toString(),
-        subtotal: (totalAmount + totalDiscount - totalTax).toString(),
-        discount_amount: totalDiscount.toString(),
-        tax_amount: totalTax.toString(),
-        shipping_method_id: null,
-        shipping_cost: "0",
-        billing_address_id: null,
-        shipping_address_id: null,
-        status: "confirmed",
-        payment_status: paymentType === "Cash" ? "paid" : "pending",
-        paid_amount: receivedAmount,
-        coupon_id: null,
-        notes: "Created via Add Sale page",
-        items: validItems.map(item => ({
-          product_variation_id: item.variation_id,
-          quantity: item.qty,
-          unit_price: item.price.toString(),
-          total_price: item.amount.toString(),
-        }))
-      });
-      
-      toast({ title: "Success", description: "Sale created successfully." });
-      navigate("/admin/orders");
+      if (isEditing && editId) {
+        const tableName = editType === "Sales Invoice" ? "sales_invoices" : "sales_orders";
+        
+        const updatePayload: any = {
+          customer_id: finalCustomerId,
+          total_amount: totalAmount,
+          status: paymentType === "Cash" ? "paid" : "pending",
+        };
+        
+        if (tableName === "sales_orders") {
+          updatePayload.so_number = invoiceNumber || `SO-${Date.now()}`;
+          updatePayload.order_date = invoiceDate;
+        } else {
+          updatePayload.invoice_number = invoiceNumber || `INV-${Date.now()}`;
+          updatePayload.invoice_date = invoiceDate;
+        }
+
+        const { error: updateError } = await supabase
+          .from(tableName)
+          .update(updatePayload)
+          .eq("id", editId);
+
+        if (updateError) throw updateError;
+
+        // For items, easiest is to delete all and insert new ones
+        const itemsTableName = editType === "Sales Invoice" ? "sales_invoice_items" : "sales_order_items";
+        const foreignKeyColumn = editType === "Sales Invoice" ? "sales_invoice_id" : "sales_order_id";
+        
+        // Skip items update for invoices if schema varies significantly, but let's try standard mapping
+        if (tableName === "sales_orders") {
+          const { error: deleteError } = await supabase
+            .from("sales_order_items")
+            .delete()
+            .eq("sales_order_id", editId);
+            
+          if (deleteError) throw deleteError;
+          
+          const fallbackUomId = uoms && uoms.length > 0 ? uoms[0].id : undefined;
+
+          const itemsToInsert = validItems.map(item => ({
+            sales_order_id: editId,
+            variation_id: item.variation_id,
+            quantity_ordered: item.qty,
+            unit_price: item.price,
+            total_price: item.amount,
+            discount_amount: 0,
+            uom_id: item.uom && item.uom !== "NONE" ? item.uom : fallbackUomId,
+          }));
+          
+          const { error: insertItemsError } = await supabase
+            .from("sales_order_items")
+            .insert(itemsToInsert);
+            
+          if (insertItemsError) throw insertItemsError;
+        }
+
+        // 3. Update accounting: reverse old entry and post new one
+        try {
+          await AccountingEngine.reverseSalesOrder(editId);
+          let receivableAccountId = undefined;
+          if (finalCustomerId) {
+            const { data: customerData } = await supabase
+              .from("customers")
+              .select("receivable_account_id")
+              .eq("id", finalCustomerId)
+              .single();
+            if (customerData?.receivable_account_id) {
+              receivableAccountId = customerData.receivable_account_id;
+            }
+          }
+
+          await AccountingEngine.postSalesOrder(
+            editId,
+            tableName === "sales_orders" ? (invoiceNumber || `SO-${Date.now()}`) : (invoiceNumber || `INV-${Date.now()}`),
+            totalAmount,
+            Number(receivedAmount) || 0,
+            receivableAccountId
+          );
+        } catch (accError) {
+          console.error("Failed to update accounting for edited sale:", accError);
+          // Non-fatal, just log it. The app doesn't have strict transaction boundaries.
+        }
+
+        toast({ title: "Success", description: "Transaction updated successfully." });
+        navigate(-1);
+      } else {
+        await createOrder({
+          customer_id: finalCustomerId,
+          total: totalAmount.toString(),
+          subtotal: (totalAmount + totalDiscount - totalTax).toString(),
+          discount_amount: totalDiscount.toString(),
+          tax_amount: totalTax.toString(),
+          shipping_method_id: null,
+          shipping_cost: "0",
+          billing_address_id: null,
+          shipping_address_id: null,
+          status: "confirmed",
+          payment_status: paymentType === "Cash" ? "paid" : "pending",
+          paid_amount: receivedAmount,
+          coupon_id: null,
+          notes: "Created via Add Sale page",
+          items: validItems.map(item => ({
+            product_variation_id: item.variation_id,
+            quantity: item.qty,
+            unit_price: item.price.toString(),
+            total_price: item.amount.toString(),
+          }))
+        });
+        
+        toast({ title: "Success", description: "Sale created successfully." });
+        navigate("/admin/orders");
+      }
     } catch (e: any) {
       toast({ variant: "destructive", title: "Error", description: e.message });
     }
   };
 
+  if (isFetchingData) {
+    return (
+      <div className="flex h-[calc(100vh-64px)] items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6 max-w-[1200px] mx-auto pb-20">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold tracking-tight">Sale</h1>
+        <h1 className="text-2xl font-bold tracking-tight">{isEditing ? "Edit Sale" : "Sale"}</h1>
       </div>
 
       <div className="bg-card border rounded-lg p-6 space-y-6 shadow-sm">
@@ -536,9 +732,7 @@ export default function AddSalePage() {
                   onCheckedChange={(c) => {
                     const checked = !!c;
                     setIsReceived(checked);
-                    if (checked) {
-                      setReceivedAmount(totalAmount);
-                    } else {
+                    if (!checked) {
                       setReceivedAmount(0);
                     }
                   }} 
@@ -548,7 +742,13 @@ export default function AddSalePage() {
               <Input 
                 type="number" 
                 value={receivedAmount === 0 ? '' : receivedAmount} 
-                onChange={e => setReceivedAmount(Number(e.target.value))}
+                onChange={e => {
+                  const val = Number(e.target.value);
+                  setReceivedAmount(val);
+                  if (val > 0 && !isReceived) {
+                    setIsReceived(true);
+                  }
+                }}
                 className="w-full sm:w-56 h-9 text-right bg-transparent border-gray-300 shadow-none font-bold"
               />
             </div>

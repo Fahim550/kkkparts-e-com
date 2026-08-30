@@ -16,6 +16,7 @@ export type CustomerHistoryItem = {
   date: string;
   status: string;
   amount: number;
+  balance: number;
 };
 
 export type CustomerDueStats = {
