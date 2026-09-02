@@ -21,7 +21,7 @@ import { useOrders, useProducts } from "@/hooks/useDatabase";
 import { useTrialBalance } from "@/modules/accounting/presentation/hooks/useAccounting";
 import { useCustomers } from "@/modules/customer/presentation/hooks/useCustomers";
 import { useInvoices } from "@/modules/purchase/presentation/hooks/useInvoices";
-import { useSuppliers } from "@/modules/supplier/presentation/hooks/useSuppliers";
+import { useSuppliers, useSupplierDues } from "@/modules/supplier/presentation/hooks/useSuppliers";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
@@ -33,6 +33,7 @@ const Dashboard = () => {
   const { data: trialBalance = [] } = useTrialBalance();
   const { customers = [] } = useCustomers();
   const { suppliers = [] } = useSuppliers();
+  const { data: supplierDueMap = {} } = useSupplierDues();
 
   // 1. Total Receivable (Due from Customers/Dealers)
   const regularCustomers = customers.filter((c: any) => c.customer_group !== 'Dealer');
@@ -51,17 +52,17 @@ const Dashboard = () => {
 
   const totalReceivable = regularReceivable + dealerReceivable;
 
-  // 2. Total Payable (Due to Suppliers)
-  const supplierAccountIds = new Set(suppliers.map((s: any) => s.payable_account_id));
-  
-  const payableAccounts = trialBalance.filter((t: any) => supplierAccountIds.has(t.account_id));
-  const totalPayable = payableAccounts.reduce((sum: number, acc: any) => sum + Number(acc.balance || 0), 0);
-
+  // 2. Total Payable (Due to Suppliers - Real Due Amount)
+  let totalPayable = 0;
   let payablePartiesCount = 0;
   if (suppliers) {
     suppliers.forEach((s: any) => {
       const tbAccount = trialBalance.find((t: any) => t.account_id === s.payable_account_id);
-      if (tbAccount && Number(tbAccount.balance || 0) > 0) {
+      const tbBal = Number(tbAccount?.balance || 0);
+      const txDue = Number(supplierDueMap[s.id] || 0);
+      const balance = tbBal > 0 ? tbBal : txDue;
+      if (balance > 0) {
+        totalPayable += balance;
         payablePartiesCount++;
       }
     });
@@ -184,14 +185,14 @@ const Dashboard = () => {
                 <ArrowDown className="w-5 h-5" />
               </div>
             </Link>
-            <div className="p-6 relative">
-              <h3 className="text-gray-500 text-sm font-medium mb-2">Total Payable</h3>
-              <div className="text-2xl font-bold text-gray-900">OMR {totalPayable.toFixed(0)}</div>
+            <Link to="/admin/payable-parties" className="p-6 relative block hover:bg-gray-50 transition-colors group">
+              <h3 className="text-gray-500 text-sm font-medium mb-2 group-hover:text-gray-700">Total Payable</h3>
+              <div className="text-2xl font-bold text-gray-900 group-hover:text-blue-600">OMR {totalPayable.toFixed(0)}</div>
               <p className="text-gray-400 text-xs mt-1">From {payablePartiesCount} Party</p>
-              <div className="absolute top-6 right-6 bg-red-50 text-red-400 rounded-full p-1.5">
+              <div className="absolute top-6 right-6 bg-red-50 text-red-400 rounded-full p-1.5 group-hover:bg-red-100 transition-colors">
                 <ArrowUp className="w-5 h-5" />
               </div>
-            </div>
+            </Link>
           </div>
 
           {/* Chart Section */}

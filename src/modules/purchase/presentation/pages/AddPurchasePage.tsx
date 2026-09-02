@@ -22,15 +22,23 @@ import {
 } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
 import { useProducts } from "@/hooks/useDatabase";
+import { supabase } from "@/integrations/supabase/client";
 import { useUOMs } from "@/modules/product/presentation/hooks/useUOMs";
 import { usePurchaseOrders } from "@/modules/purchase/presentation/hooks/usePurchaseOrders";
 import { useSuppliers } from "@/modules/supplier/presentation/hooks/useSuppliers";
+import { useQueryClient } from "@tanstack/react-query";
 import { Loader2, Plus, Trash2, Upload } from "lucide-react";
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 
 export default function AddPurchasePage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const editId = searchParams.get("edit");
+  const editType = searchParams.get("type"); // "Purchase Order" or "Purchase Invoice"
+  const isEditing = !!editId;
+
+  const queryClient = useQueryClient();
   const { toast } = useToast();
   const { suppliers } = useSuppliers();
   const { data: products = [] } = useProducts();
@@ -56,6 +64,111 @@ export default function AddPurchasePage() {
   const [items, setItems] = useState([
     { id: 1, variation_id: "", qty: 0, uom: "NONE", price: 0, discountPct: 0, discountAmt: 0, taxPct: 0, taxAmt: 0, amount: 0 }
   ]);
+
+  const [isFetchingData, setIsFetchingData] = useState(false);
+
+  useEffect(() => {
+    if (editId) {
+      const fetchOrder = async () => {
+        setIsFetchingData(true);
+        try {
+          const tableName = editType === "Purchase Invoice" ? "purchase_invoices" : "purchase_orders";
+          const itemsRelation = editType === "Purchase Invoice" ? "purchase_invoice_items(*)" : "purchase_order_items(*)";
+
+          const { data, error } = await (supabase as any)
+            .from(tableName)
+            .select(`*, ${itemsRelation}`)
+            .eq("id", editId)
+            .single();
+
+          if (error) throw error;
+
+          if (data) {
+            setSupplierId(data.supplier_id || "");
+            const supp = suppliers?.find((s: any) => s.id === data.supplier_id);
+            if (supp && supp.contact_phone) setPhone(supp.contact_phone);
+
+            setBillNumber(data.po_number || data.invoice_number || data.supplier_invoice_number || "");
+            setBillDate(data.order_date || data.invoice_date || data.created_at?.split("T")[0] || "");
+
+            // Query journal entries for paid amount
+            const { data: jeData } = await supabase
+              .from("journal_entries")
+              .select(`
+                id,
+                journal_entry_lines (
+                  debit_amount,
+                  credit_amount,
+                  narration
+                )
+              `)
+              .eq("reference_id", editId)
+              .in("reference_type", ["purchase_order", "purchase_invoice"]);
+
+            if (jeData && jeData.length > 0) {
+              let totalPaid = 0;
+              jeData.forEach((je: any) => {
+                if (je.journal_entry_lines) {
+                  je.journal_entry_lines.forEach((line: any) => {
+                    if (line.narration?.includes("- Paid")) {
+                      totalPaid += Number(line.credit_amount || line.debit_amount || 0);
+                    }
+                  });
+                }
+              });
+
+              if (totalPaid > 0) {
+                setPaymentType("Cash");
+                setIsReceived(true);
+                setReceivedAmount(totalPaid);
+              } else {
+                setPaymentType(data.status?.toLowerCase() === "paid" ? "Cash" : "Bank");
+                setIsReceived(false);
+                setReceivedAmount(0);
+              }
+            } else {
+              setPaymentType(data.status?.toLowerCase() === "paid" ? "Cash" : "Bank");
+              setIsReceived(false);
+              setReceivedAmount(0);
+            }
+
+            const rawItems = data.purchase_order_items || data.purchase_invoice_items;
+            if (rawItems && rawItems.length > 0) {
+              setItems(
+                rawItems.map((item: any, idx: number) => ({
+                  id: item.id || Date.now() + idx,
+                  variation_id: item.variation_id || "",
+                  qty: item.quantity_ordered || item.quantity_billed || item.quantity || 1,
+                  uom: item.uom_id || "NONE",
+                  price: Number(item.unit_price) || 0,
+                  discountPct: 0,
+                  discountAmt: Number(item.discount_amount) || 0,
+                  taxPct: 0,
+                  taxAmt: 0,
+                  amount:
+                    Number(item.total_price) ||
+                    Number((item.unit_price || 0) * (item.quantity_ordered || item.quantity_billed || 1)),
+                }))
+              );
+            } else {
+              setItems([
+                { id: Date.now(), variation_id: "", qty: 0, uom: "NONE", price: 0, discountPct: 0, discountAmt: 0, taxPct: 0, taxAmt: 0, amount: 0 }
+              ]);
+            }
+          }
+        } catch (err: any) {
+          toast({ variant: "destructive", title: "Error fetching data", description: err.message });
+        } finally {
+          setIsFetchingData(false);
+        }
+      };
+
+      if (suppliers && suppliers.length > 0) {
+        fetchOrder();
+      }
+    }
+  }, [editId, editType, suppliers]);
+
 
   const handleAddRow = () => {
     setItems([
@@ -232,16 +345,21 @@ export default function AddPurchasePage() {
       if (supplierId.startsWith("NEW:")) {
         const newName = supplierId.substring(4);
         
-        // Fetch a Liability account for the new supplier
         const { supabase } = await import("@/integrations/supabase/client");
-        const { data: accounts } = await supabase
+        const { data: newAccount, error: accError } = await supabase
           .from("chart_of_accounts")
+          .insert({
+            name: `AP - ${newName}`,
+            account_number: `AP-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+            account_type: "Liability",
+            is_group: false,
+            is_active: true
+          })
           .select("id")
-          .eq("account_type", "Liability")
-          .limit(1);
+          .single();
           
-        if (!accounts || accounts.length === 0) {
-          toast({ variant: "destructive", title: "Error", description: "No Liability account available to assign to the new supplier." });
+        if (accError || !newAccount) {
+          toast({ variant: "destructive", title: "Error", description: "Failed to create account for new supplier." });
           return;
         }
 
@@ -250,7 +368,7 @@ export default function AddPurchasePage() {
           .insert({
             name: newName,
             contact_phone: phone || null,
-            payable_account_id: accounts[0].id,
+            payable_account_id: newAccount.id,
             is_active: true
           })
           .select()
@@ -263,34 +381,132 @@ export default function AddPurchasePage() {
         finalSupplierId = newSupp.id;
       }
 
-      await createOrder({
-        po: {
+      if (isEditing && editId) {
+        const tableName = editType === "Purchase Invoice" ? "purchase_invoices" : "purchase_orders";
+
+        const updatePayload: any = {
           supplier_id: finalSupplierId,
-          po_number: billNumber || `PO-${Date.now()}`,
-          order_date: billDate,
-          status: "Draft",
-          paid_amount: isReceived ? receivedAmount : 0, // Pass paid amount
-        } as any, // Cast as any because paid_amount isn't in DB schema for purchase_orders
-        items: validItems.map(item => ({
-          variation_id: item.variation_id,
-          uom_id: item.uom,
-          quantity_ordered: item.qty,
-          unit_price: item.price,
-          // We can send discount and tax if the backend supports it, for now just what's required
-        }))
-      });
-      
-      toast({ title: "Success", description: "Purchase order created successfully." });
-      navigate("/admin/purchase-orders");
+          total_amount: totalAmount,
+          status: (isReceived && receivedAmount >= totalAmount) ? "Paid" : "Pending",
+          updated_at: new Date().toISOString(),
+        };
+
+        if (tableName === "purchase_orders") {
+          updatePayload.po_number = billNumber || `PO-${Date.now()}`;
+          updatePayload.order_date = billDate;
+        } else {
+          updatePayload.invoice_number = billNumber || `INV-${Date.now()}`;
+          updatePayload.invoice_date = billDate;
+        }
+
+        const { error: updateError } = await (supabase as any)
+          .from(tableName)
+          .update(updatePayload)
+          .eq("id", editId);
+
+        if (updateError) throw updateError;
+
+        if (tableName === "purchase_orders") {
+          const { error: deleteError } = await supabase
+            .from("purchase_order_items")
+            .delete()
+            .eq("purchase_order_id", editId);
+
+          if (deleteError) throw deleteError;
+
+          const fallbackUomId = uoms && uoms.length > 0 ? uoms[0].id : undefined;
+
+          const itemsToInsert = validItems.map((item) => ({
+            purchase_order_id: editId,
+            variation_id: item.variation_id,
+            quantity_ordered: item.qty,
+            unit_price: item.price,
+            total_price: item.amount,
+            uom_id: item.uom && item.uom !== "NONE" ? item.uom : (fallbackUomId as string),
+          }));
+
+          const { error: insertItemsError } = await supabase
+            .from("purchase_order_items")
+            .insert(itemsToInsert);
+
+          if (insertItemsError) throw insertItemsError;
+        }
+
+        // Update accounting: reverse previous entries and post new one
+        try {
+          const { AccountingEngine } = await import("@/modules/accounting/application/services/accounting.engine");
+          await AccountingEngine.reversePurchaseOrder(editId);
+
+          let payableAccountId = undefined;
+          if (finalSupplierId) {
+            const { data: suppData } = await supabase
+              .from("suppliers")
+              .select("payable_account_id")
+              .eq("id", finalSupplierId)
+              .single();
+            if (suppData?.payable_account_id) {
+              payableAccountId = suppData.payable_account_id;
+            }
+          }
+
+          await AccountingEngine.postPurchaseOrder(
+            editId,
+            tableName === "purchase_orders"
+              ? (billNumber || `PO-${Date.now()}`)
+              : (billNumber || `INV-${Date.now()}`),
+            totalAmount,
+            Number(receivedAmount) || 0,
+            payableAccountId
+          );
+        } catch (accError) {
+          console.error("Failed to update accounting for edited purchase order:", accError);
+        }
+
+        await queryClient.invalidateQueries({ queryKey: ["purchase-orders"] });
+        await queryClient.invalidateQueries({ queryKey: ["trial-balance"] });
+        await queryClient.invalidateQueries({ queryKey: ["supplier-history"] });
+        await queryClient.invalidateQueries({ queryKey: ["suppliers"] });
+
+        toast({ title: "Success", description: "Purchase order updated successfully." });
+        navigate(-1);
+      } else {
+        await createOrder({
+          po: {
+            supplier_id: finalSupplierId,
+            po_number: billNumber || `PO-${Date.now()}`,
+            order_date: billDate,
+            status: "Draft",
+            paid_amount: isReceived ? receivedAmount : 0, // Pass paid amount
+          } as any, // Cast as any because paid_amount isn't in DB schema for purchase_orders
+          items: validItems.map(item => ({
+            variation_id: item.variation_id,
+            uom_id: item.uom,
+            quantity_ordered: item.qty,
+            unit_price: item.price,
+            // We can send discount and tax if the backend supports it, for now just what's required
+          }))
+        });
+        
+        toast({ title: "Success", description: "Purchase order created successfully." });
+        navigate("/admin/purchase-orders");
+      }
     } catch (e: any) {
       toast({ variant: "destructive", title: "Error", description: e.message });
     }
   };
 
+  if (isFetchingData) {
+    return (
+      <div className="flex h-[calc(100vh-64px)] items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6 max-w-[1200px] mx-auto pb-20">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold tracking-tight">Purchase</h1>
+        <h1 className="text-2xl font-bold tracking-tight">{isEditing ? "Edit Purchase Order" : "Purchase"}</h1>
       </div>
 
       <div className="bg-card border rounded-lg p-6 space-y-6 shadow-sm">
@@ -536,6 +752,8 @@ export default function AddPurchasePage() {
                     setIsReceived(checked);
                     if (!checked) {
                       setReceivedAmount(0);
+                    } else if (receivedAmount === 0) {
+                      setReceivedAmount(totalAmount);
                     }
                   }} 
                 />
@@ -544,7 +762,13 @@ export default function AddPurchasePage() {
               <Input 
                 type="number" 
                 value={receivedAmount === 0 ? '' : receivedAmount} 
-                onChange={e => setReceivedAmount(Number(e.target.value))}
+                onChange={e => {
+                  const val = Number(e.target.value);
+                  setReceivedAmount(val);
+                  if (val > 0 && !isReceived) {
+                    setIsReceived(true);
+                  }
+                }}
                 className="w-full sm:w-56 h-9 text-right bg-transparent border-gray-300 shadow-none font-bold"
               />
             </div>

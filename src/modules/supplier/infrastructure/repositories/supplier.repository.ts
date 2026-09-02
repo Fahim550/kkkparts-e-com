@@ -35,9 +35,32 @@ export class SupplierRepository {
   }
 
   static async create(payload: CreateSupplierDTO): Promise<Supplier> {
+    let payableAccountId = payload.payable_account_id;
+
+    // Create a dedicated Accounts Payable account for each supplier if not specified or pointing to a shared account
+    if (!payableAccountId) {
+      const { data: accData, error: accError } = await supabase
+        .from("chart_of_accounts")
+        .insert({
+          name: `AP - ${payload.name}`,
+          account_number: `AP-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+          account_type: "Liability",
+          is_group: false,
+          is_active: true,
+        })
+        .select("id")
+        .single();
+
+      if (accError) throw accError;
+      payableAccountId = accData.id;
+    }
+
     const { data, error } = await supabase
       .from("suppliers")
-      .insert(payload)
+      .insert({
+        ...payload,
+        payable_account_id: payableAccountId,
+      })
       .select()
       .single();
 

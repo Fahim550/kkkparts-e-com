@@ -172,6 +172,7 @@ const JobApplicationsManager = lazy(
   () => import("./pages/admin/JobApplicationsManager.tsx"),
 );
 const ReceivablePartiesPage = lazy(() => import("./pages/admin/ReceivablePartiesPage.tsx"));
+const PayablePartiesPage = lazy(() => import("./pages/admin/PayablePartiesPage.tsx"));
 const AboutPage = lazy(() => import("./pages/AboutPage.tsx"));
 const ContactPage = lazy(() => import("./pages/ContactPage.tsx"));
 const CareersPage = lazy(() => import("./pages/CareersPage.tsx"));
@@ -256,6 +257,7 @@ const App = () => (
                     >
                       <Route index element={<Dashboard />} />
                       <Route path="receivable-parties" element={<ReceivablePartiesPage />} />
+                      <Route path="payable-parties" element={<PayablePartiesPage />} />
                       <Route path="sales/new" element={<AddSalePage />} />
                       <Route path="products" element={<ProductsPage />} />
                       <Route path="orders" element={<OrdersManager />} />
@@ -329,6 +331,10 @@ const App = () => (
                       />
                       <Route
                         path="purchases/new"
+                        element={<AddPurchasePage />}
+                      />
+                      <Route
+                        path="purchase/new"
                         element={<AddPurchasePage />}
                       />
                       <Route

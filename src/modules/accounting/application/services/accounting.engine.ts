@@ -159,6 +159,56 @@ export class AccountingEngine {
     }
   }
 
+  static async reversePurchaseOrder(orderId: string) {
+    const { data: existingJes } = await supabase
+      .from("journal_entries")
+      .select("*")
+      .in("reference_type", ["purchase_order", "purchase_invoice"])
+      .eq("reference_id", orderId);
+
+    if (!existingJes || existingJes.length === 0) return;
+
+    for (const existingJe of existingJes) {
+      // Fetch lines
+      const { data: lines } = await supabase
+        .from("journal_entry_lines")
+        .select("*")
+        .eq("journal_entry_id", existingJe.id);
+
+      if (lines && lines.length > 0) {
+        // Reverse balances
+        for (const line of lines) {
+          const { data: balanceRecord } = await supabase
+            .from("account_balances")
+            .select("*")
+            .eq("account_id", line.account_id)
+            .eq("fiscal_year_id", existingJe.fiscal_year_id)
+            .maybeSingle();
+
+          if (balanceRecord) {
+            const newDebit = Number(balanceRecord.total_debit) - Number(line.debit_amount || 0);
+            const newCredit = Number(balanceRecord.total_credit) - Number(line.credit_amount || 0);
+            await supabase
+              .from("account_balances")
+              .update({
+                total_debit: newDebit,
+                total_credit: newCredit,
+                balance: newDebit - newCredit,
+                last_updated_at: new Date().toISOString(),
+              })
+              .eq("id", balanceRecord.id);
+          }
+        }
+
+        // Delete lines
+        await supabase.from("journal_entry_lines").delete().eq("journal_entry_id", existingJe.id);
+      }
+
+      // Delete journal entry
+      await supabase.from("journal_entries").delete().eq("id", existingJe.id);
+    }
+  }
+
   static async postPurchaseReceipt(receiptId: string, totalAmount: number, receiptNumber: string, customPayableAccountId?: string) {
     const existingJe = await JournalRepository.getJournalEntryByReference("purchase_receipt", receiptId);
     if (existingJe) {

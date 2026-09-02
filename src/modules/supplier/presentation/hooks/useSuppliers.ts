@@ -70,3 +70,26 @@ export const useSuppliers = () => {
     isDeleting: deleteMutation.isPending,
   };
 };
+
+export const useSupplierHistory = (supplierId: string) => {
+  const historyQuery = useQuery({
+    queryKey: ["supplier-history", supplierId],
+    queryFn: () => SupplierService.getSupplierHistory(supplierId),
+    enabled: !!supplierId,
+  });
+
+  return {
+    history: historyQuery.data,
+    isLoadingHistory: historyQuery.isLoading,
+  };
+};
+
+export const useSupplierDues = () => {
+  return useQuery({
+    queryKey: ["supplier-dues"],
+    queryFn: () => SupplierService.getAllSuppliersDueMap(),
+    staleTime: 1000 * 30,
+  });
+};
+
+

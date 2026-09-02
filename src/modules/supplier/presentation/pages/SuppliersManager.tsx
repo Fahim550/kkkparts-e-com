@@ -1,8 +1,15 @@
-import React, { useState } from "react";
-import { useSuppliers } from "../hooks/useSuppliers";
-import { Supplier } from "../../domain/types";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 import {
   Table,
   TableBody,
@@ -11,21 +18,14 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { SupplierSchema } from "../../domain/validations";
+import { Edit, Loader2, Mail, MapPin, Phone, Plus, Search, Trash2 } from "lucide-react";
+import React, { useState } from "react";
+import { useForm } from "react-hook-form";
 import { z } from "zod";
-import { Loader2, Plus, Edit, Trash2, Search, Mail, Phone, MapPin } from "lucide-react";
-import { Switch } from "@/components/ui/switch";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Supplier } from "../../domain/types";
+import { SupplierSchema } from "../../domain/validations";
+import { useSuppliers } from "../hooks/useSuppliers";
 
 type SupplierFormData = z.infer<typeof SupplierSchema>;
 
@@ -61,10 +61,10 @@ export default function SuppliersManager() {
   const payableAccountId = watch("payable_account_id");
 
   React.useEffect(() => {
-    if (isOpen && !editingSupplier && payableAccounts && payableAccounts.length > 0 && !payableAccountId) {
-      setValue("payable_account_id", payableAccounts[0].id);
+    if (editingSupplier) {
+      setValue("payable_account_id", editingSupplier.payable_account_id);
     }
-  }, [isOpen, editingSupplier, payableAccounts, payableAccountId, setValue]);
+  }, [editingSupplier, setValue]);
 
   const onSubmit = async (data: SupplierFormData) => {
     // Convert empty strings to null for optional fields to avoid DB constraint issues
@@ -172,20 +172,18 @@ export default function SuppliersManager() {
                   </div>
 
                   <div className="space-y-2 md:col-span-2">
-                    <Label>Payable Account <span className="text-red-500">*</span></Label>
-                    <Select value={payableAccountId} onValueChange={(val) => setValue("payable_account_id", val)}>
+                    <Label>Payable Account <span className="text-muted-foreground text-xs">(Auto-created if left blank)</span></Label>
+                    <Select value={payableAccountId || "auto"} onValueChange={(val) => setValue("payable_account_id", val === "auto" ? "" : val)}>
                       <SelectTrigger>
-                        <SelectValue placeholder="Select an account..." />
+                        <SelectValue placeholder="Auto-generate dedicated AP account" />
                       </SelectTrigger>
                       <SelectContent>
+                        <SelectItem value="auto">Auto-generate dedicated AP account</SelectItem>
                         {payableAccounts?.map((acc) => (
                           <SelectItem key={acc.id} value={acc.id}>{acc.name} ({acc.account_number})</SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
-                    {errors.payable_account_id && (
-                      <p className="text-sm text-red-500">{errors.payable_account_id.message}</p>
-                    )}
                   </div>
                 </div>
 

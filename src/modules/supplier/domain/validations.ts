@@ -6,6 +6,6 @@ export const SupplierSchema = z.object({
   contact_phone: z.string().optional().nullable(),
   address: z.string().optional().nullable(),
   tax_id: z.string().optional().nullable(),
-  payable_account_id: z.string().uuid("Payable account is required"),
+  payable_account_id: z.string().uuid("Payable account is required").optional().or(z.literal("")).nullable(),
   is_active: z.boolean().default(true),
 });
