@@ -12,6 +12,24 @@ export class CoaRepository {
     return data;
   }
 
+  static async createAccount(account: {
+    account_number: string;
+    name: string;
+    account_type: string;
+    parent_id?: string | null;
+    is_group?: boolean;
+    is_active?: boolean;
+  }): Promise<ChartOfAccount> {
+    const { data, error } = await supabase
+      .from("chart_of_accounts")
+      .insert(account)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
+  }
+
   static async getActiveFiscalYear(): Promise<FiscalYear> {
     const todayStr = new Date().toISOString().split("T")[0];
 

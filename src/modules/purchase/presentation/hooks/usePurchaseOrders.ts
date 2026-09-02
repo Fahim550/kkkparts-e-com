@@ -14,8 +14,41 @@ export const usePurchaseOrders = (filters?: PurchaseOrderFilters) => {
   });
 
   const createMutation = useMutation({
-    mutationFn: (data: { po: CreatePurchaseOrderDTO; items: CreatePurchaseOrderItemDTO[] }) =>
-      PurchaseOrderService.createOrder(data.po, data.items),
+    mutationFn: async (data: { po: CreatePurchaseOrderDTO & { paid_amount?: number }; items: CreatePurchaseOrderItemDTO[] }) => {
+      const paidAmount = Number(data.po.paid_amount || 0);
+      const { paid_amount, ...poData } = data.po;
+      
+      const createdPo = await PurchaseOrderService.createOrder(poData as any, data.items);
+      
+      try {
+        const { AccountingEngine } = await import("../../../accounting/application/services/accounting.engine");
+        const { supabase } = await import("@/integrations/supabase/client");
+        
+        let payableAccountId = undefined;
+        if (createdPo.supplier_id) {
+          const { data: suppData } = await supabase
+            .from("suppliers")
+            .select("payable_account_id")
+            .eq("id", createdPo.supplier_id)
+            .single();
+          if (suppData?.payable_account_id) {
+            payableAccountId = suppData.payable_account_id;
+          }
+        }
+
+        await AccountingEngine.postPurchaseOrder(
+          createdPo.id,
+          createdPo.po_number,
+          createdPo.total_amount,
+          paidAmount,
+          payableAccountId
+        );
+      } catch (accError) {
+        console.error("Failed to post purchase order to accounting:", accError);
+      }
+      
+      return createdPo;
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["purchase-orders"] });
       toast({ title: "Success", description: "Purchase Order created successfully." });

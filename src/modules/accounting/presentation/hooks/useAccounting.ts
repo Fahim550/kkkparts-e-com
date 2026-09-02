@@ -12,6 +12,23 @@ export const useChartOfAccounts = () => {
   });
 };
 
+export const useCreateAccount = () => {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: CoaRepository.createAccount,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["chart-of-accounts"] });
+      queryClient.invalidateQueries({ queryKey: ["payable-accounts"] });
+      toast({ title: "Success", description: "Account created successfully." });
+    },
+    onError: (error: any) => {
+      toast({ variant: "destructive", title: "Error", description: error.message });
+    },
+  });
+};
+
 export const useJournalEntries = (filters?: JournalEntryFilters) => {
   const queryClient = useQueryClient();
   const { toast } = useToast();

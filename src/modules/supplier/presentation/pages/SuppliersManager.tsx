@@ -60,6 +60,12 @@ export default function SuppliersManager() {
 
   const payableAccountId = watch("payable_account_id");
 
+  React.useEffect(() => {
+    if (isOpen && !editingSupplier && payableAccounts && payableAccounts.length > 0 && !payableAccountId) {
+      setValue("payable_account_id", payableAccounts[0].id);
+    }
+  }, [isOpen, editingSupplier, payableAccounts, payableAccountId, setValue]);
+
   const onSubmit = async (data: SupplierFormData) => {
     // Convert empty strings to null for optional fields to avoid DB constraint issues
     const payload = {

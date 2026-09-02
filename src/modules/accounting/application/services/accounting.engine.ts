@@ -77,6 +77,38 @@ export class AccountingEngine {
       lines: lines
     });
   }
+
+  static async postPurchaseOrder(orderId: string, orderNumber: string, totalAmount: number, paidAmount: number, supplierAccountId?: string) {
+    const cashAcc = await CoaRepository.getAccountByNumber(SYSTEM_ACCOUNTS.CASH);
+    // For immediate posting, assume inventory is debited (or a general purchase account). Using Inventory to mirror the sales side COGS/Inventory, but actually standard would be Inventory Asset.
+    const invAcc = await CoaRepository.getAccountByNumber(SYSTEM_ACCOUNTS.INVENTORY_ASSET);
+    
+    const dueAmount = totalAmount - paidAmount;
+    const lines: any[] = [];
+    
+    if (paidAmount > 0) {
+      lines.push({ account_id: cashAcc.id, debit_amount: 0, credit_amount: paidAmount, narration: `Purchase Order ${orderNumber} - Paid` });
+    }
+    
+    if (dueAmount > 0) {
+      let apAccountId = supplierAccountId;
+      if (!apAccountId) {
+        const apAcc = await CoaRepository.getAccountByNumber(SYSTEM_ACCOUNTS.ACCOUNTS_PAYABLE);
+        apAccountId = apAcc.id;
+      }
+      lines.push({ account_id: apAccountId, debit_amount: 0, credit_amount: dueAmount, narration: `Purchase Order ${orderNumber} - Due` });
+    }
+
+    lines.push({ account_id: invAcc.id, debit_amount: totalAmount, credit_amount: 0, narration: `Purchase Order ${orderNumber}` });
+
+    return JournalRepository.createJournalEntry({
+      posting_date: new Date().toISOString(),
+      reference_type: "purchase_order",
+      reference_id: orderId,
+      narration: `Purchase Order ${orderNumber}`,
+      lines: lines
+    });
+  }
   static async reverseSalesOrder(orderId: string) {
     const { data: existingJes } = await supabase
       .from("journal_entries")

@@ -269,7 +269,8 @@ export default function AddPurchasePage() {
           po_number: billNumber || `PO-${Date.now()}`,
           order_date: billDate,
           status: "Draft",
-        },
+          paid_amount: isReceived ? receivedAmount : 0, // Pass paid amount
+        } as any, // Cast as any because paid_amount isn't in DB schema for purchase_orders
         items: validItems.map(item => ({
           variation_id: item.variation_id,
           uom_id: item.uom,
@@ -533,9 +534,7 @@ export default function AddPurchasePage() {
                   onCheckedChange={(c) => {
                     const checked = !!c;
                     setIsReceived(checked);
-                    if (checked) {
-                      setReceivedAmount(totalAmount);
-                    } else {
+                    if (!checked) {
                       setReceivedAmount(0);
                     }
                   }} 

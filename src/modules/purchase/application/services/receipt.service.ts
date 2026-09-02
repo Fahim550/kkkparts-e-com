@@ -44,7 +44,8 @@ export class PurchaseReceiptService {
 
     if (createdReceipt.status === 'Completed' || createdReceipt.status === 'Received') {
       const { AccountingEngine } = await import("../../../accounting/application/services/accounting.engine");
-      await AccountingEngine.postPurchaseReceipt(createdReceipt.id, createdReceipt.total_amount, createdReceipt.receipt_number);
+      const totalAmount = items.reduce((sum, item) => sum + (Number(item.quantity_received) * Number(item.unit_cost || 0)), 0);
+      await AccountingEngine.postPurchaseReceipt(createdReceipt.id, totalAmount, createdReceipt.receipt_number);
     }
 
     return createdReceipt;

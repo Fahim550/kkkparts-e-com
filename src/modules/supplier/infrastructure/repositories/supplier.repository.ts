@@ -69,12 +69,34 @@ export class SupplierRepository {
     const { data, error } = await supabase
       .from("chart_of_accounts")
       .select("*")
-      .eq("account_type", "Payable")
+      .or("account_type.eq.Payable,account_type.eq.Liability")
       .eq("is_group", false)
       .eq("is_active", true)
       .order("name");
       
     if (error) throw error;
-    return data || [];
+
+    if (data && data.length > 0) {
+      return data;
+    }
+
+    // Auto-create standard Accounts Payable if no liability/payable account exists
+    const { data: newAcc, error: createError } = await supabase
+      .from("chart_of_accounts")
+      .insert({
+        account_number: "2100",
+        name: "Accounts Payable",
+        account_type: "Liability",
+        is_group: false,
+        is_active: true,
+      })
+      .select()
+      .single();
+
+    if (!createError && newAcc) {
+      return [newAcc];
+    }
+
+    return [];
   }
 }
