@@ -56,4 +56,26 @@ export class PosSessionRepository {
     if (error) throw error;
     return data;
   }
+
+  static async createRegister(name: string, warehouseId: string): Promise<PosRegister> {
+    const { data: cashAcc } = await supabase
+      .from("chart_of_accounts")
+      .select("id")
+      .eq("account_number", "1100")
+      .maybeSingle();
+
+    const { data, error } = await supabase
+      .from("pos_registers")
+      .insert({
+        name,
+        warehouse_id: warehouseId,
+        default_cash_account_id: cashAcc?.id || null,
+        is_active: true
+      })
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
+  }
 }

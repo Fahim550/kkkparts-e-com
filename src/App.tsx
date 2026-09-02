@@ -7,7 +7,7 @@ import { LanguageProvider } from "@/context/LanguageContext";
 import { AdminAuthProvider } from "@/hooks/useAdminAuth";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { lazy, Suspense } from "react";
-import { BrowserRouter, Route, Routes } from "react-router-dom";
+import { BrowserRouter, Route, Routes, Navigate } from "react-router-dom";
 // import WhatsAppButton from "@/components/WhatsAppButton";
 import FacebookPixelProvider from "@/components/FacebookPixelProvider";
 import LanguagePopup from "@/components/LanguagePopup";
@@ -351,7 +351,7 @@ const App = () => (
                       />
                       <Route
                         path="supplier-due"
-                        element={<SupplierDuePage />}
+                        element={<Navigate to="/admin/payable-parties" replace />}
                       />
                       <Route
                         path="purchase-history"

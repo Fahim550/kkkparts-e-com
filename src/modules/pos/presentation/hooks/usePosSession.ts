@@ -38,6 +38,15 @@ export const usePosSession = () => {
     },
   });
 
+  const createRegisterMutation = useMutation({
+    mutationFn: ({ name, warehouseId }: { name: string; warehouseId: string }) =>
+      PosSessionRepository.createRegister(name, warehouseId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["pos-registers"] });
+      toast({ title: "Register Created", description: "New POS Register has been added." });
+    },
+  });
+
   return {
     registers: registersQuery.data,
     isLoadingRegisters: registersQuery.isLoading,
@@ -47,5 +56,7 @@ export const usePosSession = () => {
     isOpening: openShiftMutation.isPending,
     closeShift: closeShiftMutation.mutateAsync,
     isClosing: closeShiftMutation.isPending,
+    createRegister: createRegisterMutation.mutateAsync,
+    isCreatingRegister: createRegisterMutation.isPending,
   };
 };

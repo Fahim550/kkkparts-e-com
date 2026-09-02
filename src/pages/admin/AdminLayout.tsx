@@ -90,7 +90,7 @@ const navCategories = [
     items: [
       { path: "/admin/purchase-orders", label: "Purchase Orders", icon: ShoppingCart },
       { path: "/admin/goods-receive", label: "Goods Receive", icon: Package },
-      { path: "/admin/supplier-due", label: "Supplier Due", icon: FileText },
+      { path: "/admin/payable-parties", label: "Supplier Due", icon: FileText },
       { path: "/admin/purchase-history", label: "Purchase History", icon: Activity },
     ]
   },
