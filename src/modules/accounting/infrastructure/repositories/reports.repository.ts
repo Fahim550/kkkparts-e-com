@@ -39,6 +39,7 @@ export class ReportsRepository {
           account_id: coa.id,
           account_number: coa.account_number,
           account_name: coa.name,
+          account_type: coa.account_type,
           total_debit: debit,
           total_credit: credit,
           balance: balance

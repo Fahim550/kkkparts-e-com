@@ -20,6 +20,7 @@ import {
 import { useOrders, useProducts } from "@/hooks/useDatabase";
 import { useTrialBalance } from "@/modules/accounting/presentation/hooks/useAccounting";
 import { useCustomers } from "@/modules/customer/presentation/hooks/useCustomers";
+import { usePurchaseOrders } from "@/modules/purchase/presentation/hooks/usePurchaseOrders";
 import { useInvoices } from "@/modules/purchase/presentation/hooks/useInvoices";
 import { useSuppliers, useSupplierDues } from "@/modules/supplier/presentation/hooks/useSuppliers";
 import { supabase } from "@/integrations/supabase/client";
@@ -29,6 +30,7 @@ import { Button } from "@/components/ui/button";
 const Dashboard = () => {
   const { data: allOrders = [] } = useOrders();
   const { data: products = [] } = useProducts();
+  const { orders: purchaseOrders = [] } = usePurchaseOrders();
   const { invoices = [] } = useInvoices();
   const { data: trialBalance = [] } = useTrialBalance();
   const { customers = [] } = useCustomers();
@@ -105,19 +107,30 @@ const Dashboard = () => {
     }));
   }, [thisMonthOrders]);
 
-  // 4. Purchases this month
-  const thisMonthInvoices = (invoices || []).filter((inv: any) => {
-    const d = new Date(inv.invoice_date || new Date());
+  // 4. Purchases this month (Purchase Orders + Invoices)
+  const thisMonthPOs = (purchaseOrders || []).filter((po: any) => {
+    const d = new Date(po.order_date || po.created_at || new Date());
     return d.getMonth() === currentMonth && d.getFullYear() === currentYear;
   });
-  const totalPurchasesThisMonth = thisMonthInvoices.reduce(
+  const totalPOsThisMonth = thisMonthPOs.reduce(
+    (sum: number, po: any) => sum + Number(po.total_amount || 0),
+    0
+  );
+
+  const thisMonthInvoices = (invoices || []).filter((inv: any) => {
+    const d = new Date(inv.invoice_date || inv.created_at || new Date());
+    return d.getMonth() === currentMonth && d.getFullYear() === currentYear;
+  });
+  const totalInvoicesThisMonth = thisMonthInvoices.reduce(
     (sum: number, inv: any) => sum + Number(inv.total_amount || 0),
     0
   );
 
+  const totalPurchasesThisMonth = totalPOsThisMonth + totalInvoicesThisMonth;
+
   // 5. Expenses
   const expenseAccounts = (trialBalance || []).filter(
-    (t: any) => t.account_type === "Expense"
+    (t: any) => t.account_type === "Expense" || t.account_number?.startsWith("5")
   );
   const totalExpenses = expenseAccounts.reduce(
     (sum: number, acc: any) => sum + Number(acc.balance || 0),
@@ -128,29 +141,39 @@ const Dashboard = () => {
   const cashAccounts = (trialBalance || []).filter(
     (t: any) =>
       t.account_name?.toLowerCase().includes("cash") ||
-      t.account_name?.toLowerCase().includes("bank")
+      t.account_name?.toLowerCase().includes("bank") ||
+      t.account_number?.startsWith("11")
   );
-  const cashInHand = cashAccounts.reduce(
+  const rawCashInHand = cashAccounts.reduce(
     (sum: number, acc: any) => sum + Number(acc.balance || 0),
     0
   );
+  const cashInHand = Math.max(0, rawCashInHand);
 
   // 7. Stock Value and Low Stocks
   const stockValue = products.reduce((sum: number, p: any) => {
-    const cost = Number(p.cost_price || 0);
-    const totalStock = (p.product_variations || []).reduce((varSum: number, pv: any) => {
-      const balance = (pv.stock_balances || []).reduce((balSum: number, sb: any) => balSum + Number(sb.stock_level || 0), 0);
+    const unitCost = Number(p.cost_price || p.original_price || p.price || 0);
+    const varStock = (p.product_variations || []).reduce((varSum: number, pv: any) => {
+      const balance = (pv.stock_balances || []).reduce(
+        (balSum: number, sb: any) => balSum + Number(sb.quantity ?? sb.stock_level ?? 0),
+        0
+      );
       return varSum + balance;
     }, 0);
-    return sum + (cost * totalStock);
+    const totalStock = varStock > 0 ? varStock : Number(p.stock || 0);
+    return sum + unitCost * totalStock;
   }, 0);
 
   const lowStockThreshold = 5;
   const lowStockItems = products
     .map((p: any) => {
-      const level = (p.product_variations || []).reduce((varSum: number, pv: any) => {
-        return varSum + (pv.stock_balances || []).reduce((balSum: number, sb: any) => balSum + Number(sb.stock_level || 0), 0);
+      const varStock = (p.product_variations || []).reduce((varSum: number, pv: any) => {
+        return varSum + (pv.stock_balances || []).reduce(
+          (balSum: number, sb: any) => balSum + Number(sb.quantity ?? sb.stock_level ?? 0),
+          0
+        );
       }, 0);
+      const level = varStock > 0 ? varStock : Number(p.stock || 0);
       return {
         name: p.name,
         stock_level: level,
@@ -202,9 +225,9 @@ const Dashboard = () => {
                 <h3 className="text-gray-500 text-sm font-medium mb-2">Total Sale</h3>
                 <div className="text-2xl font-bold text-gray-900">OMR {totalSaleThisMonth.toFixed(0)}</div>
               </div>
-              <button className="flex items-center gap-1 text-sm bg-blue-50 text-blue-700 px-3 py-1.5 rounded-full font-medium">
-                This Month <ChevronDown className="w-4 h-4" />
-              </button>
+              <Link to="/admin/orders" className="flex items-center gap-1 text-sm bg-blue-50 text-blue-700 px-3 py-1.5 rounded-full font-medium hover:bg-blue-100 transition">
+                This Month <ChevronRight className="w-4 h-4" />
+              </Link>
             </div>
             <div className="h-64 w-full">
               <ResponsiveContainer width="100%" height="100%">
@@ -248,11 +271,19 @@ const Dashboard = () => {
           <div className="p-6 bg-white">
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-gray-700 text-sm font-semibold">Most Used Reports</h3>
-              <a href="#" className="text-blue-500 text-sm font-medium">View All</a>
+              <Link to="/admin/reports" className="text-blue-500 text-sm font-medium hover:underline">View All</Link>
             </div>
-            <div className="flex gap-4">
-              <Link to="/admin/reporting" className="flex items-center justify-between border border-gray-200 rounded-lg p-3 w-48 hover:shadow-sm transition">
+            <div className="flex flex-wrap gap-4">
+              <Link to="/admin/reports/sales" className="flex items-center justify-between border border-gray-200 rounded-lg p-3 w-48 hover:shadow-sm hover:border-blue-300 transition">
                 <span className="text-sm font-medium text-gray-700">Sale Report</span>
+                <ChevronRight className="w-4 h-4 text-blue-500" />
+              </Link>
+              <Link to="/admin/reports/inventory" className="flex items-center justify-between border border-gray-200 rounded-lg p-3 w-48 hover:shadow-sm hover:border-blue-300 transition">
+                <span className="text-sm font-medium text-gray-700">Inventory Report</span>
+                <ChevronRight className="w-4 h-4 text-blue-500" />
+              </Link>
+              <Link to="/admin/accounting/reports" className="flex items-center justify-between border border-gray-200 rounded-lg p-3 w-48 hover:shadow-sm hover:border-blue-300 transition">
+                <span className="text-sm font-medium text-gray-700">Financial Reports</span>
                 <ChevronRight className="w-4 h-4 text-blue-500" />
               </Link>
             </div>
@@ -261,37 +292,37 @@ const Dashboard = () => {
 
         {/* Right Column (Side Panel) */}
         <div className="w-full lg:w-80 bg-white flex flex-col">
-          <div className="p-6 border-b border-gray-100 group hover:bg-gray-50 cursor-pointer flex justify-between items-start">
+          <Link to="/admin/purchase-orders" className="p-6 border-b border-gray-100 group hover:bg-gray-50 cursor-pointer flex justify-between items-start transition-colors">
             <div>
-              <h4 className="text-gray-500 text-sm font-medium mb-1 group-hover:text-gray-700">Purchases</h4>
+              <h4 className="text-gray-500 text-sm font-medium mb-1 group-hover:text-blue-600">Purchases</h4>
               <p className="text-gray-900 font-bold">OMR {totalPurchasesThisMonth.toFixed(0)}</p>
             </div>
             <span className="text-gray-400 text-xs">This Month</span>
-          </div>
+          </Link>
 
-          <div className="p-6 border-b border-gray-100 group hover:bg-gray-50 cursor-pointer flex justify-between items-start">
+          <Link to="/admin/accounting/reports" className="p-6 border-b border-gray-100 group hover:bg-gray-50 cursor-pointer flex justify-between items-start transition-colors">
             <div>
-              <h4 className="text-gray-500 text-sm font-medium mb-1 group-hover:text-gray-700">Expenses</h4>
+              <h4 className="text-gray-500 text-sm font-medium mb-1 group-hover:text-blue-600">Expenses</h4>
               <p className="text-gray-900 font-bold">OMR {totalExpenses.toFixed(0)}</p>
             </div>
             <span className="text-gray-400 text-xs">This Month</span>
-          </div>
+          </Link>
 
-          <div className="p-6 border-b border-gray-100 group hover:bg-gray-50 cursor-pointer flex justify-between items-start">
+          <Link to="/admin/inventory/ledger" className="p-6 border-b border-gray-100 group hover:bg-gray-50 cursor-pointer flex justify-between items-start transition-colors">
             <div>
-              <h4 className="text-gray-500 text-sm font-medium mb-1 group-hover:text-gray-700">Stock Value</h4>
+              <h4 className="text-gray-500 text-sm font-medium mb-1 group-hover:text-blue-600">Stock Value</h4>
               <p className="text-gray-900 font-bold">OMR {stockValue.toFixed(0)}</p>
             </div>
             <span className="text-gray-400 text-xs">As of Now</span>
-          </div>
+          </Link>
 
-          <div className="p-6 border-b border-gray-100 group hover:bg-gray-50 cursor-pointer flex justify-between items-start">
+          <Link to="/admin/accounting/chart-of-accounts" className="p-6 border-b border-gray-100 group hover:bg-gray-50 cursor-pointer flex justify-between items-start transition-colors">
             <div>
-              <h4 className="text-gray-500 text-sm font-medium mb-1 group-hover:text-gray-700">Cash in Hand</h4>
+              <h4 className="text-gray-500 text-sm font-medium mb-1 group-hover:text-blue-600">Cash in Hand</h4>
               <p className="text-gray-900 font-bold">OMR {cashInHand.toFixed(0)}</p>
             </div>
             <span className="text-gray-400 text-xs">As of Now</span>
-          </div>
+          </Link>
 
           {/* Low Stock Items */}
           <div className="p-6 border-b border-gray-100 flex-1">
@@ -308,21 +339,21 @@ const Dashboard = () => {
                   </div>
                 ))
               ) : (
-                <div className="text-xs text-gray-400">No low stock items</div>
+                <div className="text-xs text-gray-400">All items well stocked</div>
               )}
             </div>
             {lowStockItems.length > 0 && (
-              <button className="text-gray-500 text-xs mt-3 flex items-center font-medium">
-                See More <ChevronDown className="w-3 h-3 ml-1" />
-              </button>
+              <Link to="/admin/reports/inventory" className="text-blue-600 text-xs mt-3 flex items-center font-medium hover:underline">
+                See More <ChevronRight className="w-3 h-3 ml-1" />
+              </Link>
             )}
           </div>
 
           <div className="p-4">
-            <button className="w-full py-3 border border-dashed border-gray-300 rounded-lg text-gray-500 flex justify-center items-center text-sm font-medium hover:bg-gray-50 transition">
+            <Link to="/admin/reports" className="w-full py-3 border border-dashed border-gray-300 rounded-lg text-gray-500 flex justify-center items-center text-sm font-medium hover:bg-gray-50 transition">
               <span className="mr-auto pl-4">Add Widget of Your Choice</span>
               <Plus className="w-4 h-4 mr-4" />
-            </button>
+            </Link>
           </div>
         </div>
       </div>

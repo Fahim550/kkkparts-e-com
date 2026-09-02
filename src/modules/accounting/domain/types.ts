@@ -25,6 +25,7 @@ export type TrialBalanceRow = {
   account_id: string;
   account_number: string;
   account_name: string;
+  account_type?: string;
   total_debit: number;
   total_credit: number;
   balance: number;
