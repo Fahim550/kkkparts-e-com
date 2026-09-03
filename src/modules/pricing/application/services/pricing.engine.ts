@@ -36,22 +36,37 @@ export class PricingEngine {
 
     console.log("Price list ", priceList);
     if (priceList) {
-      // Get base price from items
-      const { data: priceItem } = await supabase
+      // Get base price from items (try with UOM first)
+      let priceQuery = supabase
         .from("price_list_items")
         .select("price")
         .eq("price_list_id", priceList.id)
-        .eq("variation_id", payload.variation_id)
-        .eq("uom_id", payload.uom_id)
-        .maybeSingle();
+        .eq("variation_id", payload.variation_id);
 
-      if (priceItem) {
+      if (payload.uom_id) {
+        priceQuery = priceQuery.eq("uom_id", payload.uom_id);
+      }
+
+      const { data: priceItem } = await priceQuery.maybeSingle();
+
+      if (priceItem && Number(priceItem.price) > 0) {
         basePrice = Number(priceItem.price);
+      } else {
+        // Try without uom_id constraint
+        const { data: anyUomItem } = await supabase
+          .from("price_list_items")
+          .select("price")
+          .eq("price_list_id", priceList.id)
+          .eq("variation_id", payload.variation_id)
+          .maybeSingle();
+        if (anyUomItem && Number(anyUomItem.price) > 0) {
+          basePrice = Number(anyUomItem.price);
+        }
       }
     }
 
     if (basePrice === 0) {
-      // Fallback: Check if there's any Retail price if Wholesale/Dealer wasn't found
+      // Fallback: Check if there's any Retail price in price list
       if (targetPriceListName.toLowerCase() !== "retail") {
         const { data: retailList } = await supabase
           .from("price_lists")
@@ -64,17 +79,47 @@ export class PricingEngine {
             .select("price")
             .eq("price_list_id", retailList.id)
             .eq("variation_id", payload.variation_id)
-            .eq("uom_id", payload.uom_id)
             .maybeSingle();
-          if (retailItem) basePrice = Number(retailItem.price);
+          if (retailItem && Number(retailItem.price) > 0) {
+            basePrice = Number(retailItem.price);
+          }
         }
       }
     }
 
+    // Fallback: Check any price list item for this variation
     if (basePrice === 0) {
-      throw new Error(
-        `No price defined for variation ${payload.variation_id} in Price List ${targetPriceListName}`,
-      );
+      const { data: anyListItem } = await supabase
+        .from("price_list_items")
+        .select("price")
+        .eq("variation_id", payload.variation_id)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (anyListItem && Number(anyListItem.price) > 0) {
+        basePrice = Number(anyListItem.price);
+      }
+    }
+
+    // Fallback: Check product record directly (dealer_price or standard price/original_price)
+    if (basePrice === 0) {
+      const { data: variation } = await supabase
+        .from("product_variations")
+        .select("product_id, products(price, original_price, dealer_price)")
+        .eq("id", payload.variation_id)
+        .maybeSingle();
+
+      const prod = (variation as any)?.products;
+      if (prod) {
+        const isDealer = ["Wholesale", "Dealer"].includes(payload.customer_group || "");
+        if (isDealer && Number(prod.dealer_price || 0) > 0) {
+          basePrice = Number(prod.dealer_price);
+        } else if (Number(prod.price || 0) > 0) {
+          basePrice = Number(prod.price);
+        } else if (Number(prod.original_price || 0) > 0) {
+          basePrice = Number(prod.original_price);
+        }
+      }
     }
 
     // 2. Evaluate Discounts

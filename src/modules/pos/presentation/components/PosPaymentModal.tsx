@@ -61,12 +61,12 @@ export default function PosPaymentModal({
           <div className="flex justify-between items-end border-b pb-4">
             <div>
               <p className="text-sm text-muted-foreground">Total Due</p>
-              <p className="text-3xl font-bold">${totalAmount.toFixed(2)}</p>
+              <p className="text-3xl font-bold">OMR {totalAmount.toFixed(3)}</p>
             </div>
             <div className="text-right">
               <p className="text-sm text-muted-foreground">Remaining</p>
-              <p className={`text-xl font-bold ${remaining > 0 ? 'text-red-500' : remaining < 0 ? 'text-yellow-500' : 'text-green-500'}`}>
-                ${Math.abs(remaining).toFixed(2)} {remaining < 0 ? '(Change)' : ''}
+              <p className={`text-xl font-bold ${remaining > 0 ? 'text-red-500' : remaining < 0 ? 'text-yellow-500' : 'text-emerald-600'}`}>
+                OMR {Math.abs(remaining).toFixed(3)} {remaining < 0 ? '(Change)' : ''}
               </p>
             </div>
           </div>

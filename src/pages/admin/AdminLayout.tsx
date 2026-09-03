@@ -382,7 +382,7 @@ const AdminLayout = () => {
       </aside>
 
       <main
-        className={`flex-1 ${collapsed ? "ml-16" : "ml-64"} transition-all duration-300 flex flex-col`}
+        className={`flex-1 ${collapsed ? "ml-16" : "ml-64"} transition-all duration-300 flex flex-col overflow-hidden`}
       >
         <header className="h-16 border-b border-gray-400 bg-gray-100 flex items-center justify-between px-6 sticky top-0 z-30">
           <div className="flex-1 flex items-center">
@@ -418,7 +418,7 @@ const AdminLayout = () => {
           </div>
         </header>
 
-        <div className="p-6 lg:p-8 flex-1">
+        <div className="p-4 flex-1 overflow-hidden">
           <Outlet />
         </div>
       </main>

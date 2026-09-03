@@ -20,17 +20,29 @@ export const usePosCart = (
     product: any,
     quantity: number = 1,
   ) => {
-    try {
-      // 1. Check if already in cart
-      const existingIdx = cart.findIndex(
-        (i) => i.variation_id === variation.id,
-      );
-      let newQty = quantity;
-      if (existingIdx > -1) {
-        newQty += cart[existingIdx].quantity;
-      }
+    // 1. Check if already in cart
+    const existingIdx = cart.findIndex(
+      (i) => i.variation_id === variation.id,
+    );
+    let newQty = quantity;
+    if (existingIdx > -1) {
+      newQty += cart[existingIdx].quantity;
+    }
 
-      // 2. Ask Pricing Engine
+    // Determine fallback price from product
+    const isDealer = customerGroup === "Dealer";
+    const productPrice = Number(
+      (isDealer && Number(product.dealer_price || 0) > 0)
+        ? product.dealer_price
+        : (product.price || product.original_price || 0)
+    );
+
+    let basePrice = productPrice;
+    let finalPrice = productPrice;
+    let discountAmount = 0;
+    let appliedRules: string[] = [];
+
+    try {
       const priceResult = await PricingEngine.calculatePrice({
         customer_id: customerId,
         customer_group: customerGroup,
@@ -39,36 +51,90 @@ export const usePosCart = (
         quantity: newQty,
       });
 
-      // 3. Update Cart
-      const newItem: CartItem = {
-        variation_id: variation.id,
-        sku: variation.sku,
-        name: product.name,
-        uom_id: product.base_uom_id,
-        uom_abbreviation: product.units_of_measure?.abbreviation || "Unit",
-        quantity: newQty,
-        unit_price: priceResult.base_price, // Unit price before discount
-        discount_amount: priceResult.discount_amount,
-        total_price: priceResult.final_price * newQty, // Or however you want to structure line totals
-        applied_rules: priceResult.applied_rules,
-      };
-
-      setCart((prev) => {
-        const next = [...prev];
-        if (existingIdx > -1) {
-          next[existingIdx] = newItem;
-        } else {
-          next.push(newItem);
-        }
-        return next;
-      });
+      if (priceResult && priceResult.base_price > 0) {
+        basePrice = priceResult.base_price;
+        finalPrice = priceResult.final_price;
+        discountAmount = priceResult.discount_amount;
+        appliedRules = priceResult.applied_rules || [];
+      }
     } catch (e: any) {
-      toast({
-        variant: "destructive",
-        title: "Pricing Error",
-        description: e.message,
-      });
+      // Fall back to product base price
+      console.warn("Pricing engine fallback for", variation.sku, e.message);
     }
+
+    // 3. Update Cart
+    const newItem: CartItem = {
+      variation_id: variation.id,
+      sku: variation.sku,
+      name: product.name,
+      uom_id: product.base_uom_id,
+      uom_abbreviation: product.units_of_measure?.abbreviation || "Unit",
+      quantity: newQty,
+      unit_price: basePrice,
+      discount_amount: discountAmount,
+      total_price: finalPrice * newQty,
+      applied_rules: appliedRules,
+    };
+
+    setCart((prev) => {
+      const next = [...prev];
+      if (existingIdx > -1) {
+        next[existingIdx] = newItem;
+      } else {
+        next.push(newItem);
+      }
+      return next;
+    });
+  };
+
+  const updateQuantity = async (variationId: string, newQty: number) => {
+    if (newQty <= 0) {
+      removeItem(variationId);
+      return;
+    }
+
+    const item = cart.find((i) => i.variation_id === variationId);
+    if (!item) return;
+
+    let basePrice = item.unit_price;
+    let finalPrice = item.unit_price;
+    let discountAmount = 0;
+    let appliedRules: string[] = item.applied_rules || [];
+
+    try {
+      const priceResult = await PricingEngine.calculatePrice({
+        customer_id: customerId,
+        customer_group: customerGroup,
+        variation_id: variationId,
+        uom_id: item.uom_id,
+        quantity: newQty,
+      });
+
+      if (priceResult && priceResult.base_price > 0) {
+        basePrice = priceResult.base_price;
+        finalPrice = priceResult.final_price;
+        discountAmount = priceResult.discount_amount;
+        appliedRules = priceResult.applied_rules || [];
+      }
+    } catch (e) {
+      // Keep existing unit price
+    }
+
+    setCart((prev) =>
+      prev.map((i) => {
+        if (i.variation_id === variationId) {
+          return {
+            ...i,
+            quantity: newQty,
+            unit_price: basePrice,
+            discount_amount: discountAmount,
+            total_price: finalPrice * newQty,
+            applied_rules: appliedRules,
+          };
+        }
+        return i;
+      })
+    );
   };
 
   const removeItem = (variationId: string) => {
@@ -132,6 +198,7 @@ export const usePosCart = (
   return {
     cart,
     addItem,
+    updateQuantity,
     removeItem,
     clearCart,
     subtotal,
