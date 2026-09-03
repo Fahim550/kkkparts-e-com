@@ -12,6 +12,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
+import { PartyTopActionBar } from "@/components/admin/PartyTopActionBar";
+
 const ReceivablePartiesPage = () => {
   const [searchParams] = useSearchParams();
   const defaultType = searchParams.get("type") || "all";
@@ -67,18 +69,16 @@ const ReceivablePartiesPage = () => {
         <div className="flex items-center text-gray-800 font-semibold text-lg gap-2">
           Customers & Dealers <Search className="w-4 h-4 text-gray-400" />
         </div>
-        <div className="flex items-center gap-3">
-          <Link to="/admin/sales/new">
-            <Button className="bg-red-50 text-red-500 hover:bg-red-100 rounded-full" variant="ghost">
-              <Plus className="w-4 h-4 mr-1" /> Add Sale
-            </Button>
-          </Link>
-          <Link to="/admin/purchase/new">
-            <Button className="bg-blue-50 text-blue-500 hover:bg-blue-100 rounded-full" variant="ghost">
-              <Plus className="w-4 h-4 mr-1" /> Add Purchase
-            </Button>
-          </Link>
-        </div>
+        <PartyTopActionBar
+          onDealerCreated={(newDealer) => {
+            setActiveTab("dealer");
+            if (newDealer?.id) setSelectedPartyId(newDealer.id);
+          }}
+          onCustomerCreated={(newCust) => {
+            setActiveTab("customer");
+            if (newCust?.id) setSelectedPartyId(newCust.id);
+          }}
+        />
       </div>
 
       <div className="flex flex-1 overflow-hidden">

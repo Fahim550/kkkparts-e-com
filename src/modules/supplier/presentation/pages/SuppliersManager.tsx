@@ -64,7 +64,7 @@ export default function SuppliersManager() {
     if (editingSupplier) {
       setValue("payable_account_id", editingSupplier.payable_account_id);
     }
-  }, [editingSupplier, setValue
+  }, [editingSupplier, setValue]);
 
   const onSubmit = async (data: SupplierFormData) => {
     // Convert empty strings to null for optional fields to avoid DB constraint issues

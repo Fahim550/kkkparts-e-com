@@ -12,6 +12,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
+import { PartyTopActionBar } from "@/components/admin/PartyTopActionBar";
+
 const PayablePartiesPage = () => {
   const [searchParams] = useSearchParams();
   const defaultTab = searchParams.get("tab") || "due";
@@ -72,18 +74,12 @@ const PayablePartiesPage = () => {
         <div className="flex items-center text-gray-800 font-semibold text-lg gap-2">
           Suppliers (Payable) <Search className="w-4 h-4 text-gray-400" />
         </div>
-        <div className="flex items-center gap-3">
-          <Link to="/admin/purchases/new">
-            <Button className="bg-blue-50 text-blue-600 hover:bg-blue-100 rounded-full" variant="ghost">
-              <Plus className="w-4 h-4 mr-1" /> Add Purchase
-            </Button>
-          </Link>
-          <Link to="/admin/sales/new">
-            <Button className="bg-red-50 text-red-500 hover:bg-red-100 rounded-full" variant="ghost">
-              <Plus className="w-4 h-4 mr-1" /> Add Sale
-            </Button>
-          </Link>
-        </div>
+        <PartyTopActionBar
+          onSupplierCreated={(newSupplier) => {
+            setActiveTab("all");
+            if (newSupplier?.id) setSelectedPartyId(newSupplier.id);
+          }}
+        />
       </div>
 
       <div className="flex flex-1 overflow-hidden">
