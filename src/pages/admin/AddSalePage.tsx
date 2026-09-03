@@ -502,9 +502,9 @@ export default function AddSalePage() {
             <CustomerCombobox
               customers={customers || []}
               value={customerId}
-              onChange={(val) => {
+              onChange={(val, newCust) => {
                 setCustomerId(val);
-                const cust = customers?.find(c => c.id === val);
+                const cust = newCust || customers?.find(c => c.id === val);
                 if (cust && cust.contact_phone) setPhone(cust.contact_phone);
               }}
             />

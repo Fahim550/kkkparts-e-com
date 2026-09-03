@@ -517,9 +517,9 @@ export default function AddPurchasePage() {
             <SupplierCombobox
               suppliers={suppliers || []}
               value={supplierId}
-              onChange={(val) => {
+              onChange={(val, newSupp) => {
                 setSupplierId(val);
-                const supp = suppliers?.find(s => s.id === val);
+                const supp = newSupp || suppliers?.find(s => s.id === val);
                 if (supp && supp.contact_phone) setPhone(supp.contact_phone);
               }}
             />
