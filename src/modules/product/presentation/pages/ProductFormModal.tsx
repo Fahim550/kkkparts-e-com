@@ -39,6 +39,7 @@ import {
   useUpdateProductTemplate,
 } from "../hooks/useProducts";
 import { useCreateUOM, useUOMs } from "../hooks/useUOMs";
+import { useQueryClient } from "@tanstack/react-query";
 
 type ProductFormData = z.infer<typeof ProductSchema>;
 
@@ -129,6 +130,7 @@ function QuickCreatePopover({ label, fields, isLoading, onSave }: QuickCreatePop
 }
 
 export default function ProductFormModal({ isOpen, onOpenChange, product, onSuccess }: ProductFormModalProps) {
+  const queryClient = useQueryClient();
   const { data: brands } = useBrands();
   const { data: categories } = useCategories();
   const { data: uoms } = useUOMs();
@@ -222,6 +224,8 @@ export default function ProductFormModal({ isOpen, onOpenChange, product, onSucc
          });
       }
       
+      await queryClient.invalidateQueries({ queryKey: ["products"] });
+
       if (onSuccess) {
         onSuccess(savedProduct, createdVariation);
       }

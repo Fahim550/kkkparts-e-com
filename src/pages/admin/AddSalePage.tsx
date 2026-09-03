@@ -204,18 +204,18 @@ export default function AddSalePage() {
     }));
   };
 
-  const handleProductSelect = (id: number, variationId: string) => {
-    const product = products.find(p => p.product_variations?.some((v: any) => v.id === variationId));
-    const variation = product?.product_variations?.find((v: any) => v.id === variationId);
+  const handleProductSelect = (id: number, variationId: string, directVariation?: any, directProduct?: any) => {
+    const product = directProduct || products.find(p => p.product_variations?.some((v: any) => v.id === variationId) || p.id === directProduct?.id);
+    const variation = directVariation || product?.product_variations?.find((v: any) => v.id === variationId);
     
-    if (product && variation) {
+    if (product) {
       let isLastRow = false;
       const updatedItems = items.map((item, index) => {
         if (item.id === id) {
           if (index === items.length - 1) {
             isLastRow = true;
           }
-          const price = Number(variation.sell_price || variation.price || product.price || 0);
+          const price = Number(variation?.sell_price || variation?.price || product.price || 0);
           const qty = item.qty === 0 ? 1 : (item.qty || 1);
           return {
             ...item,
@@ -580,7 +580,7 @@ export default function AddSalePage() {
                     <ProductCombobox 
                       products={products}
                       value={item.variation_id}
-                      onChange={(v) => handleProductSelect(item.id, v)}
+                      onChange={(v, directVar, directProd) => handleProductSelect(item.id, v, directVar, directProd)}
                     />
                   </TableCell>
                   <TableCell className="p-1 border-r">
