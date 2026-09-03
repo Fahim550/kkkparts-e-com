@@ -40,7 +40,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useCustomers } from "../../../customer/presentation/hooks/useCustomers";
 import { useCategories } from "@/hooks/useCategories";
 import { useProductTemplates } from "../../../product/presentation/hooks/useProducts";
-import PosPaymentModal from "../components/PosPaymentModal";
+import PosPaymentModal, { PosPaymentEntry } from "../components/PosPaymentModal";
 import { usePosCart } from "../hooks/usePosCart";
 import { usePosSession } from "../hooks/usePosSession";
 import { usePreviousWalkIns } from "../hooks/usePreviousWalkIns";
@@ -64,16 +64,10 @@ export default function PosTerminal() {
   // Mobile / Tablet Tab Switcher ("catalog" vs "cart")
   const [activeMobileTab, setActiveMobileTab] = useState<"catalog" | "cart">("catalog");
 
-  // In-Sidebar Order & Payment State
-  const [paymentMethod, setPaymentMethod] = useState<"Cash" | "Card" | "Bank Transfer" | "Due">("Cash");
-  const [amountTendered, setAmountTendered] = useState<string>("");
-  const [paymentRef, setPaymentRef] = useState<string>("");
+  // Payment & Success Modal State
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
   const [completedReceipt, setCompletedReceipt] = useState<any>(null);
 
-  // Split payment entries — each line is one tender (method + amount + optional ref)
-  type PaymentEntry = { method: "Cash" | "Card" | "Bank Transfer" | "Due"; amount: string; reference_code: string };
-  const [splitPayments, setSplitPayments] = useState<PaymentEntry[]>([{ method: "Cash", amount: "", reference_code: "" }]);
 
 
   const selectedCustomer = customers?.find((c) => c.id === selectedCustomerId);
@@ -177,10 +171,7 @@ export default function PosTerminal() {
     return Number(product.stock || 0);
   };
 
-  // Tender calculations
-  const effectiveTendered = amountTendered === "" ? total : Number(amountTendered) || 0;
-  const changeAmount = Math.max(0, effectiveTendered - total);
-  const remainingAmount = Math.max(0, total - effectiveTendered);
+
 
   // ── 4. Filtered Products ─────────────────────────────────────────────────
   const filteredProducts = useMemo(() => {
@@ -254,78 +245,33 @@ export default function PosTerminal() {
     addItem(variation, product, 1);
   };
 
-  // Direct In-Sidebar Checkout Handler
-  const handleDirectOrderCreate = async () => {
-    if (cart.length === 0) return;
-
-    // Check Due customer validation
-    if (paymentMethod === "Due" && !selectedCustomerId && selectedCustomerId !== "dealer" && !walkInName.trim()) {
-      toast({
-        variant: "destructive",
-        title: "Customer Required",
-        description: "Please provide a customer name for Due / Credit sales.",
-      });
-      return;
-    }
-
+  // Payment Completed Handler (Single & Mixed / Split)
+  const handlePaymentComplete = async (payments: PosPaymentEntry[]) => {
     try {
       const receipt = await checkout({
-        payments: [
-          {
-            method: paymentMethod,
-            amount: paymentMethod === "Due" ? total : (amountTendered === "" ? total : Math.min(effectiveTendered, total)),
-            reference_code: paymentRef || undefined,
-          },
-        ],
+        payments: payments.map((p) => ({
+          method: p.method,
+          amount: p.amount,
+          reference_code: p.reference_code,
+        })),
         walkInName: selectedCustomerId === "" ? walkInName : undefined,
         walkInPhone: selectedCustomerId === "" ? walkInPhone : undefined,
         walkInDealerName: selectedCustomerId === "dealer" ? walkInName : undefined,
         walkInDealerPhone: selectedCustomerId === "dealer" ? walkInPhone : undefined,
       });
 
-      setCompletedReceipt(receipt);
-      setAmountTendered("");
-      setPaymentRef("");
-      setSelectedCustomerId("");
-      setWalkInName("");
-      setWalkInPhone("");
-      setActiveMobileTab("catalog");
-    } catch (e: any) {}
-  };
-
-  // Split Payment Completed Handler (used for both single + multi-tender)
-  const handleSplitPaymentComplete = async (paymentsArg?: { method: string; amount: number; reference_code?: string }[]) => {
-    const entries = paymentsArg ?? splitPayments.map(p => ({
-      method: p.method,
-      amount: parseFloat(p.amount) || 0,
-      reference_code: p.reference_code || undefined,
-    })).filter(p => p.amount > 0);
-
-    if (entries.length === 0) return;
-
-    // Validate: Due needs a customer name
-    const hasDue = entries.some(p => p.method === "Due");
-    if (hasDue && !selectedCustomerId && selectedCustomerId !== "dealer" && !walkInName.trim()) {
-      toast({ variant: "destructive", title: "Customer Required", description: "Please provide a customer name for Due / Credit sales." });
-      return;
-    }
-
-    try {
-      const receipt = await checkout({
-        payments: entries,
-        walkInName: selectedCustomerId === "" ? walkInName : undefined,
-        walkInPhone: selectedCustomerId === "" ? walkInPhone : undefined,
-        walkInDealerName: selectedCustomerId === "dealer" ? walkInName : undefined,
-        walkInDealerPhone: selectedCustomerId === "dealer" ? walkInPhone : undefined,
-      });
       setIsPaymentModalOpen(false);
-      setCompletedReceipt(receipt);
-      setSplitPayments([{ method: "Cash", amount: "", reference_code: "" }]);
+      setCompletedReceipt({
+        ...receipt,
+        paymentBreakdown: payments,
+      });
       setSelectedCustomerId("");
       setWalkInName("");
       setWalkInPhone("");
       setActiveMobileTab("catalog");
-    } catch (e) {}
+    } catch (e) {
+      // Error handled by checkout mutation toast
+    }
   };
 
   return (
@@ -772,227 +718,18 @@ export default function PosTerminal() {
       </div>
 
       {/* ════════════════════════════════════════
-          Payment — Single or Split Tender
+          Payment Modal (Single or Split Tender)
       ════════════════════════════════════════ */}
-      <Dialog
-        open={isPaymentModalOpen}
-        onOpenChange={(open) => {
-          if (!open && !isCheckingOut) {
-            setIsPaymentModalOpen(false);
-            setSplitPayments([{ method: "Cash", amount: "", reference_code: "" }]);
-          }
-          if (open) {
-            setSplitPayments([{ method: "Cash", amount: total.toFixed(3), reference_code: "" }]);
-          }
-        }}
-      >
-        <DialogContent className="max-w-lg p-0 overflow-hidden rounded-2xl gap-0">
-          {/* Dark header */}
-          <div className="px-5 pt-5 pb-4 bg-gradient-to-br from-slate-900 to-slate-700 text-white shrink-0">
-            <DialogHeader>
-              <DialogTitle className="text-base font-bold text-white">Complete Payment</DialogTitle>
-            </DialogHeader>
-            <p className="text-xs text-slate-300 mt-0.5">Add one or more payment methods (split allowed)</p>
-            <div className="mt-3 grid grid-cols-3 gap-2 text-center">
-              <div className="bg-white/10 rounded-lg px-2 py-1.5">
-                <div className="text-[10px] text-slate-400">Items</div>
-                <div className="text-sm font-bold">{cart.reduce((s, i) => s + i.quantity, 0)}</div>
-              </div>
-              <div className="bg-white/10 rounded-lg px-2 py-1.5">
-                <div className="text-[10px] text-slate-400">Order Total</div>
-                <div className="text-sm font-bold">OMR {total.toFixed(3)}</div>
-              </div>
-              {(() => {
-                const tendered = splitPayments.reduce((s, p) => s + (parseFloat(p.amount) || 0), 0);
-                const remaining = total - tendered;
-                const isOverpaid = tendered > total;
-                return (
-                  <div className={`rounded-lg px-2 py-1.5 ${
-                    remaining > 0.001 ? "bg-red-500/30" : isOverpaid ? "bg-amber-500/30" : "bg-emerald-500/30"
-                  }`}>
-                    <div className="text-[10px] text-slate-300">
-                      {remaining > 0.001 ? "Remaining" : isOverpaid ? "Change" : "Settled ✓"}
-                    </div>
-                    <div className={`text-sm font-bold ${
-                      remaining > 0.001 ? "text-red-300" : isOverpaid ? "text-amber-300" : "text-emerald-300"
-                    }`}>
-                      OMR {Math.abs(remaining).toFixed(3)}
-                    </div>
-                  </div>
-                );
-              })()}
-            </div>
-          </div>
-
-          {/* Payment lines */}
-          <ScrollArea className="max-h-[55vh]">
-            <div className="p-4 space-y-3 bg-slate-50">
-              {splitPayments.map((entry, idx) => {
-                const methodIcons: Record<string, React.ReactNode> = {
-                  Cash: <Banknote className="w-4 h-4" />,
-                  Card: <CreditCard className="w-4 h-4" />,
-                  "Bank Transfer": <Landmark className="w-4 h-4" />,
-                  Due: <Clock className="w-4 h-4" />,
-                };
-                const methodColors: Record<string, string> = {
-                  Cash: "border-emerald-500 bg-emerald-50 text-emerald-800",
-                  Card: "border-blue-500 bg-blue-50 text-blue-800",
-                  "Bank Transfer": "border-indigo-500 bg-indigo-50 text-indigo-800",
-                  Due: "border-amber-500 bg-amber-50 text-amber-800",
-                };
-                const alreadyPaid = splitPayments.slice(0, idx).reduce((s, p) => s + (parseFloat(p.amount) || 0), 0);
-                const remaining = Math.max(0, total - alreadyPaid);
-
-                return (
-                  <div key={idx} className="bg-white border border-slate-200 rounded-xl p-3 space-y-2.5 shadow-xs">
-                    <div className="flex items-center justify-between">
-                      <span className="text-[10px] font-bold uppercase tracking-wide text-gray-400">
-                        {splitPayments.length > 1 ? `Payment ${idx + 1}` : "Payment Method"}
-                      </span>
-                      {splitPayments.length > 1 && (
-                        <button
-                          type="button"
-                          className="text-slate-300 hover:text-red-500 transition-colors"
-                          onClick={() => setSplitPayments(prev => prev.filter((_, i) => i !== idx))}
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      )}
-                    </div>
-
-                    {/* Method selector pills */}
-                    <div className="grid grid-cols-4 gap-1.5">
-                      {(["Cash", "Card", "Bank Transfer", "Due"] as const).map((m) => (
-                        <button
-                          key={m}
-                          type="button"
-                          onClick={() => setSplitPayments(prev => prev.map((p, i) => i === idx ? { ...p, method: m } : p))}
-                          className={`flex flex-col items-center gap-0.5 py-1.5 px-1 rounded-lg border-2 text-[10px] font-semibold transition-all ${
-                            entry.method === m
-                              ? methodColors[m]
-                              : "border-slate-200 bg-white text-gray-500 hover:bg-slate-50"
-                          }`}
-                        >
-                          {methodIcons[m]}
-                          <span>{m === "Bank Transfer" ? "Bank" : m}</span>
-                        </button>
-                      ))}
-                    </div>
-
-                    {/* Amount + quick fill */}
-                    <div className="flex items-end gap-2">
-                      <div className="flex-1">
-                        <div className="text-[10px] text-gray-500 mb-1 font-medium">Amount (OMR)</div>
-                        <Input
-                          type="number"
-                          step="0.001"
-                          min="0"
-                          placeholder="0.000"
-                          className="h-10 text-base font-bold bg-white text-center tracking-widest"
-                          value={entry.amount}
-                          onChange={(e) => setSplitPayments(prev => prev.map((p, i) => i === idx ? { ...p, amount: e.target.value } : p))}
-                          autoFocus={idx === splitPayments.length - 1}
-                        />
-                      </div>
-                      <div className="flex flex-col gap-1 pb-0.5">
-                        <button
-                          type="button"
-                          className="text-[10px] bg-slate-100 hover:bg-slate-200 px-2.5 py-1 rounded font-semibold text-gray-600 whitespace-nowrap transition-colors"
-                          onClick={() => setSplitPayments(prev => prev.map((p, i) => i === idx ? { ...p, amount: remaining.toFixed(3) } : p))}
-                        >
-                          Exact
-                        </button>
-                        <button
-                          type="button"
-                          className="text-[10px] bg-slate-100 hover:bg-slate-200 px-2.5 py-1 rounded font-semibold text-gray-600 whitespace-nowrap transition-colors"
-                          onClick={() => setSplitPayments(prev => prev.map((p, i) => i === idx ? { ...p, amount: (Math.ceil(remaining / 5) * 5 || 5).toFixed(3) } : p))}
-                        >
-                          Rnd 5
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* Change indicator */}
-                    {(() => {
-                      const amt = parseFloat(entry.amount) || 0;
-                      const change = amt - remaining;
-                      if (amt === 0) return null;
-                      return (
-                        <div className={`text-xs rounded-lg px-3 py-1.5 font-semibold flex justify-between ${
-                          change > 0.001 ? "bg-amber-50 text-amber-700 border border-amber-100" : "bg-emerald-50 text-emerald-700 border border-emerald-100"
-                        }`}>
-                          <span>{change > 0.001 ? "Change to return" : "Amount received"}</span>
-                          <span className="font-extrabold">{change > 0.001 ? `OMR ${change.toFixed(3)}` : `OMR ${amt.toFixed(3)}`}</span>
-                        </div>
-                      );
-                    })()}
-
-                    {/* Reference for Card / Bank */}
-                    {(entry.method === "Card" || entry.method === "Bank Transfer") && (
-                      <Input
-                        placeholder={entry.method === "Card" ? "Card last 4 / approval code" : "Bank ref / transfer ID"}
-                        className="h-8 text-xs bg-slate-50"
-                        value={entry.reference_code}
-                        onChange={(e) => setSplitPayments(prev => prev.map((p, i) => i === idx ? { ...p, reference_code: e.target.value } : p))}
-                      />
-                    )}
-
-                    {/* Due credit note */}
-                    {entry.method === "Due" && (
-                      <div className="bg-amber-50 border border-amber-100 rounded-lg px-2.5 py-1.5 text-[10px] text-amber-800 flex items-start gap-1.5">
-                        <Clock className="w-3 h-3 mt-0.5 shrink-0 text-amber-600" />
-                        <span>Recorded as credit owed by the customer</span>
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-
-              {/* Add another payment line */}
-              {splitPayments.reduce((s, p) => s + (parseFloat(p.amount) || 0), 0) < total - 0.001 && (
-                <button
-                  type="button"
-                  className="w-full border-2 border-dashed border-slate-300 rounded-xl py-3 text-xs font-semibold text-slate-500 hover:border-blue-400 hover:text-blue-600 hover:bg-blue-50/50 transition-all flex items-center justify-center gap-1.5"
-                  onClick={() => {
-                    const paid = splitPayments.reduce((s, p) => s + (parseFloat(p.amount) || 0), 0);
-                    const left = Math.max(0, total - paid);
-                    setSplitPayments(prev => [...prev, { method: "Cash", amount: left.toFixed(3), reference_code: "" }]);
-                  }}
-                >
-                  <Plus className="w-3.5 h-3.5" />
-                  Add Another Payment Method (Split)
-                </button>
-              )}
-            </div>
-          </ScrollArea>
-
-          {/* Footer actions */}
-          <div className="p-4 bg-white border-t flex gap-2">
-            <Button
-              variant="outline"
-              className="flex-1 h-10 text-sm"
-              onClick={() => {
-                setIsPaymentModalOpen(false);
-                setSplitPayments([{ method: "Cash", amount: "", reference_code: "" }]);
-              }}
-              disabled={isCheckingOut}
-            >
-              Cancel
-            </Button>
-            <Button
-              className="flex-[2] h-10 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm shadow-sm flex items-center justify-center gap-2 rounded-lg active:scale-[0.98] transition-all disabled:opacity-60"
-              disabled={
-                cart.length === 0 ||
-                isCheckingOut ||
-                splitPayments.reduce((s, p) => s + (parseFloat(p.amount) || 0), 0) < total - 0.001
-              }
-              onClick={() => handleSplitPaymentComplete()}
-            >
-              <FileCheck className="w-4 h-4" />
-              {isCheckingOut ? "Processing..." : "Confirm & Place Order"}
-            </Button>
-          </div>
-        </DialogContent>
+      <PosPaymentModal
+        isOpen={isPaymentModalOpen}
+        onClose={() => setIsPaymentModalOpen(false)}
+        totalAmount={total}
+        cartItemsCount={totalCartItemsCount}
+        customerName={selectedCustomer?.name || walkInName}
+        onCustomerNameChange={(name) => setWalkInName(name)}
+        onComplete={handlePaymentComplete}
+        isProcessing={isCheckingOut}
+      />
 
       {/* ════════════════════════════════════════
           Order Success Dialog
@@ -1019,6 +756,17 @@ export default function PosTerminal() {
                 <span className="text-gray-500">Total Paid</span>
                 <span className="font-extrabold text-blue-700 text-sm">OMR {Number(completedReceipt?.total_amount || 0).toFixed(3)}</span>
               </div>
+              {completedReceipt?.paymentBreakdown && completedReceipt.paymentBreakdown.length > 0 && (
+                <div className="pt-2 border-t border-dashed space-y-1">
+                  <div className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Payment Breakdown</div>
+                  {completedReceipt.paymentBreakdown.map((p: any, i: number) => (
+                    <div key={i} className="flex justify-between text-xs text-gray-700">
+                      <span>{p.method} {p.reference_code ? `(${p.reference_code})` : ""}</span>
+                      <span className="font-semibold text-gray-900">OMR {Number(p.amount).toFixed(3)}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
 
             <DialogFooter className="flex gap-2 sm:gap-2">

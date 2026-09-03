@@ -188,32 +188,32 @@ export default function PosReceiptViewer() {
                     <div className="text-xs text-muted-foreground">{item.product_variations?.sku}</div>
                   </td>
                   <td className="py-2 text-center">{item.quantity}</td>
-                  <td className="py-2 text-right">${Number(item.unit_price).toFixed(2)}</td>
-                  <td className="py-2 text-right font-semibold">${Number(item.total_price).toFixed(2)}</td>
+                  <td className="py-2 text-right">OMR {Number(item.unit_price).toFixed(3)}</td>
+                  <td className="py-2 text-right font-semibold">OMR {Number(item.total_price).toFixed(3)}</td>
                 </tr>
               ))}
             </tbody>
           </table>
 
           <div className="flex flex-col items-end space-y-2 text-sm">
-            <div className="flex justify-between w-48">
+            <div className="flex justify-between w-56">
               <span>Subtotal:</span>
-              <span>${(receipt.total_amount + receipt.discount_amount).toFixed(2)}</span>
+              <span>OMR {(receipt.total_amount + receipt.discount_amount).toFixed(3)}</span>
             </div>
             {receipt.discount_amount > 0 && (
-              <div className="flex justify-between w-48 text-green-600">
+              <div className="flex justify-between w-56 text-green-600">
                 <span>Discount:</span>
-                <span>-${Number(receipt.discount_amount).toFixed(2)}</span>
+                <span>− OMR {Number(receipt.discount_amount).toFixed(3)}</span>
               </div>
             )}
-            <div className="flex justify-between w-48 text-lg font-bold border-t pt-2">
+            <div className="flex justify-between w-56 text-lg font-bold border-t pt-2">
               <span>Total:</span>
-              <span>${Number(receipt.total_amount).toFixed(2)}</span>
+              <span>OMR {Number(receipt.total_amount).toFixed(3)}</span>
             </div>
-            {dueAmount > 0.01 && (
-              <div className="flex justify-between w-48 text-lg font-bold text-red-600 pt-1">
-                <span>Due:</span>
-                <span>${dueAmount.toFixed(2)}</span>
+            {dueAmount > 0.001 && (
+              <div className="flex justify-between w-56 text-base font-bold text-red-600 pt-1">
+                <span>Due / Credit:</span>
+                <span>OMR {dueAmount.toFixed(3)}</span>
               </div>
             )}
           </div>
@@ -223,7 +223,7 @@ export default function PosReceiptViewer() {
             {receipt.pos_payments.map((p: any) => (
               <div key={p.id} className="flex justify-between text-sm text-muted-foreground">
                 <span>{p.payment_method} {p.reference_code ? `(${p.reference_code})` : ''}</span>
-                <span>${Number(p.amount).toFixed(2)}</span>
+                <span className="font-semibold text-gray-900">OMR {Number(p.amount).toFixed(3)}</span>
               </div>
             ))}
           </div>
