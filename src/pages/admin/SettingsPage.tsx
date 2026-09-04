@@ -222,14 +222,16 @@ const SettingsPage = () => {
           <div className="space-y-8">
             <Section title="Store Identity">
               <Field
-                label="Site Name"
+                label="Shop / Business Name (Prints on Invoices & Receipts)"
                 field="site_name"
+                placeholder="e.g. MULTAQA QURIYATH TRAD"
                 form={form}
                 setForm={setForm}
               />
-              <TextArea
-                label="Site Description"
+              <Field
+                label="Commercial Registration (C.R. No) / Tax ID (Prints on Invoices)"
                 field="site_description"
+                placeholder="e.g. 1144157"
                 form={form}
                 setForm={setForm}
               />
@@ -352,34 +354,34 @@ const SettingsPage = () => {
               </div>
             </Section>
 
-            <Section title="Contact Information">
+            <Section title="Contact Information (Printed on Invoices & Receipts)">
               <div className="grid grid-cols-2 gap-4">
                 <Field
                   label="Contact Email"
                   field="contact_email"
-                  placeholder="info@example.com"
+                  placeholder="mohammaddawood19931@gmail.com"
                   form={form}
                   setForm={setForm}
                 />
                 <Field
                   label="Contact Phone"
                   field="contact_phone"
-                  placeholder="+971 1234 5678"
+                  placeholder="79458035"
                   form={form}
                   setForm={setForm}
                 />
               </div>
               <Field
-                label="Address"
+                label="Shop Address"
                 field="contact_address"
-                placeholder="Dubai, UAE"
+                placeholder="QURIYATH SANAYYA, SULTANATE OF OMAN"
                 form={form}
                 setForm={setForm}
               />
               <Field
                 label="WhatsApp Number"
                 field="whatsapp_number"
-                placeholder="+97112345678"
+                placeholder="+968 79458035"
                 form={form}
                 setForm={setForm}
               />

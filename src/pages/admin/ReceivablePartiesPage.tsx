@@ -236,17 +236,24 @@ const ReceivablePartiesPage = () => {
 
       const { data: items } = await supabase
         .from(itemsTable)
-        .select("*, product_variations(product:products(name))")
+        .select("*, product_variations(sku, product:products(name))")
         .eq(fkCol, item.id);
 
       const invoiceItems: InvoiceItem[] = (items || []).map((it: any) => {
-        const prodName = it.product_variations?.product?.name || it.item_name || "Product Item";
+        const prodName =
+          it.product_variations?.product?.name ||
+          it.product_variations?.products?.name ||
+          it.item_name ||
+          "Product Item";
+        const qty = Number(it.quantity_ordered ?? it.quantity_billed ?? it.quantity ?? 1);
+        const price = Number(it.unit_price ?? it.unit_cost ?? 0);
+        const amount = Number(it.total_price ?? it.amount ?? it.total_cost ?? qty * price);
         return {
           name: prodName,
-          qty: Number(it.quantity_ordered || it.quantity || 1),
-          price: Number(it.unit_price || 0),
+          qty,
+          price,
           taxPct: Number(it.tax_rate || 0),
-          amount: Number(it.total_price || (it.quantity_ordered || 1) * (it.unit_price || 0)),
+          amount,
         };
       });
 
@@ -258,6 +265,7 @@ const ReceivablePartiesPage = () => {
         type: "Sale",
         partyName: selectedParty?.name || "Customer",
         partyPhone: selectedParty?.contact_phone || "",
+        partyAddress: selectedParty?.billing_address || selectedParty?.shipping_address || "",
         invoiceNo:
           item.reference_number ||
           record.so_number ||

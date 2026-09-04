@@ -68,9 +68,9 @@ export function numberToWords(num: number): string {
   };
 
   const wholePart = Math.floor(num);
-  const decimalPart = Math.round((num - wholePart) * 100);
+  const decimalPart = Math.round((num - wholePart) * 1000);
   
-  let result = inWords(wholePart) + "Rials";
+  let result = (wholePart === 0 ? "Zero " : inWords(wholePart)) + "Rials";
   
   if (decimalPart > 0) {
     result += ` and ${inWords(decimalPart)} Baisa`;

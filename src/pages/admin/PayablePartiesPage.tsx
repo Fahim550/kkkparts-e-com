@@ -217,7 +217,7 @@ const PayablePartiesPage = () => {
       const isInvoice = item.type === "Purchase Invoice";
       const tableName = isInvoice ? "purchase_invoices" : "purchase_orders";
       const itemsTable = isInvoice ? "purchase_invoice_items" : "purchase_order_items";
-      const fkCol = isInvoice ? "invoice_id" : "purchase_order_id";
+      const fkCol = isInvoice ? "purchase_invoice_id" : "purchase_order_id";
 
       const { data: record, error: recErr } = await supabase
         .from(tableName)
@@ -229,17 +229,24 @@ const PayablePartiesPage = () => {
 
       const { data: items } = await supabase
         .from(itemsTable)
-        .select("*, product_variations(product:products(name))")
+        .select("*, product_variations(sku, product:products(name))")
         .eq(fkCol, item.id);
 
       const invoiceItems: InvoiceItem[] = (items || []).map((it: any) => {
-        const prodName = it.product_variations?.product?.name || it.item_name || "Purchase Item";
+        const prodName =
+          it.product_variations?.product?.name ||
+          it.product_variations?.products?.name ||
+          it.item_name ||
+          "Purchase Item";
+        const qty = Number(it.quantity_ordered ?? it.quantity_billed ?? it.quantity ?? 1);
+        const price = Number(it.unit_cost ?? it.unit_price ?? 0);
+        const amount = Number(it.total_cost ?? it.total_price ?? it.amount ?? qty * price);
         return {
           name: prodName,
-          qty: Number(it.quantity_ordered || it.quantity || 1),
-          price: Number(it.unit_cost || it.unit_price || 0),
+          qty,
+          price,
           taxPct: Number(it.tax_rate || 0),
-          amount: Number(it.total_cost || it.total_price || (it.quantity_ordered || 1) * (it.unit_cost || 0)),
+          amount,
         };
       });
 
@@ -251,6 +258,7 @@ const PayablePartiesPage = () => {
         type: "Purchase",
         partyName: selectedParty?.name || "Supplier",
         partyPhone: selectedParty?.contact_phone || "",
+        partyAddress: selectedParty?.address || "",
         invoiceNo:
           item.reference_number ||
           record.po_number ||
