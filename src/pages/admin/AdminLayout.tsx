@@ -352,7 +352,7 @@ const AdminLayout = () => {
   return (
     <div className="min-h-screen bg-secondary/30 flex notranslate">
       <aside
-        className={`${collapsed ? "w-16" : "w-64"} bg-sidebar border-r border-sidebar-border flex flex-col shrink-0 transition-all duration-300 fixed h-full z-40`}
+        className={`${collapsed ? "w-16" : "w-64"} bg-sidebar border-r border-sidebar-border flex flex-col shrink-0 transition-all duration-300 fixed h-full z-40 print:hidden`}
       >
         <div className="h-16 flex items-center justify-between px-4 border-b border-sidebar-border">
           {!collapsed && (
@@ -382,9 +382,9 @@ const AdminLayout = () => {
       </aside>
 
       <main
-        className={`flex-1 ${collapsed ? "ml-16" : "ml-64"} transition-all duration-300 flex flex-col overflow-hidden`}
+        className={`flex-1 ${collapsed ? "ml-16" : "ml-64"} transition-all duration-300 flex flex-col overflow-hidden print:ml-0 print:overflow-visible print:w-full`}
       >
-        <header className="h-16 border-b border-gray-400 bg-gray-100 flex items-center justify-between px-6 sticky top-0 z-30">
+        <header className="h-16 border-b border-gray-400 bg-gray-100 flex items-center justify-between px-6 sticky top-0 z-30 print:hidden">
           <div className="flex-1 flex items-center">
             <div className="relative w-64">
               <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
@@ -418,7 +418,7 @@ const AdminLayout = () => {
           </div>
         </header>
 
-        <div className="p-4 flex-1 overflow-hidden">
+        <div className="p-4 flex-1 overflow-hidden print:p-0 print:overflow-visible">
           <Outlet />
         </div>
       </main>

@@ -120,24 +120,91 @@ body { top: 0 !important; }
 }
 
 @media print {
-  body * {
-    visibility: hidden;
-  }
-  .hide-print {
-    background: transparent !important;
-  }
-  .hide-print > div:not(.print-full-width) {
+  /* 1. Hide application shell navigation, sidebars, headers, toolbars, and buttons */
+  aside,
+  header,
+  nav,
+  .hide-on-print,
+  .hide-print,
+  .no-print {
     display: none !important;
   }
-  .print-full-width, .print-full-width * {
-    visibility: visible;
+
+  /* 2. Reset document boundaries to allow full page expansion and multi-page pagination */
+  html,
+  body {
+    overflow: visible !important;
+    overflow-x: visible !important;
+    height: auto !important;
+    min-height: auto !important;
+    background: #ffffff !important;
+    color: #000000 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    font-size: 11pt !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
   }
-  .print-full-width {
-    position: absolute;
-    left: 0;
-    top: 0;
+
+  #root,
+  .min-h-screen,
+  main,
+  div:not(.print-area):not(.print-full-width) {
+    overflow: visible !important;
+    height: auto !important;
+    min-height: auto !important;
+    max-height: none !important;
+  }
+
+  /* 3. Strip layout margins so main content occupies the full width */
+  main {
+    margin: 0 !important;
+    margin-left: 0 !important;
+    padding: 0 !important;
     width: 100% !important;
+    max-width: 100% !important;
+  }
+
+  /* 4. Full Receipt Page Styling: Show complete receipt centered, cleanly bordered, zero clipping */
+  .print-area {
+    display: block !important;
+    visibility: visible !important;
+    position: static !important;
+    transform: none !important;
+    width: 100% !important;
+    max-width: 760px !important;
+    margin: 20px auto !important;
+    padding: 24px !important;
+    background: #ffffff !important;
+    box-shadow: none !important;
+    border: 1px solid #e2e8f0 !important;
+    border-radius: 8px !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  .print-area * {
+    visibility: visible !important;
+  }
+
+  .print-full-width {
+    position: static !important;
+    transform: none !important;
+    width: 100% !important;
+    margin: 0 !important;
     padding: 0 !important;
     background: white !important;
+    visibility: visible !important;
+  }
+
+  .print-full-width * {
+    visibility: visible !important;
+  }
+
+  /* Preserve table rows across page breaks */
+  tr {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
   }
 }
+

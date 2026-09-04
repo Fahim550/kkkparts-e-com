@@ -76,6 +76,8 @@ const Dashboard = () => {
   const currentYear = now.getFullYear();
 
   const thisMonthOrders = allOrders.filter((o: any) => {
+    const status = (o.status || "").toLowerCase();
+    if (["cancelled", "void", "draft"].includes(status)) return false;
     const d = new Date(o.created_at || new Date());
     return d.getMonth() === currentMonth && d.getFullYear() === currentYear;
   });
@@ -282,7 +284,7 @@ const Dashboard = () => {
                 <span className="text-sm font-medium text-gray-700">Inventory Report</span>
                 <ChevronRight className="w-4 h-4 text-blue-500" />
               </Link>
-              <Link to="/admin/accounting/reports" className="flex items-center justify-between border border-gray-200 rounded-lg p-3 w-48 hover:shadow-sm hover:border-blue-300 transition">
+              <Link to="/admin/accounting/financials" className="flex items-center justify-between border border-gray-200 rounded-lg p-3 w-48 hover:shadow-sm hover:border-blue-300 transition">
                 <span className="text-sm font-medium text-gray-700">Financial Reports</span>
                 <ChevronRight className="w-4 h-4 text-blue-500" />
               </Link>
@@ -300,7 +302,7 @@ const Dashboard = () => {
             <span className="text-gray-400 text-xs">This Month</span>
           </Link>
 
-          <Link to="/admin/accounting/reports" className="p-6 border-b border-gray-100 group hover:bg-gray-50 cursor-pointer flex justify-between items-start transition-colors">
+          <Link to="/admin/accounting/financials" className="p-6 border-b border-gray-100 group hover:bg-gray-50 cursor-pointer flex justify-between items-start transition-colors">
             <div>
               <h4 className="text-gray-500 text-sm font-medium mb-1 group-hover:text-blue-600">Expenses</h4>
               <p className="text-gray-900 font-bold">OMR {totalExpenses.toFixed(0)}</p>
@@ -308,7 +310,7 @@ const Dashboard = () => {
             <span className="text-gray-400 text-xs">This Month</span>
           </Link>
 
-          <Link to="/admin/inventory/ledger" className="p-6 border-b border-gray-100 group hover:bg-gray-50 cursor-pointer flex justify-between items-start transition-colors">
+          <Link to="/admin/fifo-layers" className="p-6 border-b border-gray-100 group hover:bg-gray-50 cursor-pointer flex justify-between items-start transition-colors">
             <div>
               <h4 className="text-gray-500 text-sm font-medium mb-1 group-hover:text-blue-600">Stock Value</h4>
               <p className="text-gray-900 font-bold">OMR {stockValue.toFixed(0)}</p>
@@ -316,7 +318,7 @@ const Dashboard = () => {
             <span className="text-gray-400 text-xs">As of Now</span>
           </Link>
 
-          <Link to="/admin/accounting/chart-of-accounts" className="p-6 border-b border-gray-100 group hover:bg-gray-50 cursor-pointer flex justify-between items-start transition-colors">
+          <Link to="/admin/accounting/coa" className="p-6 border-b border-gray-100 group hover:bg-gray-50 cursor-pointer flex justify-between items-start transition-colors">
             <div>
               <h4 className="text-gray-500 text-sm font-medium mb-1 group-hover:text-blue-600">Cash in Hand</h4>
               <p className="text-gray-900 font-bold">OMR {cashInHand.toFixed(0)}</p>

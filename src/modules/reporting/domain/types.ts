@@ -18,7 +18,9 @@ export type InventoryReportItem = {
   sku: string;
   name: string;
   quantity: number;
+  unit_cost?: number;
   total_value: number; // based on FIFO cost
+  warehouse_breakdown?: { warehouse_name: string; quantity: number }[];
 };
 
 export type SalesReportItem = {
@@ -28,5 +30,6 @@ export type SalesReportItem = {
   customer: string;
   amount: number;
   status: string;
-  source: 'Invoice' | 'POS';
+  source: 'Order' | 'Invoice' | 'POS';
+  detail_url?: string;
 };

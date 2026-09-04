@@ -206,7 +206,7 @@ export default function PurchaseHistoryPage() {
                   <TableHead>Supplier</TableHead>
                   <TableHead>Date</TableHead>
                   <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Amount</TableHead>
+                  <TableHead className="text-right">Amount (OMR)</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
@@ -236,8 +236,8 @@ export default function PurchaseHistoryPage() {
                           {order.status}
                         </span>
                       </TableCell>
-                      <TableCell className="text-right font-bold">
-                        ${order.total_amount}
+                      <TableCell className="text-right font-bold font-mono">
+                        OMR {Number(order.total_amount || 0).toFixed(3)}
                       </TableCell>
                       <TableCell className="text-right">
                         <Link to={`/admin/purchase-orders/${order.id}`}>

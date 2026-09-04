@@ -44,8 +44,8 @@ export default function CustomerProfilePage() {
           </CardHeader>
           <CardContent>
             {isLoadingStats ? <Loader2 className="animate-spin w-5 h-5" /> : (
-              <div className="text-3xl font-bold text-red-600">
-                ${stats?.total_due?.toFixed(2) || '0.00'}
+              <div className="text-3xl font-bold text-red-600 font-mono">
+                OMR {(stats?.total_due ?? 0).toFixed(3)}
               </div>
             )}
             <p className="text-xs text-muted-foreground mt-1">Total unpaid invoices</p>
@@ -57,15 +57,15 @@ export default function CustomerProfilePage() {
             <CardTitle className="text-sm font-medium text-muted-foreground">Credit Limit</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold text-blue-600">
-              ${Number(customer.credit_limit).toFixed(2)}
+            <div className="text-3xl font-bold text-blue-600 font-mono">
+              OMR {Number(customer.credit_limit || 0).toFixed(3)}
             </div>
             {stats && (
-              <p className="text-xs text-muted-foreground mt-1">
+              <p className="text-xs text-muted-foreground mt-1 font-mono">
                 {stats.total_due > customer.credit_limit ? (
-                  <span className="text-red-500 font-semibold">Exceeded by ${(stats.total_due - customer.credit_limit).toFixed(2)}</span>
+                  <span className="text-red-500 font-semibold">Exceeded by OMR {(stats.total_due - customer.credit_limit).toFixed(3)}</span>
                 ) : (
-                  <span>Available: ${(customer.credit_limit - stats.total_due).toFixed(2)}</span>
+                  <span>Available: OMR {(customer.credit_limit - stats.total_due).toFixed(3)}</span>
                 )}
               </p>
             )}
@@ -78,8 +78,8 @@ export default function CustomerProfilePage() {
           </CardHeader>
           <CardContent>
             {isLoadingStats ? <Loader2 className="animate-spin w-5 h-5" /> : (
-              <div className="text-3xl font-bold text-green-600">
-                ${stats?.total_invoiced?.toFixed(2) || '0.00'}
+              <div className="text-3xl font-bold text-green-600 font-mono">
+                OMR {(stats?.total_invoiced ?? 0).toFixed(3)}
               </div>
             )}
             <p className="text-xs text-muted-foreground mt-1">From {stats?.total_orders || 0} total orders</p>
@@ -116,7 +116,7 @@ export default function CustomerProfilePage() {
                 <TableHead>Type</TableHead>
                 <TableHead>Reference Number</TableHead>
                 <TableHead>Status</TableHead>
-                <TableHead className="text-right">Amount</TableHead>
+                <TableHead className="text-right">Amount (OMR)</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -139,8 +139,8 @@ export default function CustomerProfilePage() {
                       {item.status}
                     </span>
                   </TableCell>
-                  <TableCell className="text-right font-bold text-foreground">
-                    ${item.amount.toFixed(2)}
+                  <TableCell className="text-right font-bold text-foreground font-mono">
+                    OMR {item.amount.toFixed(3)}
                   </TableCell>
                 </TableRow>
               ))}

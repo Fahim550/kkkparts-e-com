@@ -318,6 +318,10 @@ const App = () => (
                         element={<PosReceiptViewer />}
                       />
                       <Route
+                        path="pos/receipts/:id"
+                        element={<PosReceiptViewer />}
+                      />
+                      <Route
                         path="price-lists"
                         element={<PriceListsManager />}
                       />

@@ -45,10 +45,7 @@ import { useGoodsReceive } from "../hooks/useGoodsReceive";
 import { useInvoices } from "../hooks/useInvoices";
 
 // ── helpers ────────────────────────────────────────────────────────────────
-const fmt = (n: number) =>
-  new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(
-    n ?? 0,
-  );
+const fmt = (n: number) => `OMR ${(n ?? 0).toFixed(3)}`;
 
 const daysDue = (dueDate: string) => {
   const diff = Math.floor(

@@ -30,8 +30,8 @@ export default function FifoCostLayersPage() {
               <TableHead>Warehouse</TableHead>
               <TableHead className="text-right">Original Qty</TableHead>
               <TableHead className="text-right">Remaining Qty</TableHead>
-              <TableHead className="text-right">Unit Cost</TableHead>
-              <TableHead className="text-right">Current Value</TableHead>
+              <TableHead className="text-right">Unit Cost (OMR)</TableHead>
+              <TableHead className="text-right">Current Value (OMR)</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -53,9 +53,9 @@ export default function FifoCostLayersPage() {
                 <TableCell>{layer.warehouses?.name}</TableCell>
                 <TableCell className="text-right text-muted-foreground">{layer.original_quantity}</TableCell>
                 <TableCell className="text-right font-bold text-blue-600">{layer.quantity_remaining}</TableCell>
-                <TableCell className="text-right font-mono">${Number(layer.unit_cost).toFixed(2)}</TableCell>
-                <TableCell className="text-right font-bold">
-                  ${(Number(layer.quantity_remaining) * Number(layer.unit_cost)).toFixed(2)}
+                <TableCell className="text-right font-mono">OMR {Number(layer.unit_cost).toFixed(3)}</TableCell>
+                <TableCell className="text-right font-bold font-mono">
+                  OMR {(Number(layer.quantity_remaining) * Number(layer.unit_cost)).toFixed(3)}
                 </TableCell>
               </TableRow>
             ))}
