@@ -105,7 +105,7 @@ const navCategories = [
   {
     title: "Reports & Analytics",
     items: [
-      { path: "/admin/reports", label: "Dashboard KPIs", icon: TrendingUp },
+      { path: "/admin/reports", label: "Dashboard KPIs", icon: TrendingUp, exact: true },
       { path: "/admin/reports/sales", label: "Sales Report", icon: FileText },
       { path: "/admin/reports/inventory", label: "Inventory Report", icon: Package },
       { path: "/admin/analytics", label: "Analytics", icon: BarChart3 },
@@ -150,6 +150,24 @@ const navCategories = [
   }
 ];
 
+const isPathActive = (currentPath: string, path: string, exact?: boolean) => {
+  if (exact) {
+    return currentPath === path;
+  }
+  if (currentPath === path) return true;
+  if (currentPath.startsWith(path + "/")) {
+    const hasMoreSpecificMatch = navCategories.some(cat =>
+      cat.items.some(otherItem =>
+        otherItem.path !== path &&
+        otherItem.path.startsWith(path) &&
+        (currentPath === otherItem.path || currentPath.startsWith(otherItem.path + "/"))
+      )
+    );
+    return !hasMoreSpecificMatch;
+  }
+  return false;
+};
+
 const AdminLayout = () => {
   const location = useLocation();
   const [collapsed, setCollapsed] = useState(false);
@@ -164,7 +182,7 @@ const AdminLayout = () => {
   const [openCategories, setOpenCategories] = useState<Record<string, boolean>>(() => {
     const initialState: Record<string, boolean> = {};
     navCategories.forEach(cat => {
-      const hasActive = cat.items.some(item => location.pathname === item.path || (!item.exact && location.pathname.startsWith(item.path)));
+      const hasActive = cat.items.some(item => isPathActive(location.pathname, item.path, item.exact));
       if (hasActive) {
         initialState[cat.title] = true;
       }
@@ -182,6 +200,26 @@ const AdminLayout = () => {
     }));
   };
 
+  const isActive = (path: string, exact?: boolean) => {
+    return isPathActive(location.pathname, path, exact);
+  };
+
+  // Auto-expand category containing the active item when route changes or redirects
+  useEffect(() => {
+    navCategories.forEach(cat => {
+      const hasActive = cat.items.some(item => isPathActive(location.pathname, item.path, item.exact));
+      if (hasActive) {
+        setOpenCategories(prev => {
+          if (prev[cat.title]) return prev;
+          return {
+            ...prev,
+            [cat.title]: true
+          };
+        });
+      }
+    });
+  }, [location.pathname]);
+
   useEffect(() => {
     if (s?.favicon_url) {
       let link = document.querySelector("link[rel~='icon']") as HTMLLinkElement;
@@ -197,11 +235,6 @@ const AdminLayout = () => {
     }
   }, [s?.favicon_url, s?.site_name]);
 
-  const isActive = (path: string, exact?: boolean) => {
-    if (exact) return location.pathname === path;
-    return location.pathname.startsWith(path);
-  };
-
   const handleLogout = async () => {
     await signOut();
     window.location.href = "/admin/login";
@@ -213,19 +246,31 @@ const AdminLayout = () => {
         {navCategories.map((category, index) => {
           const isOpen = openCategories[category.title];
           const isCollapsed = !isMobile && collapsed;
+          const isCategoryActive = category.items.some(item => isActive(item.path, item.exact));
           
           return (
             <div key={category.title} className="space-y-1">
               {!isCollapsed && (
                 <button
                   onClick={() => toggleCategory(category.title)}
-                  className="w-full flex items-center justify-between px-3 py-2 text-xs font-semibold text-sidebar-foreground/50 uppercase tracking-wider hover:text-sidebar-foreground transition-colors group"
+                  className={`w-full flex items-center justify-between px-3 py-2 text-xs font-semibold uppercase tracking-wider transition-colors rounded-md group ${
+                    isCategoryActive
+                      ? "text-sidebar-primary font-bold bg-sidebar-primary/10"
+                      : "text-sidebar-foreground/50 hover:text-sidebar-foreground hover:bg-sidebar-accent/40"
+                  }`}
                 >
-                  <span className="group-hover:text-sidebar-primary transition-colors">{category.title}</span>
+                  <div className="flex items-center gap-2 min-w-0">
+                    {isCategoryActive && (
+                      <span className="w-1.5 h-1.5 rounded-full bg-sidebar-primary shrink-0" />
+                    )}
+                    <span className={`truncate ${isCategoryActive ? "text-sidebar-primary font-bold" : "group-hover:text-sidebar-primary transition-colors"}`}>
+                      {category.title}
+                    </span>
+                  </div>
                   {isOpen ? (
-                    <ChevronDown className="w-4 h-4" />
+                    <ChevronDown className={`w-4 h-4 shrink-0 transition-transform ${isCategoryActive ? "text-sidebar-primary" : ""}`} />
                   ) : (
-                    <ChevronRight className="w-4 h-4" />
+                    <ChevronRight className={`w-4 h-4 shrink-0 transition-transform ${isCategoryActive ? "text-sidebar-primary" : ""}`} />
                   )}
                 </button>
               )}
