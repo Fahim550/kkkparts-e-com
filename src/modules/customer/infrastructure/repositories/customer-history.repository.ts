@@ -120,4 +120,64 @@ export class CustomerHistoryRepository {
       total_orders: ordersCount || 0
     };
   }
+
+  static async getAllCustomersDueMap(): Promise<Record<string, number>> {
+    const { data: orders } = await supabase
+      .from("sales_orders")
+      .select("id, customer_id, total_amount, status");
+
+    const { data: invoices } = await supabase
+      .from("sales_invoices")
+      .select("id, customer_id, total_amount, status");
+
+    const allTx: { id: string; customer_id: string; amount: number; status: string }[] = [];
+    if (orders) {
+      orders.forEach((o) => {
+        if (!["cancelled", "void"].includes((o.status || "").toLowerCase()) && o.customer_id) {
+          allTx.push({ id: o.id, customer_id: o.customer_id, amount: Number(o.total_amount || 0), status: o.status });
+        }
+      });
+    }
+    if (invoices) {
+      invoices.forEach((i) => {
+        if (!["cancelled", "void"].includes((i.status || "").toLowerCase()) && i.customer_id) {
+          allTx.push({ id: i.id, customer_id: i.customer_id, amount: Number(i.total_amount || 0), status: i.status });
+        }
+      });
+    }
+
+    const dueMap: Record<string, number> = {};
+    if (allTx.length === 0) return dueMap;
+
+    const refIds = allTx.map((t) => t.id);
+    const { data: jeData } = await supabase
+      .from("journal_entries")
+      .select(`
+        reference_id,
+        journal_entry_lines (
+          debit_amount,
+          credit_amount,
+          narration
+        )
+      `)
+      .in("reference_id", refIds);
+
+    allTx.forEach((t) => {
+      let paid = 0;
+      if (jeData) {
+        const entry = jeData.find((j: any) => j.reference_id === t.id);
+        if (entry && entry.journal_entry_lines) {
+          entry.journal_entry_lines.forEach((l: any) => {
+            if (l.narration?.includes("- Paid")) {
+              paid += Number(l.debit_amount || l.credit_amount || 0);
+            }
+          });
+        }
+      }
+      const balance = (t.status?.toLowerCase() === "paid" && paid === 0) ? 0 : Math.max(0, t.amount - paid);
+      dueMap[t.customer_id] = (dueMap[t.customer_id] || 0) + balance;
+    });
+
+    return dueMap;
+  }
 }

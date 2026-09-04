@@ -31,4 +31,8 @@ export class CustomerService {
   static async getCustomerDueStats(id: string): Promise<CustomerDueStats> {
     return CustomerHistoryRepository.getDueStats(id);
   }
+
+  static async getAllCustomersDueMap(): Promise<Record<string, number>> {
+    return CustomerHistoryRepository.getAllCustomersDueMap();
+  }
 }

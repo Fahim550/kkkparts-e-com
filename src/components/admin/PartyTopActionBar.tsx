@@ -37,6 +37,7 @@ interface PartyTopActionBarProps {
   onDealerCreated?: (dealer: any) => void;
   onSupplierCreated?: (supplier: any) => void;
   onUserCreated?: (user: any) => void;
+  allowedModes?: ("customer" | "dealer" | "supplier" | "user")[];
   className?: string;
 }
 
@@ -45,6 +46,7 @@ export const PartyTopActionBar = ({
   onDealerCreated,
   onSupplierCreated,
   onUserCreated,
+  allowedModes,
   className = "",
 }: PartyTopActionBarProps) => {
   const queryClient = useQueryClient();
@@ -422,44 +424,52 @@ export const PartyTopActionBar = ({
   return (
     <div className={`flex items-center gap-2 flex-wrap ${className}`}>
       {/* Button 1: Add Customer */}
-      <Button
-        type="button"
-        onClick={() => setCustomerModalOpen(true)}
-        className="bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 rounded-full h-9 px-3.5 text-xs font-semibold shadow-none transition-all flex items-center gap-1.5"
-      >
-        <UserPlus className="w-3.5 h-3.5 text-emerald-600" />
-        Add Customer
-      </Button>
+      {(!allowedModes || allowedModes.includes("customer")) && (
+        <Button
+          type="button"
+          onClick={() => setCustomerModalOpen(true)}
+          className="bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 rounded-full h-9 px-3.5 text-xs font-semibold shadow-none transition-all flex items-center gap-1.5"
+        >
+          <UserPlus className="w-3.5 h-3.5 text-emerald-600" />
+          Add Customer
+        </Button>
+      )}
 
       {/* Button 2: Add Dealer */}
-      <Button
-        type="button"
-        onClick={() => setDealerModalOpen(true)}
-        className="bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200 rounded-full h-9 px-3.5 text-xs font-semibold shadow-none transition-all flex items-center gap-1.5"
-      >
-        <Building2 className="w-3.5 h-3.5 text-blue-600" />
-        Add Dealer
-      </Button>
+      {(!allowedModes || allowedModes.includes("dealer")) && (
+        <Button
+          type="button"
+          onClick={() => setDealerModalOpen(true)}
+          className="bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200 rounded-full h-9 px-3.5 text-xs font-semibold shadow-none transition-all flex items-center gap-1.5"
+        >
+          <Building2 className="w-3.5 h-3.5 text-blue-600" />
+          Add Dealer
+        </Button>
+      )}
 
       {/* Button 3: Add Supplier */}
-      <Button
-        type="button"
-        onClick={() => setSupplierModalOpen(true)}
-        className="bg-amber-50 text-amber-700 hover:bg-amber-100 border border-amber-200 rounded-full h-9 px-3.5 text-xs font-semibold shadow-none transition-all flex items-center gap-1.5"
-      >
-        <Truck className="w-3.5 h-3.5 text-amber-600" />
-        Add Supplier
-      </Button>
+      {(!allowedModes || allowedModes.includes("supplier")) && (
+        <Button
+          type="button"
+          onClick={() => setSupplierModalOpen(true)}
+          className="bg-amber-50 text-amber-700 hover:bg-amber-100 border border-amber-200 rounded-full h-9 px-3.5 text-xs font-semibold shadow-none transition-all flex items-center gap-1.5"
+        >
+          <Truck className="w-3.5 h-3.5 text-amber-600" />
+          Add Supplier
+        </Button>
+      )}
 
       {/* Button 4: Create User */}
-      <Button
-        type="button"
-        onClick={() => setUserModalOpen(true)}
-        className="bg-purple-50 text-purple-700 hover:bg-purple-100 border border-purple-200 rounded-full h-9 px-3.5 text-xs font-semibold shadow-none transition-all flex items-center gap-1.5"
-      >
-        <UserCog className="w-3.5 h-3.5 text-purple-600" />
-        Create User
-      </Button>
+      {(!allowedModes || allowedModes.includes("user")) && (
+        <Button
+          type="button"
+          onClick={() => setUserModalOpen(true)}
+          className="bg-purple-50 text-purple-700 hover:bg-purple-100 border border-purple-200 rounded-full h-9 px-3.5 text-xs font-semibold shadow-none transition-all flex items-center gap-1.5"
+        >
+          <UserCog className="w-3.5 h-3.5 text-purple-600" />
+          Create User
+        </Button>
+      )}
 
       {/* -------------------- MODAL 1: ADD CUSTOMER -------------------- */}
       <Dialog open={customerModalOpen} onOpenChange={setCustomerModalOpen}>

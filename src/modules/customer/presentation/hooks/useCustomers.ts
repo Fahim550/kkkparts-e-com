@@ -76,3 +76,11 @@ export const useCustomerHistory = (customerId: string) => {
     isLoadingStats: statsQuery.isLoading,
   };
 };
+
+export const useCustomerDues = () => {
+  return useQuery({
+    queryKey: ["customer-dues"],
+    queryFn: () => CustomerService.getAllCustomersDueMap(),
+    staleTime: 1000 * 30,
+  });
+};
