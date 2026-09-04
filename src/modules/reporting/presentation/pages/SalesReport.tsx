@@ -1,7 +1,13 @@
-import React, { useState, useMemo } from "react";
-import { Link } from "react-router-dom";
-import { useSalesReport } from "../hooks/useReporting";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Table,
   TableBody,
@@ -11,29 +17,23 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Input } from "@/components/ui/input";
-import {
-  Loader2,
-  FileText,
-  Monitor,
   ArrowDownToLine,
-  Search,
-  ShoppingBag,
-  DollarSign,
-  Receipt,
-  X,
   Calendar,
-  ExternalLink,
   ChevronLeft,
   ChevronRight,
+  DollarSign,
+  ExternalLink,
+  FileText,
+  Loader2,
+  Monitor,
+  Receipt,
+  Search,
+  ShoppingBag,
+  X,
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { useMemo, useState } from "react";
+import { Link } from "react-router-dom";
+import { useSalesReport } from "../hooks/useReporting";
 
 export default function SalesReport() {
   const { data: sales, isLoading } = useSalesReport();
@@ -104,11 +104,17 @@ export default function SalesReport() {
   const metrics = useMemo(() => {
     const list = filteredSales;
     const totalRevenue = list.reduce((sum, s) => sum + (s.amount || 0), 0);
+    const totalCost = list.reduce((sum, s) => sum + (s.cost || 0), 0);
+    const netProfit = totalRevenue - totalCost;
+    const margin = totalRevenue > 0 ? ((netProfit / totalRevenue) * 100).toFixed(1) : "0.0";
     const orderSales = list.filter((s) => s.source === "Order").reduce((sum, s) => sum + (s.amount || 0), 0);
     const posSales = list.filter((s) => s.source === "POS").reduce((sum, s) => sum + (s.amount || 0), 0);
     const invoiceSales = list.filter((s) => s.source === "Invoice").reduce((sum, s) => sum + (s.amount || 0), 0);
     return {
       totalRevenue,
+      totalCost,
+      netProfit,
+      margin,
       orderSales,
       posSales,
       invoiceSales,
@@ -125,11 +131,11 @@ export default function SalesReport() {
 
   const handleExport = () => {
     if (!filteredSales || filteredSales.length === 0) return;
-    const headers = "Date,Reference,Customer,Source,Status,Amount (OMR)\n";
+    const headers = "Date,Reference,Customer,Source,Status,Sales Price (OMR),Purchase Cost (OMR),Profit/Loss (OMR)\n";
     const rows = filteredSales
       .map(
         (s) =>
-          `"${new Date(s.date).toLocaleString()}","${s.reference}","${s.customer}","${s.source}","${s.status}",${s.amount.toFixed(3)}`
+          `"${new Date(s.date).toLocaleString()}","${s.reference}","${s.customer}","${s.source}","${s.status}",${s.amount.toFixed(3)},${s.cost.toFixed(3)},${s.profit.toFixed(3)}`
       )
       .join("\n");
     const blob = new Blob([headers + rows], { type: "text/csv;charset=utf-8;" });
@@ -173,53 +179,75 @@ export default function SalesReport() {
 
       {/* Dynamic Summary KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card className="bg-white shadow-sm border">
+        {/* Total Sales Card - Light Blue */}
+        <Card className="bg-blue-50/70 border-blue-200/80 shadow-sm hover:shadow transition-shadow">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-gray-500">Filtered Sales Revenue</CardTitle>
-            <DollarSign className="w-4 h-4 text-emerald-600" />
+            <CardTitle className="text-sm font-semibold text-blue-900">Total Sales</CardTitle>
+            <div className="w-8 h-8 rounded-md bg-blue-100 flex items-center justify-center text-blue-700">
+              <DollarSign className="w-4 h-4" />
+            </div>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-gray-900">OMR {metrics.totalRevenue.toFixed(3)}</div>
-            <p className="text-xs text-muted-foreground mt-1">{metrics.count} transactions in selection</p>
+            <div className="text-2xl font-bold text-blue-950">OMR {metrics.totalRevenue.toFixed(3)}</div>
+            <p className="text-xs text-blue-700/90 mt-1">{metrics.count} transactions in selection</p>
           </CardContent>
         </Card>
 
-        <Card className="bg-white shadow-sm border">
+        {/* Total Cost (Purchase Price) Card - Light Amber */}
+        <Card className="bg-amber-50/70 border-amber-200/80 shadow-sm hover:shadow transition-shadow">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-gray-500">Customer Orders</CardTitle>
-            <ShoppingBag className="w-4 h-4 text-blue-600" />
+            <CardTitle className="text-sm font-semibold text-amber-900">Purchase Cost (COGS)</CardTitle>
+            <div className="w-8 h-8 rounded-md bg-amber-100 flex items-center justify-center text-amber-700">
+              <ShoppingBag className="w-4 h-4" />
+            </div>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-blue-600">OMR {metrics.orderSales.toFixed(3)}</div>
-            <p className="text-xs text-muted-foreground mt-1">Direct sales orders</p>
+            <div className="text-2xl font-bold text-amber-950">OMR {metrics.totalCost.toFixed(3)}</div>
+            <p className="text-xs text-amber-700/90 mt-1">Total product buying costs</p>
           </CardContent>
         </Card>
 
-        <Card className="bg-white shadow-sm border">
+        {/* Net Profit / Loss Card */}
+        <Card className={`${metrics.netProfit >= 0 ? "bg-emerald-50/70 border-emerald-200/80" : "bg-red-50/70 border-red-200/80"} shadow-sm hover:shadow transition-shadow`}>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-gray-500">POS Store Sales</CardTitle>
-            <Monitor className="w-4 h-4 text-indigo-600" />
+            <CardTitle className={`text-sm font-semibold ${metrics.netProfit >= 0 ? "text-emerald-900" : "text-red-900"}`}>
+              {metrics.netProfit >= 0 ? "Net Profit" : "Net Loss"}
+            </CardTitle>
+            <div className={`w-8 h-8 rounded-md ${metrics.netProfit >= 0 ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-700"} flex items-center justify-center`}>
+              <Monitor className="w-4 h-4" />
+            </div>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-indigo-600">OMR {metrics.posSales.toFixed(3)}</div>
-            <p className="text-xs text-muted-foreground mt-1">Counter walk-in receipts</p>
+            <div className={`text-2xl font-bold ${metrics.netProfit >= 0 ? "text-emerald-950" : "text-red-950"}`}>
+              {metrics.netProfit < 0 ? `-OMR ${Math.abs(metrics.netProfit).toFixed(3)}` : `OMR ${metrics.netProfit.toFixed(3)}`}
+            </div>
+            <p className={`text-xs ${metrics.netProfit >= 0 ? "text-emerald-700/90" : "text-red-700/90"} mt-1`}>
+              Sales minus all item costs
+            </p>
           </CardContent>
         </Card>
 
-        <Card className="bg-white shadow-sm border">
+        {/* Net Margin Card */}
+        <Card className="bg-purple-50/70 border-purple-200/80 shadow-sm hover:shadow transition-shadow">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-gray-500">Sales Invoices</CardTitle>
-            <Receipt className="w-4 h-4 text-purple-600" />
+            <CardTitle className="text-sm font-semibold text-purple-900">Profit Margin</CardTitle>
+            <div className="w-8 h-8 rounded-md bg-purple-100 flex items-center justify-center text-purple-700">
+              <Receipt className="w-4 h-4" />
+            </div>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-purple-600">OMR {metrics.invoiceSales.toFixed(3)}</div>
-            <p className="text-xs text-muted-foreground mt-1">Direct billed invoices</p>
+            <div className={`text-2xl font-bold ${Number(metrics.margin) >= 0 ? "text-purple-950" : "text-red-700"}`}>
+              {metrics.margin}%
+            </div>
+            <p className="text-xs text-purple-700/90 mt-1">
+              {Number(metrics.margin) >= 0 ? "Overall net margin" : "Negative return"}
+            </p>
           </CardContent>
         </Card>
       </div>
 
       {/* Filter Toolbar */}
-      <div className="bg-white p-4 border rounded-lg shadow-sm space-y-3">
+      <div className="bg-slate-50/80 border border-slate-200 p-4 rounded-lg shadow-sm space-y-3">
         {/* Row 1: Search, Source, Status */}
         <div className="flex flex-wrap gap-3 items-center">
           <div className="relative flex-1 min-w-[200px]">
@@ -353,7 +381,7 @@ export default function SalesReport() {
       </div>
 
       {/* Transactions Table */}
-      <Card className="bg-white shadow-sm border">
+      <Card className="bg-slate-50/50 border border-slate-200 shadow-sm">
         <CardHeader className="pb-3 flex flex-row items-center justify-between">
           <CardTitle className="text-base font-semibold">
             Transactions ({filteredSales.length})
@@ -372,7 +400,8 @@ export default function SalesReport() {
                   <TableHead>Reference</TableHead>
                   <TableHead>Customer</TableHead>
                   <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Amount (OMR)</TableHead>
+                  <TableHead className="text-right">Sales Price</TableHead>
+                  <TableHead className="text-right min-w-[140px]">Cost & Profit</TableHead>
                   <TableHead className="text-center w-16">Action</TableHead>
                 </TableRow>
               </TableHeader>
@@ -435,6 +464,23 @@ export default function SalesReport() {
                     <TableCell className="text-right font-bold text-gray-900 font-mono">
                       OMR {item.amount.toFixed(3)}
                     </TableCell>
+                    {/* Cost & Profit in the SAME column */}
+                    <TableCell className="text-right">
+                      <div className="flex flex-col items-end">
+                        <span className="text-xs text-muted-foreground font-mono">
+                          Cost: OMR {item.cost.toFixed(3)}
+                        </span>
+                        {item.profit >= 0 ? (
+                          <span className="text-xs font-semibold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded inline-flex items-center gap-0.5 mt-0.5 font-mono">
+                            +OMR {item.profit.toFixed(3)}
+                          </span>
+                        ) : (
+                          <span className="text-xs font-semibold text-red-700 bg-red-50 px-1.5 py-0.5 rounded inline-flex items-center gap-0.5 mt-0.5 font-mono">
+                            -OMR {Math.abs(item.profit).toFixed(3)} (Loss)
+                          </span>
+                        )}
+                      </div>
+                    </TableCell>
                     <TableCell className="text-center">
                       {item.detail_url && (
                         <Link to={item.detail_url}>
@@ -448,7 +494,7 @@ export default function SalesReport() {
                 ))}
                 {filteredSales.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center py-10 text-muted-foreground">
+                    <TableCell colSpan={8} className="text-center py-10 text-muted-foreground">
                       No sales transactions found matching your criteria.
                     </TableCell>
                   </TableRow>

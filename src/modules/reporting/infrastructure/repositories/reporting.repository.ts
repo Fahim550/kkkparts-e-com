@@ -2,41 +2,116 @@ import { supabase } from "@/integrations/supabase/client";
 import { DashboardMetrics, SalesReportItem, InventoryReportItem, SalesChartData } from "../../domain/types";
 
 export class ReportingRepository {
+  /**
+   * Helper to build a unit cost map for all product variations.
+   * Priority: FIFO active lot unit cost -> product original_price -> product price -> 0
+   */
+  private static async getVariationCostMap(): Promise<Map<string, number>> {
+    const [{ data: fifoLedgers }, { data: variations }] = await Promise.all([
+      supabase.from("fifo_ledgers").select("variation_id, unit_cost").gt("quantity_remaining", 0),
+      supabase.from("product_variations").select("id, products(price, original_price)")
+    ]);
+
+    const varCostMap = new Map<string, number>();
+    fifoLedgers?.forEach((f) => {
+      if (!varCostMap.has(f.variation_id)) {
+        varCostMap.set(f.variation_id, Number(f.unit_cost || 0));
+      }
+    });
+    variations?.forEach((v) => {
+      if (!varCostMap.has(v.id)) {
+        const p = v.products as any;
+        varCostMap.set(v.id, Number(p?.original_price || p?.price || 0));
+      }
+    });
+    return varCostMap;
+  }
+
   static async getDashboardMetrics(): Promise<DashboardMetrics> {
     const today = new Date();
     const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1, 0, 0, 0).toISOString();
 
-    // 1. Sales (Invoices + Standalone Orders + POS Receipts)
-    // Avoid double-counting orders that already have an invoice
+    // 1. Sales & Items with Costs
     const [
       { data: invoices },
       { data: orders },
-      { data: receipts }
+      { data: receipts },
+      { data: cogsEntries },
+      varCostMap
     ] = await Promise.all([
       supabase
         .from("sales_invoices")
-        .select("total_amount, sales_order_id, status")
+        .select("id, total_amount, sales_order_id, status, created_at, sales_invoice_items(variation_id, quantity_billed)")
         .gte("created_at", firstDayOfMonth)
         .neq("status", "Cancelled"),
       supabase
         .from("sales_orders")
-        .select("id, total_amount, status")
+        .select("id, total_amount, status, created_at, sales_order_items(variation_id, quantity_ordered)")
         .gte("created_at", firstDayOfMonth)
         .not("status", "in", '("cancelled","draft")'),
       supabase
         .from("pos_receipts")
-        .select("total_amount, status")
+        .select("id, total_amount, status, created_at, pos_receipt_items(variation_id, quantity)")
         .gte("created_at", firstDayOfMonth)
-        .not("status", "in", '("cancelled","void")')
+        .not("status", "in", '("cancelled","void")'),
+      supabase
+        .from("cogs_entries")
+        .select("outbound_reference_id, total_cogs")
+        .gte("created_at", firstDayOfMonth),
+      ReportingRepository.getVariationCostMap()
     ]);
+
+    const receiptCogsMap = new Map<string, number>();
+    cogsEntries?.forEach((c) => {
+      if (c.outbound_reference_id) {
+        const prev = receiptCogsMap.get(c.outbound_reference_id) || 0;
+        receiptCogsMap.set(c.outbound_reference_id, prev + Number(c.total_cogs || 0));
+      }
+    });
 
     const invoicedOrderIds = new Set(invoices?.map((i) => i.sales_order_id).filter(Boolean));
     const nonInvoicedOrders = orders?.filter((o) => !invoicedOrderIds.has(o.id)) || [];
 
-    const total_sales =
-      (invoices?.reduce((sum, i) => sum + Number(i.total_amount || 0), 0) || 0) +
-      (nonInvoicedOrders.reduce((sum, o) => sum + Number(o.total_amount || 0), 0) || 0) +
-      (receipts?.reduce((sum, r) => sum + Number(r.total_amount || 0), 0) || 0);
+    // Calculate revenue & cost for invoices
+    let invoiceSales = 0;
+    let invoiceCost = 0;
+    invoices?.forEach((inv) => {
+      invoiceSales += Number(inv.total_amount || 0);
+      const cost = (inv.sales_invoice_items as any[])?.reduce((sum, item) => {
+        return sum + Number(item.quantity_billed || 0) * (varCostMap.get(item.variation_id) || 0);
+      }, 0) || 0;
+      invoiceCost += cost;
+    });
+
+    // Calculate revenue & cost for standalone orders
+    let orderSales = 0;
+    let orderCost = 0;
+    nonInvoicedOrders.forEach((o) => {
+      orderSales += Number(o.total_amount || 0);
+      const cost = (o.sales_order_items as any[])?.reduce((sum, item) => {
+        return sum + Number(item.quantity_ordered || 0) * (varCostMap.get(item.variation_id) || 0);
+      }, 0) || 0;
+      orderCost += cost;
+    });
+
+    // Calculate revenue & cost for POS receipts
+    let posSales = 0;
+    let posCost = 0;
+    receipts?.forEach((r) => {
+      posSales += Number(r.total_amount || 0);
+      let cost = receiptCogsMap.get(r.id);
+      if (cost === undefined) {
+        cost = (r.pos_receipt_items as any[])?.reduce((sum, item) => {
+          return sum + Number(item.quantity || 0) * (varCostMap.get(item.variation_id) || 0);
+        }, 0) || 0;
+      }
+      posCost += cost;
+    });
+
+    const total_sales = invoiceSales + orderSales + posSales;
+    const total_cogs = invoiceCost + orderCost + posCost;
+    // Net profit accounts for both profitable orders and losses (order profit or loss count)
+    const total_profit = total_sales - total_cogs;
 
     // 2. Purchases (Purchase Invoices + Received PO Receipts not yet invoiced)
     const [
@@ -62,16 +137,6 @@ export class ReportingRepository {
       (piList?.reduce((sum, p) => sum + Number(p.total_amount || 0), 0) || 0) +
       (unbilledReceipts.reduce((sum, p) => sum + Number(p.total_amount || 0), 0) || 0);
 
-    // 3. Profit (Sales - COGS)
-    // Note: Column in cogs_entries is total_cogs
-    const { data: cogs } = await supabase
-      .from("cogs_entries")
-      .select("total_cogs")
-      .gte("created_at", firstDayOfMonth);
-
-    const total_cogs = cogs?.reduce((sum, c: any) => sum + Number(c.total_cogs || 0), 0) || 0;
-    const total_profit = Math.max(0, total_sales - total_cogs);
-
     // 4. Inventory Value (FIFO Cost Layers if active, otherwise cost * stock)
     const { data: fifoLayers } = await supabase
       .from("fifo_ledgers")
@@ -87,11 +152,11 @@ export class ReportingRepository {
     } else {
       const { data: products } = await supabase
         .from("products")
-        .select("cost_price, original_price, price, stock");
+        .select("original_price, price");
       inventory_value =
         products?.reduce((sum: number, p: any) => {
-          const unitCost = Number(p.cost_price || p.original_price || 0);
-          return sum + unitCost * Number(p.stock || 0);
+          const unitCost = Number(p.original_price || p.price || 0);
+          return sum + unitCost;
         }, 0) || 0;
     }
 
@@ -111,6 +176,7 @@ export class ReportingRepository {
       total_sales,
       total_purchases,
       total_profit,
+      total_cogs,
       inventory_value,
       active_customers: customers || 0,
       low_stock_items: lowStock || 0,
@@ -124,33 +190,42 @@ export class ReportingRepository {
     startDate.setDate(now.getDate() - (days - 1));
     startDate.setHours(0, 0, 0, 0);
 
-    // Run 4 batched queries for the entire 7-day period (1 round-trip) instead of 28 sequential queries
     const [
       { data: invoices },
       { data: orders },
       { data: receipts },
-      { data: cogs }
+      { data: cogsEntries },
+      varCostMap
     ] = await Promise.all([
       supabase
         .from("sales_invoices")
-        .select("total_amount, sales_order_id, created_at, status")
+        .select("id, total_amount, sales_order_id, created_at, status, sales_invoice_items(variation_id, quantity_billed)")
         .gte("created_at", startDate.toISOString())
         .neq("status", "Cancelled"),
       supabase
         .from("sales_orders")
-        .select("id, total_amount, created_at, status")
+        .select("id, total_amount, created_at, status, sales_order_items(variation_id, quantity_ordered)")
         .gte("created_at", startDate.toISOString())
         .not("status", "in", '("cancelled","draft")'),
       supabase
         .from("pos_receipts")
-        .select("total_amount, created_at, status")
+        .select("id, total_amount, created_at, status, pos_receipt_items(variation_id, quantity)")
         .gte("created_at", startDate.toISOString())
         .not("status", "in", '("cancelled","void")'),
       supabase
         .from("cogs_entries")
-        .select("total_cogs, created_at")
-        .gte("created_at", startDate.toISOString())
+        .select("outbound_reference_id, total_cogs, created_at")
+        .gte("created_at", startDate.toISOString()),
+      ReportingRepository.getVariationCostMap()
     ]);
+
+    const receiptCogsMap = new Map<string, number>();
+    cogsEntries?.forEach((c) => {
+      if (c.outbound_reference_id) {
+        const prev = receiptCogsMap.get(c.outbound_reference_id) || 0;
+        receiptCogsMap.set(c.outbound_reference_id, prev + Number(c.total_cogs || 0));
+      }
+    });
 
     const invoicedOrderIds = new Set(invoices?.map((i) => i.sales_order_id).filter(Boolean));
 
@@ -168,6 +243,10 @@ export class ReportingRepository {
       const key = inv.created_at?.split("T")[0];
       if (key && dayBuckets[key]) {
         dayBuckets[key].sales += Number(inv.total_amount || 0);
+        const cost = (inv.sales_invoice_items as any[])?.reduce((sum, item) => {
+          return sum + Number(item.quantity_billed || 0) * (varCostMap.get(item.variation_id) || 0);
+        }, 0) || 0;
+        dayBuckets[key].cogs += cost;
       }
     });
 
@@ -176,6 +255,10 @@ export class ReportingRepository {
         const key = o.created_at?.split("T")[0];
         if (key && dayBuckets[key]) {
           dayBuckets[key].sales += Number(o.total_amount || 0);
+          const cost = (o.sales_order_items as any[])?.reduce((sum, item) => {
+            return sum + Number(item.quantity_ordered || 0) * (varCostMap.get(item.variation_id) || 0);
+          }, 0) || 0;
+          dayBuckets[key].cogs += cost;
         }
       }
     });
@@ -184,20 +267,21 @@ export class ReportingRepository {
       const key = r.created_at?.split("T")[0];
       if (key && dayBuckets[key]) {
         dayBuckets[key].sales += Number(r.total_amount || 0);
-      }
-    });
-
-    cogs?.forEach((c: any) => {
-      const key = c.created_at?.split("T")[0];
-      if (key && dayBuckets[key]) {
-        dayBuckets[key].cogs += Number(c.total_cogs || 0);
+        let cost = receiptCogsMap.get(r.id);
+        if (cost === undefined) {
+          cost = (r.pos_receipt_items as any[])?.reduce((sum, item) => {
+            return sum + Number(item.quantity || 0) * (varCostMap.get(item.variation_id) || 0);
+          }, 0) || 0;
+        }
+        dayBuckets[key].cogs += cost;
       }
     });
 
     return Object.values(dayBuckets).map((b) => ({
       date: b.label,
       sales: b.sales,
-      profit: Math.max(0, b.sales - b.cogs),
+      cost: b.cogs,
+      profit: b.sales - b.cogs,
     }));
   }
 
@@ -205,38 +289,58 @@ export class ReportingRepository {
     const [
       { data: orders },
       { data: invoices },
-      { data: receipts }
+      { data: receipts },
+      { data: cogsEntries },
+      varCostMap
     ] = await Promise.all([
       supabase
         .from("sales_orders")
-        .select("id, so_number, order_date, created_at, total_amount, status, customers(name)")
+        .select("id, so_number, order_date, created_at, total_amount, status, customers(name), sales_order_items(variation_id, quantity_ordered)")
         .not("status", "in", '("cancelled","draft")')
         .order("created_at", { ascending: false })
         .limit(200),
       supabase
         .from("sales_invoices")
-        .select("id, invoice_number, invoice_date, created_at, total_amount, status, customers(name), sales_order_id")
+        .select("id, invoice_number, invoice_date, created_at, total_amount, status, customers(name), sales_order_id, sales_invoice_items(variation_id, quantity_billed)")
         .neq("status", "Cancelled")
         .order("created_at", { ascending: false })
         .limit(200),
       supabase
         .from("pos_receipts")
-        .select("id, receipt_number, transaction_date, created_at, total_amount, status, walk_in_customer_name, customers(name)")
+        .select("id, receipt_number, transaction_date, created_at, total_amount, status, walk_in_customer_name, customers(name), pos_receipt_items(variation_id, quantity)")
         .not("status", "in", '("cancelled","void")')
         .order("created_at", { ascending: false })
-        .limit(200)
+        .limit(200),
+      supabase
+        .from("cogs_entries")
+        .select("outbound_reference_id, total_cogs"),
+      ReportingRepository.getVariationCostMap()
     ]);
+
+    const receiptCogsMap = new Map<string, number>();
+    cogsEntries?.forEach((c) => {
+      if (c.outbound_reference_id) {
+        const prev = receiptCogsMap.get(c.outbound_reference_id) || 0;
+        receiptCogsMap.set(c.outbound_reference_id, prev + Number(c.total_cogs || 0));
+      }
+    });
 
     const report: SalesReportItem[] = [];
 
     if (invoices) {
       invoices.forEach((i) => {
+        const amount = Number(i.total_amount || 0);
+        const cost = (i.sales_invoice_items as any[])?.reduce((sum, item) => {
+          return sum + Number(item.quantity_billed || 0) * (varCostMap.get(item.variation_id) || 0);
+        }, 0) || 0;
         report.push({
           id: i.id,
           date: i.invoice_date || i.created_at || new Date().toISOString(),
           reference: i.invoice_number,
           customer: (i.customers as any)?.name || "Customer",
-          amount: Number(i.total_amount || 0),
+          amount,
+          cost,
+          profit: amount - cost,
           status: i.status || "Pending",
           source: "Invoice",
           detail_url: `/admin/orders`,
@@ -248,14 +352,19 @@ export class ReportingRepository {
 
     if (orders) {
       orders.forEach((o) => {
-        // Mark orders that have been invoiced, or include direct non-invoiced orders
         const isInvoiced = invoicedOrderIds.has(o.id);
+        const amount = Number(o.total_amount || 0);
+        const cost = (o.sales_order_items as any[])?.reduce((sum, item) => {
+          return sum + Number(item.quantity_ordered || 0) * (varCostMap.get(item.variation_id) || 0);
+        }, 0) || 0;
         report.push({
           id: o.id,
           date: o.order_date || o.created_at || new Date().toISOString(),
           reference: o.so_number,
           customer: (o.customers as any)?.name || "Customer",
-          amount: Number(o.total_amount || 0),
+          amount,
+          cost,
+          profit: amount - cost,
           status: isInvoiced ? "Invoiced" : o.status || "Pending",
           source: "Order",
           detail_url: `/admin/orders/${o.id}`,
@@ -265,12 +374,21 @@ export class ReportingRepository {
 
     if (receipts) {
       receipts.forEach((r) => {
+        const amount = Number(r.total_amount || 0);
+        let cost = receiptCogsMap.get(r.id);
+        if (cost === undefined) {
+          cost = (r.pos_receipt_items as any[])?.reduce((sum, item) => {
+            return sum + Number(item.quantity || 0) * (varCostMap.get(item.variation_id) || 0);
+          }, 0) || 0;
+        }
         report.push({
           id: r.id,
           date: r.transaction_date || r.created_at || new Date().toISOString(),
           reference: r.receipt_number,
           customer: (r.customers as any)?.name || r.walk_in_customer_name || "Walk-in Customer",
-          amount: Number(r.total_amount || 0),
+          amount,
+          cost,
+          profit: amount - cost,
           status: r.status || "Paid",
           source: "POS",
           detail_url: `/admin/pos/receipt/${r.id}`,
@@ -281,6 +399,7 @@ export class ReportingRepository {
     report.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
     return report;
   }
+
 
   static async getInventoryReport(): Promise<InventoryReportItem[]> {
     // 1. Fetch FIFO layers with correct columns: quantity_remaining & unit_cost

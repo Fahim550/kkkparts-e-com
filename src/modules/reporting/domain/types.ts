@@ -2,6 +2,7 @@ export type DashboardMetrics = {
   total_sales: number;
   total_purchases: number;
   total_profit: number;
+  total_cogs?: number;
   inventory_value: number;
   active_customers: number;
   low_stock_items: number;
@@ -11,6 +12,7 @@ export type SalesChartData = {
   date: string;
   sales: number;
   profit: number;
+  cost?: number;
 };
 
 export type InventoryReportItem = {
@@ -29,7 +31,10 @@ export type SalesReportItem = {
   reference: string;
   customer: string;
   amount: number;
+  cost: number;
+  profit: number;
   status: string;
   source: 'Order' | 'Invoice' | 'POS';
   detail_url?: string;
 };
+

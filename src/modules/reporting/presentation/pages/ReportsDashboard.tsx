@@ -58,14 +58,20 @@ export default function ReportsDashboard() {
           </Card>
         </Link>
 
-        <Card className="shadow-sm">
+        <Card className={`shadow-sm transition-all ${totalProfit < 0 ? "border-red-200 bg-red-50/20" : ""}`}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Gross Profit (MTD)</CardTitle>
-            <TrendingUp className="h-4 w-4 text-emerald-600" />
+            <CardTitle className={`text-sm font-medium ${totalProfit < 0 ? "text-red-700" : ""}`}>
+              {totalProfit < 0 ? "Net Loss (MTD)" : "Gross Profit (MTD)"}
+            </CardTitle>
+            <TrendingUp className={`h-4 w-4 ${totalProfit >= 0 ? "text-emerald-600" : "text-red-600 rotate-180"}`} />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-emerald-600">OMR {totalProfit.toFixed(3)}</div>
-            <p className="text-xs text-muted-foreground mt-1">Margin: {grossMargin}% (Sales minus COGS)</p>
+            <div className={`text-2xl font-bold ${totalProfit >= 0 ? "text-emerald-600" : "text-red-600"}`}>
+              {totalProfit < 0 ? `-OMR ${Math.abs(totalProfit).toFixed(3)}` : `OMR ${totalProfit.toFixed(3)}`}
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">
+              Margin: {grossMargin}% ({totalProfit >= 0 ? "Profit" : "Loss: Buying cost exceeds sales"})
+            </p>
           </CardContent>
         </Card>
 
@@ -172,7 +178,7 @@ export default function ReportsDashboard() {
                 <Tooltip
                   formatter={(value: any, name: any) => [
                     `OMR ${Number(value || 0).toFixed(3)}`,
-                    name === "sales" ? "Sales Revenue" : "Gross Profit",
+                    name === "sales" ? "Sales Revenue" : Number(value) >= 0 ? "Gross Profit" : "Net Loss",
                   ]}
                   contentStyle={{
                     borderRadius: "8px",
