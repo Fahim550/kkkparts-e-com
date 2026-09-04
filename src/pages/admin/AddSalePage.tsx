@@ -26,7 +26,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { AccountingEngine } from "@/modules/accounting/application/services/accounting.engine";
 import { useCustomers } from "@/modules/customer/presentation/hooks/useCustomers";
 import { useUOMs } from "@/modules/product/presentation/hooks/useUOMs";
-import { Loader2, Plus, Trash2 } from "lucide-react";
+import { Building2, Loader2, Plus, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 
@@ -210,12 +210,16 @@ export default function AddSalePage() {
     
     if (product) {
       let isLastRow = false;
+      const currentCust = customers?.find(c => c.id === customerId);
+      const isDealer = currentCust?.customer_group === "Dealer";
+      const dealerPrice = product.dealer_price && Number(product.dealer_price) > 0 ? Number(product.dealer_price) : null;
+      const price = Number((isDealer && dealerPrice != null) ? dealerPrice : (variation?.sell_price || variation?.price || product.price || 0));
+
       const updatedItems = items.map((item, index) => {
         if (item.id === id) {
           if (index === items.length - 1) {
             isLastRow = true;
           }
-          const price = Number(variation?.sell_price || variation?.price || product.price || 0);
           const qty = item.qty === 0 ? 1 : (item.qty || 1);
           return {
             ...item,
@@ -488,6 +492,40 @@ export default function AddSalePage() {
     );
   }
 
+  const handleCustomerChange = (val: string, newCust?: any) => {
+    setCustomerId(val);
+    const cust = newCust || customers?.find(c => c.id === val);
+    if (cust && cust.contact_phone) setPhone(cust.contact_phone);
+
+    if (cust?.customer_group === "Dealer") {
+      const hasValidItems = items.some(i => i.variation_id);
+      if (hasValidItems) {
+        setItems(prev => prev.map(item => {
+          if (!item.variation_id) return item;
+          const prod = products.find(p => p.product_variations?.some((v: any) => v.id === item.variation_id) || p.id === item.variation_id);
+          const dPrice = prod?.dealer_price && Number(prod.dealer_price) > 0 ? Number(prod.dealer_price) : null;
+          if (dPrice != null) {
+            const baseAmt = item.qty * dPrice;
+            const dAmt = item.discountPct ? baseAmt * (item.discountPct / 100) : item.discountAmt;
+            const afterDiscount = baseAmt - dAmt;
+            const tAmt = item.taxPct ? afterDiscount * (item.taxPct / 100) : item.taxAmt;
+            return {
+              ...item,
+              price: dPrice,
+              discountAmt: dAmt,
+              taxAmt: tAmt,
+              amount: afterDiscount + tAmt,
+            };
+          }
+          return item;
+        }));
+        toast({ title: "Dealer Selected", description: "Wholesale dealer pricing automatically applied to eligible items." });
+      }
+    }
+  };
+
+  const selectedParty = customers?.find(c => c.id === customerId);
+
   return (
     <div className="space-y-6 max-w-[1200px] mx-auto pb-20">
       <div className="flex items-center justify-between">
@@ -497,16 +535,20 @@ export default function AddSalePage() {
       <div className="bg-card border rounded-lg p-6 space-y-6 shadow-sm">
         {/* Header Fields */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-          <div className="space-y-2">
-            <Label className="text-xs font-semibold text-muted-foreground uppercase">Customer *</Label>
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <Label className="text-xs font-semibold text-muted-foreground uppercase">Customer *</Label>
+              {selectedParty?.customer_group === "Dealer" && (
+                <span className="text-[10px] bg-blue-100 text-blue-800 border border-blue-200 px-1.5 py-0.5 rounded font-semibold uppercase tracking-wider flex items-center gap-1">
+                  <Building2 className="w-3 h-3" />
+                  Dealer Pricing
+                </span>
+              )}
+            </div>
             <CustomerCombobox
               customers={customers || []}
               value={customerId}
-              onChange={(val, newCust) => {
-                setCustomerId(val);
-                const cust = newCust || customers?.find(c => c.id === val);
-                if (cust && cust.contact_phone) setPhone(cust.contact_phone);
-              }}
+              onChange={handleCustomerChange}
             />
           </div>
           
