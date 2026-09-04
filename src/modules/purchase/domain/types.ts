@@ -6,6 +6,10 @@ type PublicSchema = Database["public"]["Tables"];
 export type PurchaseOrder = PublicSchema["purchase_orders"]["Row"] & {
   suppliers?: PublicSchema["suppliers"]["Row"];
   purchase_order_items?: PurchaseOrderItem[];
+  paid_amount?: number;
+  balance_due?: number;
+  payment_type?: string;
+  type?: string;
 };
 export type PurchaseOrderItem = PublicSchema["purchase_order_items"]["Row"] & {
   product_variations?: any; // Simplified for UI

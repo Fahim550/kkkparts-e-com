@@ -330,6 +330,10 @@ const App = () => (
                         element={<DiscountRulesManager />}
                       />
                       <Route
+                        path="purchases"
+                        element={<PurchaseOrdersPage />}
+                      />
+                      <Route
                         path="purchase-orders"
                         element={<PurchaseOrdersPage />}
                       />
