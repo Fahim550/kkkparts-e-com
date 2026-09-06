@@ -10,7 +10,17 @@ import {
   useOrders,
   useUpdateOrderStatus,
 } from "@/hooks/useDatabase";
-import { Eye, Printer, Trash2, Truck } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Eye, Loader2, Printer, Trash2, Truck } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
@@ -56,16 +66,20 @@ const DealerOrdersManager = () => {
     }
   };
 
-  const handleDelete = async (id: string, orderNumber: string) => {
-    if (
-      !window.confirm(`Are you sure you want to delete order ${orderNumber}?`)
-    )
-      return;
+  const [orderToDelete, setOrderToDelete] = useState<{ id: string; orderNumber: string } | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  const handleConfirmDelete = async () => {
+    if (!orderToDelete) return;
+    setIsDeleting(true);
     try {
-      await deleteOrder.mutateAsync(id);
-      toast.success(`Order ${orderNumber} deleted`);
+      await deleteOrder.mutateAsync(orderToDelete.id);
+      toast.success(`Order ${orderToDelete.orderNumber} deleted and reversed successfully`);
+      setOrderToDelete(null);
     } catch {
       toast.error("Failed to delete order");
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -176,7 +190,7 @@ const DealerOrdersManager = () => {
                   <Button
                     variant="destructive"
                     size="sm"
-                    onClick={() => handleDelete(order.id, order.order_number)}
+                    onClick={() => setOrderToDelete({ id: order.id, orderNumber: order.order_number })}
                     className="gap-1.5"
                   >
                     <Trash2 className="h-3.5 w-3.5" />
@@ -231,6 +245,64 @@ const DealerOrdersManager = () => {
           );
         })}
       </div>
+
+      {/* Modern In-App Confirmation Dialog for Delete */}
+      <AlertDialog
+        open={!!orderToDelete}
+        onOpenChange={(open) => {
+          if (!open && !isDeleting) setOrderToDelete(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2 text-destructive">
+              <Trash2 className="w-5 h-5" />
+              Delete Dealer Order
+            </AlertDialogTitle>
+            <AlertDialogDescription className="space-y-3 pt-2 text-left">
+              {orderToDelete && (
+                <>
+                  <p className="text-foreground text-sm">
+                    Are you sure you want to delete order{" "}
+                    <strong className="font-semibold text-foreground">
+                      {orderToDelete.orderNumber}
+                    </strong>
+                    ?
+                  </p>
+                  <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-md text-destructive text-xs space-y-1 font-medium">
+                    <p className="font-bold flex items-center gap-1.5">
+                      ⚠️ Automatic System Reversal
+                    </p>
+                    <p>Deleting this order will automatically:</p>
+                    <ul className="list-disc pl-4 space-y-0.5 text-destructive/90">
+                      <li>Restore deducted product quantities back to warehouse inventory</li>
+                      <li>Remove stock out ledger entries and restore FIFO cost layers</li>
+                      <li>Reverse dealer dues and void general ledger journal entries</li>
+                    </ul>
+                  </div>
+                </>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={isDeleting}
+              onClick={handleConfirmDelete}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {isDeleting ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                "Delete Order"
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

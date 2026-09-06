@@ -16,6 +16,16 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   Edit,
   Eye,
   FileSpreadsheet,
@@ -52,21 +62,19 @@ export default function PurchaseOrdersPage() {
   const { orders, isLoading, deleteOrder } = usePurchaseOrders(filters);
   const { suppliers } = useSuppliers();
 
-  const handleDelete = async (order: any) => {
-    const isReceived =
-      order.status?.toLowerCase() === "received" ||
-      order.status?.toLowerCase() === "partially received";
+  const [orderToDelete, setOrderToDelete] = useState<any | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
-    const confirmMessage = isReceived
-      ? `Are you sure you want to delete ${order.po_number}? WARNING: Goods were received for this order. Deleting it will reverse the warehouse stock, delete goods receipts, and cancel supplier due payment.`
-      : `Are you sure you want to delete ${order.po_number}? This will cancel the purchase and reverse supplier due payment.`;
-
-    if (!window.confirm(confirmMessage)) return;
-
+  const handleConfirmDelete = async () => {
+    if (!orderToDelete) return;
+    setIsDeleting(true);
     try {
-      await deleteOrder({ id: order.id, type: order.type });
+      await deleteOrder({ id: orderToDelete.id, type: orderToDelete.type });
+      setOrderToDelete(null);
     } catch {
       // Toast is handled by hook
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -634,7 +642,7 @@ export default function PurchaseOrdersPage() {
                             variant="ghost"
                             size="icon"
                             className="h-8 w-8 text-rose-500 hover:text-rose-700 hover:bg-rose-50"
-                            onClick={() => handleDelete(order)}
+                            onClick={() => setOrderToDelete(order)}
                             title="Delete Purchase Order"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
@@ -659,6 +667,73 @@ export default function PurchaseOrdersPage() {
           </Table>
         </div>
       </div>
+
+      {/* Modern In-App Confirmation Dialog for Delete */}
+      <AlertDialog
+        open={!!orderToDelete}
+        onOpenChange={(open) => {
+          if (!open && !isDeleting) setOrderToDelete(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2 text-destructive">
+              <Trash2 className="w-5 h-5" />
+              Delete Purchase Order
+            </AlertDialogTitle>
+            <AlertDialogDescription className="space-y-3 pt-2 text-left">
+              {orderToDelete && (
+                <>
+                  <p className="text-foreground text-sm">
+                    Are you sure you want to delete purchase order{" "}
+                    <strong className="font-semibold text-foreground">
+                      {orderToDelete.po_number || orderToDelete.order_number}
+                    </strong>
+                    ?
+                  </p>
+                  {orderToDelete.status?.toLowerCase() === "received" ||
+                  orderToDelete.status?.toLowerCase() === "partially received" ? (
+                    <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-md text-destructive text-xs space-y-1 font-medium">
+                      <p className="font-bold flex items-center gap-1.5">
+                        ⚠️ Warning: Goods Have Been Received
+                      </p>
+                      <p>
+                        Deleting this order will automatically execute a full system reversal:
+                      </p>
+                      <ul className="list-disc pl-4 space-y-0.5 text-destructive/90">
+                        <li>Deduct received items from warehouse inventory balances</li>
+                        <li>Delete Goods Receipt Notes (GRN) & FIFO cost ledgers</li>
+                        <li>Reverse supplier accounts payable and outstanding dues</li>
+                      </ul>
+                    </div>
+                  ) : (
+                    <p className="text-xs text-muted-foreground">
+                      This will cancel the purchase order and reverse any supplier dues or accounting entries created for it.
+                    </p>
+                  )}
+                </>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={isDeleting}
+              onClick={handleConfirmDelete}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {isDeleting ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                "Delete Order"
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

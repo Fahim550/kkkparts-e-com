@@ -16,9 +16,20 @@ import {
   Calendar,
   AlertCircle,
   FileText,
+  Loader2,
 } from "lucide-react";
 import DirhamIcon from "@/components/DirhamIcon";
 import { toast } from "sonner";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 const defaultDemoOrders = [
   {
@@ -53,18 +64,20 @@ export default function DealerOrdersPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
-  const handleDelete = async (id: string, orderNumber: string) => {
-    if (
-      !window.confirm(
-        `Are you sure you want to remove order ${orderNumber} from your history?`,
-      )
-    )
-      return;
+  const [orderToDelete, setOrderToDelete] = useState<{ id: string; orderNumber: string } | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  const handleConfirmDelete = async () => {
+    if (!orderToDelete) return;
+    setIsDeleting(true);
     try {
-      await deleteDealerOrder.mutateAsync(id);
+      await deleteDealerOrder.mutateAsync(orderToDelete.id);
       toast.success("Order removed from history");
+      setOrderToDelete(null);
     } catch {
       toast.error("Failed to remove order");
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -261,8 +274,8 @@ export default function DealerOrdersPage() {
                               )}
                             </button>
                             <button
-                              onClick={() => handleDelete(o.id, o.order_number || o.id)}
-                              disabled={deleteDealerOrder.isPending}
+                              onClick={() => setOrderToDelete({ id: o.id, orderNumber: o.order_number || o.id })}
+                              disabled={deleteDealerOrder.isPending || isDeleting}
                               className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors inline-flex items-center"
                               title="Delete from history"
                             >
@@ -318,6 +331,64 @@ export default function DealerOrdersPage() {
           )}
         </div>
       </div>
+
+      {/* Modern In-App Confirmation Dialog for Delete */}
+      <AlertDialog
+        open={!!orderToDelete}
+        onOpenChange={(open) => {
+          if (!open && !isDeleting) setOrderToDelete(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2 text-red-600">
+              <Trash2 className="w-5 h-5" />
+              Remove Order
+            </AlertDialogTitle>
+            <AlertDialogDescription className="space-y-3 pt-2 text-left">
+              {orderToDelete && (
+                <>
+                  <p className="text-gray-800 text-sm">
+                    Are you sure you want to remove order{" "}
+                    <strong className="font-semibold text-gray-950">
+                      {orderToDelete.orderNumber}
+                    </strong>{" "}
+                    from your history?
+                  </p>
+                  <div className="p-3 bg-red-50 border border-red-200 rounded-md text-red-700 text-xs space-y-1 font-medium">
+                    <p className="font-bold flex items-center gap-1.5">
+                      ⚠️ Automatic System Reversal
+                    </p>
+                    <p>Deleting this order will automatically:</p>
+                    <ul className="list-disc pl-4 space-y-0.5 text-red-600">
+                      <li>Restore reserved product quantities to warehouse inventory</li>
+                      <li>Reverse outstanding order dues</li>
+                      <li>Remove order records from dealer portal</li>
+                    </ul>
+                  </div>
+                </>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={isDeleting}
+              onClick={handleConfirmDelete}
+              className="bg-red-600 text-white hover:bg-red-700"
+            >
+              {isDeleting ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Removing...
+                </>
+              ) : (
+                "Remove Order"
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </DealerLayout>
   );
 }
