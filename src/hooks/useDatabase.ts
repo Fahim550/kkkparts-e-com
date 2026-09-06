@@ -400,10 +400,95 @@ export const useAddOrder = () => {
   });
 };
 
+export const reverseOrderSideEffects = async (orderId: string) => {
+  // 1. Reverse Inventory Stock: Restore products back into the warehouse
+  try {
+    const { data: previousLedgers } = await supabase
+      .from("stock_ledgers")
+      .select("*")
+      .eq("reference_type", "sales_order")
+      .eq("reference_id", orderId);
+
+    if (previousLedgers && previousLedgers.length > 0) {
+      const { StockRepository } = await import("@/modules/warehouse/infrastructure/repositories/stock.repository");
+      for (const ledger of previousLedgers) {
+        const absQty = Math.abs(Number(ledger.quantity));
+        const currentBal = await StockRepository.getBalance(
+          ledger.warehouse_id,
+          ledger.variation_id,
+          ledger.bin_id || null,
+          null
+        );
+        const restoredQty = (currentBal ? currentBal.quantity : 0) + absQty;
+        await StockRepository.upsertBalance({
+          warehouse_id: ledger.warehouse_id,
+          variation_id: ledger.variation_id,
+          bin_id: ledger.bin_id || null,
+          batch_number: null,
+          quantity: restoredQty,
+        });
+      }
+
+      // Restore FIFO cost layers if any were consumed
+      const { data: cogsEntries } = await supabase
+        .from("cogs_entries")
+        .select("*")
+        .eq("outbound_reference_type", "sales_order")
+        .eq("outbound_reference_id", orderId);
+
+      if (cogsEntries && cogsEntries.length > 0) {
+        for (const cogs of cogsEntries) {
+          const { data: layer } = await supabase
+            .from("fifo_ledgers")
+            .select("quantity_remaining")
+            .eq("id", cogs.fifo_ledger_id)
+            .single();
+
+          if (layer) {
+            await supabase
+              .from("fifo_ledgers")
+              .update({
+                quantity_remaining: Number(layer.quantity_remaining) + Number(cogs.quantity_deducted),
+              })
+              .eq("id", cogs.fifo_ledger_id);
+          }
+        }
+        await supabase
+          .from("cogs_entries")
+          .delete()
+          .eq("outbound_reference_type", "sales_order")
+          .eq("outbound_reference_id", orderId);
+      }
+
+      // Delete the outbound stock ledger records
+      await supabase
+        .from("stock_ledgers")
+        .delete()
+        .eq("reference_type", "sales_order")
+        .eq("reference_id", orderId);
+    }
+  } catch (invRevError) {
+    console.error("Failed to restore inventory for sales order:", invRevError);
+  }
+
+  // 2. Reverse Accounting: Cancel Customer Due and Sales Revenue
+  try {
+    const { AccountingEngine } = await import("@/modules/accounting/application/services/accounting.engine");
+    await AccountingEngine.reverseSalesOrder(orderId);
+  } catch (accRevError) {
+    console.error("Failed to reverse accounting for sales order:", accRevError);
+  }
+};
+
 export const useUpdateOrderStatus = () => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ id, status }: { id: string; status: string }) => {
+      // If order is being cancelled, reverse stock and customer due
+      if (status.toLowerCase() === "cancelled") {
+        await reverseOrderSideEffects(id);
+      }
+
       const { error } = await supabase
         .from("sales_orders")
         .update({ status })
@@ -413,6 +498,17 @@ export const useUpdateOrderStatus = () => {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["orders"] });
       qc.invalidateQueries({ queryKey: ["sales_orders"] });
+      qc.invalidateQueries({ queryKey: ["products"] });
+      qc.invalidateQueries({ queryKey: ["products", "active"] });
+      qc.invalidateQueries({ queryKey: ["stock_balances"] });
+      qc.invalidateQueries({ queryKey: ["stock-balances"] });
+      qc.invalidateQueries({ queryKey: ["stock_ledgers"] });
+      qc.invalidateQueries({ queryKey: ["fifo_ledgers"] });
+      qc.invalidateQueries({ queryKey: ["trial-balance"] });
+      qc.invalidateQueries({ queryKey: ["customers"] });
+      qc.invalidateQueries({ queryKey: ["customer-history"] });
+      qc.invalidateQueries({ queryKey: ["customer-dues"] });
+      qc.invalidateQueries({ queryKey: ["receivables"] });
     },
   });
 };
@@ -421,7 +517,10 @@ export const useDeleteOrder = () => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (id: string) => {
-      // Clean up order items first to prevent foreign key constraint violations
+      // 1. Revert Inventory stock and Accounting entries
+      await reverseOrderSideEffects(id);
+
+      // 2. Clean up order items first to prevent foreign key constraint violations
       const { error: itemsError } = await supabase
         .from("sales_order_items")
         .delete()
@@ -429,7 +528,7 @@ export const useDeleteOrder = () => {
         
       if (itemsError) throw itemsError;
 
-      // Delete the sales order
+      // 3. Delete the sales order
       const { error } = await supabase
         .from("sales_orders")
         .delete()
@@ -440,6 +539,17 @@ export const useDeleteOrder = () => {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["orders"] });
       qc.invalidateQueries({ queryKey: ["sales_orders"] });
+      qc.invalidateQueries({ queryKey: ["products"] });
+      qc.invalidateQueries({ queryKey: ["products", "active"] });
+      qc.invalidateQueries({ queryKey: ["stock_balances"] });
+      qc.invalidateQueries({ queryKey: ["stock-balances"] });
+      qc.invalidateQueries({ queryKey: ["stock_ledgers"] });
+      qc.invalidateQueries({ queryKey: ["fifo_ledgers"] });
+      qc.invalidateQueries({ queryKey: ["trial-balance"] });
+      qc.invalidateQueries({ queryKey: ["customers"] });
+      qc.invalidateQueries({ queryKey: ["customer-history"] });
+      qc.invalidateQueries({ queryKey: ["customer-dues"] });
+      qc.invalidateQueries({ queryKey: ["receivables"] });
     },
   });
 };
@@ -448,7 +558,10 @@ export const useDealerDeleteOrder = () => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (id: string) => {
-      // Clean up order items first to prevent foreign key constraint violations
+      // 1. Revert Inventory stock and Accounting entries
+      await reverseOrderSideEffects(id);
+
+      // 2. Clean up order items first to prevent foreign key constraint violations
       const { error: itemsError } = await supabase
         .from("sales_order_items")
         .delete()
@@ -456,7 +569,7 @@ export const useDealerDeleteOrder = () => {
         
       if (itemsError) throw itemsError;
 
-      // Delete the sales order
+      // 3. Delete the sales order
       const { error } = await supabase
         .from("sales_orders")
         .delete()
@@ -467,6 +580,17 @@ export const useDealerDeleteOrder = () => {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["orders"] });
       qc.invalidateQueries({ queryKey: ["sales_orders"] });
+      qc.invalidateQueries({ queryKey: ["products"] });
+      qc.invalidateQueries({ queryKey: ["products", "active"] });
+      qc.invalidateQueries({ queryKey: ["stock_balances"] });
+      qc.invalidateQueries({ queryKey: ["stock-balances"] });
+      qc.invalidateQueries({ queryKey: ["stock_ledgers"] });
+      qc.invalidateQueries({ queryKey: ["fifo_ledgers"] });
+      qc.invalidateQueries({ queryKey: ["trial-balance"] });
+      qc.invalidateQueries({ queryKey: ["customers"] });
+      qc.invalidateQueries({ queryKey: ["customer-history"] });
+      qc.invalidateQueries({ queryKey: ["customer-dues"] });
+      qc.invalidateQueries({ queryKey: ["receivables"] });
     },
   });
 };

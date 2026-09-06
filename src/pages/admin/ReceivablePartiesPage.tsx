@@ -354,7 +354,8 @@ const ReceivablePartiesPage = () => {
       }
 
       try {
-        await supabase.from("journal_entries").delete().eq("reference_id", item.id);
+        const { AccountingEngine } = await import("@/modules/accounting/application/services/accounting.engine");
+        await AccountingEngine.reverseSalesOrder(item.id);
       } catch (e) {
         console.warn("Journal entry deletion notice:", e);
       }
