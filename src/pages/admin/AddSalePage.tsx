@@ -26,6 +26,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { AccountingEngine } from "@/modules/accounting/application/services/accounting.engine";
 import { useCustomers } from "@/modules/customer/presentation/hooks/useCustomers";
 import { useUOMs } from "@/modules/product/presentation/hooks/useUOMs";
+import { useWarehouses } from "@/modules/warehouse/presentation/hooks/useWarehouses";
+import { useQueryClient } from "@tanstack/react-query";
 import { Building2, Loader2, Plus, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
@@ -37,14 +39,17 @@ export default function AddSalePage() {
   const editType = searchParams.get("type"); // "Sales Order" or "Sales Invoice"
   const isEditing = !!editId;
 
+  const queryClient = useQueryClient();
   const { toast } = useToast();
   const { customers } = useCustomers();
   const { data: products = [] } = useProducts();
   const { data: uoms = [] } = useUOMs();
+  const { warehouses = [] } = useWarehouses();
   const { mutateAsync: createOrder, isPending: isCreating } = useAddOrder();
 
   const [customerId, setCustomerId] = useState("");
   const [phone, setPhone] = useState("");
+  const [warehouseId, setWarehouseId] = useState("");
   const [invoiceNumber, setInvoiceNumber] = useState("");
   const [invoiceDate, setInvoiceDate] = useState(
     new Date().toISOString().split("T")[0]
@@ -64,6 +69,13 @@ export default function AddSalePage() {
   ]);
 
   const [isFetchingData, setIsFetchingData] = useState(false);
+
+  // Default to first active warehouse if available and not set
+  useEffect(() => {
+    if (warehouses && warehouses.length > 0 && !warehouseId && !editId) {
+      setWarehouseId(warehouses[0].id);
+    }
+  }, [warehouses, warehouseId, editId]);
 
   useEffect(() => {
     if (editId) {
@@ -87,6 +99,20 @@ export default function AddSalePage() {
             setInvoiceNumber(data.so_number || data.invoice_number || "");
             setInvoiceDate(data.order_date || data.invoice_date || data.created_at?.split('T')[0] || "");
             
+            // Try resolving warehouse from existing stock ledger for this sale
+            const { data: ledgerData } = await supabase
+              .from("stock_ledgers")
+              .select("warehouse_id")
+              .eq("reference_id", editId)
+              .limit(1)
+              .maybeSingle();
+
+            if (ledgerData?.warehouse_id) {
+              setWarehouseId(ledgerData.warehouse_id);
+            } else if (warehouses && warehouses.length > 0) {
+              setWarehouseId(warehouses[0].id);
+            }
+
             // Always query the journal entry for the actual amount paid
             const { data: jeData } = await supabase
               .from("journal_entries")
@@ -322,6 +348,11 @@ export default function AddSalePage() {
       toast({ variant: "destructive", title: "Error", description: "Please select a customer." });
       return;
     }
+
+    if (!warehouseId) {
+      toast({ variant: "destructive", title: "Error", description: "Please select a warehouse." });
+      return;
+    }
     
     const validItems = items.filter(i => i.variation_id && i.qty > 0);
     if (validItems.length === 0) {
@@ -391,11 +422,44 @@ export default function AddSalePage() {
 
         if (updateError) throw updateError;
 
+        // 1. Reverse previous inventory movements for this sale order
+        try {
+          const { data: previousLedgers } = await supabase
+            .from("stock_ledgers")
+            .select("*")
+            .eq("reference_type", "sales_order")
+            .eq("reference_id", editId);
+
+          if (previousLedgers && previousLedgers.length > 0) {
+            const { StockRepository } = await import("@/modules/warehouse/infrastructure/repositories/stock.repository");
+            for (const ledger of previousLedgers) {
+              const absQty = Math.abs(Number(ledger.quantity));
+              const currentBal = await StockRepository.getBalance(
+                ledger.warehouse_id,
+                ledger.variation_id,
+                ledger.bin_id || null,
+                null
+              );
+              const restoredQty = (currentBal ? currentBal.quantity : 0) + absQty;
+              await StockRepository.upsertBalance({
+                warehouse_id: ledger.warehouse_id,
+                variation_id: ledger.variation_id,
+                bin_id: ledger.bin_id || null,
+                batch_number: null,
+                quantity: restoredQty,
+              });
+            }
+            await supabase
+              .from("stock_ledgers")
+              .delete()
+              .eq("reference_type", "sales_order")
+              .eq("reference_id", editId);
+          }
+        } catch (invRevError) {
+          console.error("Failed to reverse previous inventory for edited sale:", invRevError);
+        }
+
         // For items, easiest is to delete all and insert new ones
-        const itemsTableName = editType === "Sales Invoice" ? "sales_invoice_items" : "sales_order_items";
-        const foreignKeyColumn = editType === "Sales Invoice" ? "sales_invoice_id" : "sales_order_id";
-        
-        // Skip items update for invoices if schema varies significantly, but let's try standard mapping
         if (tableName === "sales_orders") {
           const { error: deleteError } = await supabase
             .from("sales_order_items")
@@ -404,12 +468,13 @@ export default function AddSalePage() {
             
           if (deleteError) throw deleteError;
           
-          const fallbackUomId = uoms && uoms.length > 0 ? uoms[0].id : undefined;
+          const fallbackUomId = uoms && uoms.length > 0 ? uoms[0].id : "00000000-0000-0000-0000-000000000000";
 
           const itemsToInsert = validItems.map(item => ({
             sales_order_id: editId,
             variation_id: item.variation_id,
             quantity_ordered: item.qty,
+            quantity_delivered: item.qty,
             unit_price: item.price,
             total_price: item.amount,
             discount_amount: 0,
@@ -421,6 +486,20 @@ export default function AddSalePage() {
             .insert(itemsToInsert);
             
           if (insertItemsError) throw insertItemsError;
+
+          // Deduct new inventory movements for the updated sale
+          const { InventoryEngine } = await import("@/modules/inventory/application/services/inventory.engine");
+          for (const item of validItems) {
+            await InventoryEngine.processMovement({
+              variation_id: item.variation_id,
+              warehouse_id: warehouseId,
+              uom_id: item.uom && item.uom !== "NONE" ? item.uom : fallbackUomId,
+              quantity: -item.qty,
+              reference_type: "sales_order",
+              reference_id: editId,
+              unit_cost: 0,
+            });
+          }
         }
 
         // 3. Update accounting: reverse old entry and post new one
@@ -447,14 +526,24 @@ export default function AddSalePage() {
           );
         } catch (accError) {
           console.error("Failed to update accounting for edited sale:", accError);
-          // Non-fatal, just log it. The app doesn't have strict transaction boundaries.
         }
+
+        queryClient.invalidateQueries({ queryKey: ["orders"] });
+        queryClient.invalidateQueries({ queryKey: ["sales_orders"] });
+        queryClient.invalidateQueries({ queryKey: ["products"] });
+        queryClient.invalidateQueries({ queryKey: ["products", "active"] });
+        queryClient.invalidateQueries({ queryKey: ["stock_balances"] });
+        queryClient.invalidateQueries({ queryKey: ["stock-balances"] });
+        queryClient.invalidateQueries({ queryKey: ["fifo_ledgers"] });
+        queryClient.invalidateQueries({ queryKey: ["stock_ledgers"] });
 
         toast({ title: "Success", description: "Transaction updated successfully." });
         navigate(-1);
       } else {
+        const fallbackUomId = uoms && uoms.length > 0 ? uoms[0].id : "00000000-0000-0000-0000-000000000000";
         await createOrder({
           customer_id: finalCustomerId,
+          warehouse_id: warehouseId,
           total: totalAmount.toString(),
           subtotal: (totalAmount + totalDiscount - totalTax).toString(),
           discount_amount: totalDiscount.toString(),
@@ -471,10 +560,11 @@ export default function AddSalePage() {
           items: validItems.map(item => ({
             product_variation_id: item.variation_id,
             quantity: item.qty,
+            uom_id: item.uom && item.uom !== "NONE" ? item.uom : fallbackUomId,
             unit_price: item.price.toString(),
             total_price: item.amount.toString(),
           }))
-        });
+        } as any);
         
         toast({ title: "Success", description: "Sale created successfully." });
         navigate("/admin/orders");
@@ -534,8 +624,8 @@ export default function AddSalePage() {
 
       <div className="bg-card border rounded-lg p-6 space-y-6 shadow-sm">
         {/* Header Fields */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-          <div className="space-y-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+          <div className="space-y-2">
             <div className="flex items-center justify-between">
               <Label className="text-xs font-semibold text-muted-foreground uppercase">Customer *</Label>
               {selectedParty?.customer_group === "Dealer" && (
@@ -560,6 +650,22 @@ export default function AddSalePage() {
               placeholder="Phone number"
               className="bg-background"
             />
+          </div>
+
+          <div className="space-y-2">
+            <Label className="text-xs font-semibold text-muted-foreground uppercase">Warehouse *</Label>
+            <Select value={warehouseId} onValueChange={setWarehouseId}>
+              <SelectTrigger className="bg-background">
+                <SelectValue placeholder="Select Warehouse" />
+              </SelectTrigger>
+              <SelectContent>
+                {warehouses.map((wh) => (
+                  <SelectItem key={wh.id} value={wh.id}>
+                    {wh.name} {wh.code ? `(${wh.code})` : ""}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           <div className="space-y-2">
@@ -622,6 +728,7 @@ export default function AddSalePage() {
                     <ProductCombobox 
                       products={products}
                       value={item.variation_id}
+                      warehouseId={warehouseId}
                       onChange={(v, directVar, directProd) => handleProductSelect(item.id, v, directVar, directProd)}
                     />
                   </TableCell>

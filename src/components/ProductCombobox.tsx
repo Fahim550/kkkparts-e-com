@@ -21,9 +21,10 @@ interface ProductComboboxProps {
   products: any[]
   value: string
   onChange: (value: string, variation?: any, product?: any) => void
+  warehouseId?: string
 }
 
-export function ProductCombobox({ products, value, onChange }: ProductComboboxProps) {
+export function ProductCombobox({ products, value, onChange, warehouseId }: ProductComboboxProps) {
   const [open, setOpen] = React.useState(false)
   const [createModalOpen, setCreateModalOpen] = React.useState(false)
   const [inputValue, setInputValue] = React.useState("")
@@ -34,17 +35,25 @@ export function ProductCombobox({ products, value, onChange }: ProductComboboxPr
     const list: any[] = []
     products.forEach(p => {
       p.product_variations?.forEach((v: any) => {
-        // Now stock_balances comes directly from v.stock_balances
+        // Stock balances comes directly from v.stock_balances
         const variationStocks = v.stock_balances || []
         const totalStock = variationStocks.reduce((sum: number, s: any) => sum + Number(s.quantity || 0), 0)
-        const locations = Array.from(new Set(variationStocks.map((s: any) => s.warehouse_bins?.name).filter(Boolean))).join(", ")
+        const displayStock = warehouseId
+          ? variationStocks
+              .filter((s: any) => s.warehouse_id === warehouseId)
+              .reduce((sum: number, s: any) => sum + Number(s.quantity || 0), 0)
+          : totalStock
+        const relevantStocks = warehouseId
+          ? variationStocks.filter((s: any) => s.warehouse_id === warehouseId)
+          : variationStocks
+        const locations = Array.from(new Set(relevantStocks.map((s: any) => s.warehouse_bins?.name).filter(Boolean))).join(", ")
 
         list.push({
           id: v.id,
           name: `${p.name} ${v.sku ? `(${v.sku})` : ''}`,
           salePrice: Number(v.sell_price || v.price || p.price || 0),
           purchasePrice: Number(v.cost_price || p.original_price || p.price || 0),
-          stock: totalStock, 
+          stock: displayStock, 
           location: locations || "-", 
           productId: p.id,
           rawProduct: p,
@@ -53,7 +62,7 @@ export function ProductCombobox({ products, value, onChange }: ProductComboboxPr
       })
     })
     return list
-  }, [products])
+  }, [products, warehouseId])
 
   const selected = variations.find(v => v.id === value)
 

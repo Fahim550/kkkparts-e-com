@@ -320,10 +320,11 @@ export const useAddOrder = () => {
           sales_order_id: insertedOrderId,
           variation_id: item.product_variation_id,
           quantity_ordered: item.quantity,
+          quantity_delivered: item.quantity,
           unit_price: Number(item.unit_price),
           total_price: Number(item.total_price),
           discount_amount: 0,
-          uom_id: fallbackUomId,
+          uom_id: item.uom_id || fallbackUomId,
         }));
         
         const { error: itemsError } = await supabase
@@ -333,6 +334,28 @@ export const useAddOrder = () => {
         if (itemsError) {
           console.error("Failed to insert sales order items:", itemsError);
           throw new Error("Failed to insert items: " + itemsError.message);
+        }
+
+        // Inventory Integration: Deduct stock from selected warehouse
+        const warehouseId = (order as any).warehouse_id;
+        if (warehouseId) {
+          const { InventoryEngine } = await import("@/modules/inventory/application/services/inventory.engine");
+          for (const item of orderItems) {
+            try {
+              await InventoryEngine.processMovement({
+                variation_id: item.product_variation_id,
+                warehouse_id: warehouseId,
+                uom_id: item.uom_id || fallbackUomId,
+                quantity: -Number(item.quantity),
+                reference_type: "sales_order",
+                reference_id: insertedOrderId,
+                unit_cost: 0,
+              });
+            } catch (invError: any) {
+              console.error("Failed to process inventory movement for sales order item:", invError);
+              throw invError;
+            }
+          }
         }
       }
 
@@ -367,6 +390,12 @@ export const useAddOrder = () => {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["orders"] });
       qc.invalidateQueries({ queryKey: ["sales_orders"] });
+      qc.invalidateQueries({ queryKey: ["products"] });
+      qc.invalidateQueries({ queryKey: ["products", "active"] });
+      qc.invalidateQueries({ queryKey: ["stock_balances"] });
+      qc.invalidateQueries({ queryKey: ["stock-balances"] });
+      qc.invalidateQueries({ queryKey: ["fifo_ledgers"] });
+      qc.invalidateQueries({ queryKey: ["stock_ledgers"] });
     },
   });
 };
