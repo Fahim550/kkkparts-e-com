@@ -319,6 +319,7 @@ export default function PurchaseOrdersPage() {
               <SelectItem value="Draft">Draft</SelectItem>
               <SelectItem value="Pending">Pending</SelectItem>
               <SelectItem value="Confirmed">Confirmed</SelectItem>
+              <SelectItem value="Partially Received">Partially Received</SelectItem>
               <SelectItem value="Received">Received</SelectItem>
               <SelectItem value="Paid">Paid</SelectItem>
               <SelectItem value="Cancelled">Cancelled</SelectItem>
@@ -562,6 +563,8 @@ export default function PurchaseOrdersPage() {
                             order.status?.toLowerCase() === "received" ||
                             order.status?.toLowerCase() === "paid"
                               ? "bg-emerald-100 text-emerald-800"
+                              : order.status?.toLowerCase() === "partially received"
+                              ? "bg-amber-100 text-amber-800 border border-amber-200"
                               : order.status?.toLowerCase() === "confirmed"
                               ? "bg-blue-100 text-blue-800"
                               : order.status?.toLowerCase() === "cancelled"

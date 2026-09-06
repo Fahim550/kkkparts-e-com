@@ -103,7 +103,9 @@ export default function PurchaseOrderDetailsPage() {
               <TableHead>Product</TableHead>
               <TableHead>SKU</TableHead>
               <TableHead>UOM</TableHead>
-              <TableHead className="text-right">Quantity</TableHead>
+              <TableHead className="text-right">Ordered</TableHead>
+              <TableHead className="text-right">Received</TableHead>
+              <TableHead className="text-right">Remaining</TableHead>
               <TableHead className="text-right">Unit Price</TableHead>
               <TableHead className="text-right">Total Price</TableHead>
             </TableRow>
@@ -112,35 +114,47 @@ export default function PurchaseOrderDetailsPage() {
             {order.purchase_order_items?.length === 0 ? (
               <TableRow>
                 <TableCell
-                  colSpan={6}
+                  colSpan={8}
                   className="text-center py-8 text-muted-foreground"
                 >
                   No items found in this order.
                 </TableCell>
               </TableRow>
             ) : (
-              order.purchase_order_items?.map((item) => (
-                <TableRow key={item.id}>
-                  <TableCell className="font-medium">
-                    {item.product_variations?.products?.name || "Unknown Product"}
-                  </TableCell>
-                  <TableCell className="text-xs font-mono">
-                    {item.product_variations?.sku || "N/A"}
-                  </TableCell>
-                  <TableCell>
-                    {item.units_of_measure?.abbreviation || item.uom_id}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    {item.quantity_ordered}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    ${item.unit_price}
-                  </TableCell>
-                  <TableCell className="text-right font-bold">
-                    ${item.total_price || item.quantity_ordered * item.unit_price}
-                  </TableCell>
-                </TableRow>
-              ))
+              order.purchase_order_items?.map((item) => {
+                const ordered = Number(item.quantity_ordered || 0);
+                const received = Number(item.quantity_received || 0);
+                const remaining = Math.max(0, ordered - received);
+
+                return (
+                  <TableRow key={item.id}>
+                    <TableCell className="font-medium">
+                      {item.product_variations?.products?.name || "Unknown Product"}
+                    </TableCell>
+                    <TableCell className="text-xs font-mono">
+                      {item.product_variations?.sku || "N/A"}
+                    </TableCell>
+                    <TableCell>
+                      {item.units_of_measure?.abbreviation || item.uom_id}
+                    </TableCell>
+                    <TableCell className="text-right font-medium">
+                      {ordered}
+                    </TableCell>
+                    <TableCell className="text-right text-blue-600 font-medium">
+                      {received}
+                    </TableCell>
+                    <TableCell className="text-right font-bold text-amber-600">
+                      {remaining}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      ${item.unit_price}
+                    </TableCell>
+                    <TableCell className="text-right font-bold">
+                      ${item.total_price || ordered * item.unit_price}
+                    </TableCell>
+                  </TableRow>
+                );
+              })
             )}
           </TableBody>
         </Table>

@@ -27,6 +27,7 @@ import { Badge } from "@/components/ui/badge";
 import { ArrowDownToLine, BookOpen, CheckCircle2, Eye, Loader2, Plus, Search, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import { useToast } from "@/hooks/use-toast";
 import { useSuppliers } from "../../../supplier/presentation/hooks/useSuppliers";
 import { useWarehouses } from "../../../warehouse/presentation/hooks/useWarehouses";
 import { ReceiptItemPayload } from "../../application/services/receipt.service";
@@ -35,6 +36,7 @@ import { usePurchaseOrders } from "../hooks/usePurchaseOrders";
 
 
 export default function GoodsReceivePage() {
+  const { toast } = useToast();
 
   // ── Filter state (backend-driven) ──────────────────────────────────────
   const [filterSearch, setFilterSearch] = useState("");
@@ -105,14 +107,20 @@ export default function GoodsReceivePage() {
       if (po) {
         setSupplierId(po.supplier_id || "");
 
-        // Map PO items to receipt items
+        // Map PO items to receipt items with remaining quantity calculation
         if (po.purchase_order_items) {
-          const mappedItems = po.purchase_order_items.map((item) => ({
-            variation_id: item.variation_id,
-            uom_id: item.uom_id,
-            quantity_received: item.quantity_ordered, // Default to ordered qty
-            unit_cost: item.unit_price,
-          }));
+          const mappedItems = po.purchase_order_items.map((item) => {
+            const ordered = Number(item.quantity_ordered || 0);
+            const alreadyReceived = Number(item.quantity_received || 0);
+            const remaining = Math.max(0, ordered - alreadyReceived);
+            return {
+              po_item_id: item.id,
+              variation_id: item.variation_id,
+              uom_id: item.uom_id,
+              quantity_received: remaining, // Default to remaining qty
+              unit_cost: Number(item.unit_price || 0),
+            };
+          });
           setItems(mappedItems);
         } else {
           setItems([]);
@@ -126,13 +134,46 @@ export default function GoodsReceivePage() {
 
   const handleQtyChange = (index: number, newQty: number) => {
     const newItems = [...items];
-    newItems[index].quantity_received = newQty;
+    newItems[index].quantity_received = Math.max(0, newQty);
     setItems(newItems);
   };
 
   const handleReceive = async () => {
     if (!supplierId || !warehouseId || items.length === 0 || !selectedPoId)
       return;
+
+    const po = orders?.find((o) => o.id === selectedPoId);
+    const validItems = items.filter((it) => Number(it.quantity_received) > 0);
+
+    if (validItems.length === 0) {
+      toast({
+        title: "No items to receive",
+        description: "Please enter a quantity greater than 0 to receive.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Validate that no item exceeds remaining quantity
+    for (const it of validItems) {
+      const poItem = po?.purchase_order_items?.find(
+        (poi) => (it.po_item_id && poi.id === it.po_item_id) || poi.variation_id === it.variation_id
+      );
+      if (poItem) {
+        const ordered = Number(poItem.quantity_ordered || 0);
+        const alreadyReceived = Number(poItem.quantity_received || 0);
+        const remaining = Math.max(0, ordered - alreadyReceived);
+        if (it.quantity_received > remaining) {
+          toast({
+            title: "Quantity Exceeds Remaining",
+            description: `Cannot receive ${it.quantity_received} units for ${poItem.product_variations?.products?.name || "item"}. Only ${remaining} remaining.`,
+            variant: "destructive",
+          });
+          return;
+        }
+      }
+    }
+
     try {
       await receiveGoods({
         receipt: {
@@ -143,18 +184,36 @@ export default function GoodsReceivePage() {
           receipt_date: receiptDate,
           status: "Completed",
         },
-        items,
+        items: validItems,
       });
       setIsOpen(false);
       setSelectedPoId("");
       setItems([]);
       setReceiptNumber(`REC-${Date.now()}`);
     } catch (e) {
-      // handled
+      // Handled by mutation toast
     }
   };
 
-  const pendingOrders = orders?.filter((o) => o.status !== "Received") || [];
+  // Include purchase orders that still have items waiting to be received
+  const pendingOrders =
+    orders?.filter((o) => {
+      // Exclude purchase invoices (Goods Receive is strictly against purchase orders)
+      if (o.type === "Purchase Invoice") return false;
+
+      // Exclude cancelled orders
+      if (o.status?.toLowerCase() === "cancelled") return false;
+
+      // If items are loaded, check if at least one item has remaining unreceived quantity
+      if (o.purchase_order_items && o.purchase_order_items.length > 0) {
+        return o.purchase_order_items.some(
+          (poi: any) => Number(poi.quantity_ordered || 0) > Number(poi.quantity_received || 0)
+        );
+      }
+
+      // If items array is not populated, exclude only if already fully received
+      return o.status?.toLowerCase() !== "received";
+    }) || [];
 
   return (
     <div className="space-y-6">
@@ -181,11 +240,17 @@ export default function GoodsReceivePage() {
                       <SelectValue placeholder="Select PO" />
                     </SelectTrigger>
                     <SelectContent>
-                      {pendingOrders.map((o) => (
-                        <SelectItem key={o.id} value={o.id}>
-                          {o.po_number}
-                        </SelectItem>
-                      ))}
+                      {pendingOrders.length === 0 ? (
+                        <div className="p-3 text-xs text-muted-foreground text-center">
+                          No pending purchase orders available
+                        </div>
+                      ) : (
+                        pendingOrders.map((o) => (
+                          <SelectItem key={o.id} value={o.id}>
+                            {o.po_number} {o.status ? `(${o.status})` : ""}
+                          </SelectItem>
+                        ))
+                      )}
                     </SelectContent>
                   </Select>
                 </div>
@@ -223,7 +288,12 @@ export default function GoodsReceivePage() {
 
               {selectedPoId && (
                 <div className="border p-4 rounded-md space-y-4 bg-muted/20">
-                  <h3 className="font-semibold">Items from Purchase Order</h3>
+                  <div className="flex justify-between items-center">
+                    <h3 className="font-semibold">Items from Purchase Order</h3>
+                    <span className="text-xs text-muted-foreground">
+                      Only items with remaining quantity need receiving
+                    </span>
+                  </div>
 
                   {items.length > 0 ? (
                     <Table>
@@ -231,10 +301,16 @@ export default function GoodsReceivePage() {
                         <TableRow>
                           <TableHead>Product</TableHead>
                           <TableHead className="text-right">
-                            Ordered Qty
+                            Ordered
                           </TableHead>
                           <TableHead className="text-right">
-                            Qty Received
+                            Already Recv
+                          </TableHead>
+                          <TableHead className="text-right">
+                            Remaining
+                          </TableHead>
+                          <TableHead className="text-right">
+                            Receive Now
                           </TableHead>
                           <TableHead className="text-right">
                             Unit Cost
@@ -249,40 +325,65 @@ export default function GoodsReceivePage() {
                           const poItem = orders
                             ?.find((o) => o.id === selectedPoId)
                             ?.purchase_order_items?.find(
-                              (poi) => poi.variation_id === it.variation_id,
+                              (poi) => (it.po_item_id && poi.id === it.po_item_id) || poi.variation_id === it.variation_id,
                             );
-                          const orderedQty = poItem?.quantity_ordered || 0;
+                          const orderedQty = Number(poItem?.quantity_ordered || 0);
+                          const alreadyRecv = Number(poItem?.quantity_received || 0);
+                          const remainingQty = Math.max(0, orderedQty - alreadyRecv);
 
                           return (
                             <TableRow key={idx}>
                               <TableCell className="text-sm">
-                                {poItem?.product_variations?.products?.name ||
-                                  "Unknown Product"}
+                                <span className="font-medium">
+                                  {poItem?.product_variations?.products?.name ||
+                                    "Unknown Product"}
+                                </span>
                                 <span className="block text-xs text-muted-foreground font-mono">
-                                  {poItem?.product_variations?.sku ||
-                                    it.variation_id}
+                                  SKU: {poItem?.product_variations?.sku || it.variation_id}
                                 </span>
                               </TableCell>
-                              <TableCell className="text-right text-muted-foreground">
+                              <TableCell className="text-right text-muted-foreground font-medium">
                                 {orderedQty}
                               </TableCell>
+                              <TableCell className="text-right text-blue-600 font-medium">
+                                {alreadyRecv}
+                              </TableCell>
+                              <TableCell className="text-right font-bold text-amber-600">
+                                {remainingQty}
+                              </TableCell>
                               <TableCell className="text-right">
-                                <Input
-                                  type="number"
-                                  min="0"
-                                  max={orderedQty}
-                                  className="w-24 ml-auto text-right"
-                                  value={it.quantity_received}
-                                  onChange={(e) =>
-                                    handleQtyChange(idx, Number(e.target.value))
-                                  }
-                                />
+                                {remainingQty <= 0 ? (
+                                  <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200">
+                                    Fully Received
+                                  </Badge>
+                                ) : (
+                                  <Input
+                                    type="number"
+                                    min="0"
+                                    max={remainingQty}
+                                    className="w-24 ml-auto text-right"
+                                    value={it.quantity_received}
+                                    onChange={(e) => {
+                                      const val = Number(e.target.value);
+                                      if (val > remainingQty) {
+                                        toast({
+                                          title: "Exceeds remaining",
+                                          description: `Max quantity you can receive is ${remainingQty}`,
+                                          variant: "destructive",
+                                        });
+                                        handleQtyChange(idx, remainingQty);
+                                      } else {
+                                        handleQtyChange(idx, Math.max(0, val));
+                                      }
+                                    }}
+                                  />
+                                )}
                               </TableCell>
                               <TableCell className="text-right">
                                 ${it.unit_cost}
                               </TableCell>
                               <TableCell className="text-right font-bold">
-                                ${it.quantity_received * it.unit_cost}
+                                ${(it.quantity_received * it.unit_cost).toFixed(2)}
                               </TableCell>
                             </TableRow>
                           );
@@ -303,6 +404,7 @@ export default function GoodsReceivePage() {
                 disabled={
                   isReceiving ||
                   items.length === 0 ||
+                  !items.some((it) => Number(it.quantity_received) > 0) ||
                   !warehouseId ||
                   !selectedPoId
                 }

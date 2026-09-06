@@ -475,7 +475,7 @@ export default function AddPurchasePage() {
             supplier_id: finalSupplierId,
             po_number: billNumber || `PO-${Date.now()}`,
             order_date: billDate,
-            status: "Draft",
+            status: (isReceived && receivedAmount >= totalAmount) ? "Paid" : "Pending",
             paid_amount: isReceived ? receivedAmount : 0, // Pass paid amount
           } as any, // Cast as any because paid_amount isn't in DB schema for purchase_orders
           items: validItems.map(item => ({

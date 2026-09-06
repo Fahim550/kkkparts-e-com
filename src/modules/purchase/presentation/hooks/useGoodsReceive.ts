@@ -20,7 +20,13 @@ export const useGoodsReceive = (filters?: PurchaseReceiptFilters) => {
       PurchaseReceiptService.receiveGoods(data.receipt, data.items),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["purchase-receipts"] });
+      queryClient.invalidateQueries({ queryKey: ["purchase-orders"] });
+      queryClient.invalidateQueries({ queryKey: ["products"] });
+      queryClient.invalidateQueries({ queryKey: ["products", "active"] });
       queryClient.invalidateQueries({ queryKey: ["stock-balances"] });
+      queryClient.invalidateQueries({ queryKey: ["stock_balances"] });
+      queryClient.invalidateQueries({ queryKey: ["stock_ledgers"] });
+      queryClient.invalidateQueries({ queryKey: ["fifo_ledgers"] });
       toast({ title: "Success", description: "Goods received and stock updated successfully." });
     },
     onError: (error: any) => {
