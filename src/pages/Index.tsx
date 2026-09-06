@@ -19,6 +19,7 @@ import {
   Shield,
   Star,
   Truck,
+  X,
   Zap,
 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -391,63 +392,68 @@ const Index = () => {
       </section>
 
       {/* Vehicle Finder Overlapping Widget */}
-      <section className="relative z-30 -mt-10 mb-10 px-0">
-        <div className="container mx-auto max-w-6xl">
+      <section className="relative z-30 -mt-10 mb-8 px-4 sm:px-6">
+        <div className="container mx-auto max-w-5xl">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.3 }}
-            className="bg-card rounded-xl shadow-lg border border-border p-4 md:p-6 flex flex-col lg:flex-row items-center gap-4 lg:gap-6"
+            className="bg-card rounded-2xl shadow-xl border border-border p-3 sm:p-5 md:p-6 flex flex-col lg:flex-row items-center gap-3 sm:gap-4 lg:gap-6"
           >
-            <div className="flex-shrink-0 flex items-center justify-between w-full lg:w-auto mb-2 lg:mb-0">
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 bg-neon/10 rounded-full flex items-center justify-center">
-                  <Search className="w-6 h-6 text-neon" />
+            <div className="flex-shrink-0 flex items-center justify-between w-full lg:w-auto">
+              <div className="flex items-center gap-2.5 sm:gap-3">
+                <div className="w-10 h-10 md:w-12 md:h-12 bg-neon/10 rounded-full flex items-center justify-center shrink-0">
+                  <Search className="w-5 h-5 md:w-6 md:h-6 text-neon" />
                 </div>
                 <div>
-                  <h3 className="font-heading font-bold text-lg text-foreground uppercase tracking-wide">
+                  <h3 className="font-heading font-bold text-sm sm:text-base md:text-lg text-foreground uppercase tracking-wide">
                     Find Your Parts
                   </h3>
-                  <p className="font-body text-xs text-muted-foreground">
+                  <p className="font-body text-[11px] sm:text-xs text-muted-foreground">
                     Search for exact fitment
                   </p>
                 </div>
               </div>
             </div>
 
-            <div className="w-full lg:w-auto flex-1 mt-4 lg:mt-0">
-              <div className="overflow-hidden">
-                <form
-                  onSubmit={(e) => {
-                    e.preventDefault();
-                    if (searchQuery.trim()) {
-                      navigate(
-                        `/parts?search=${encodeURIComponent(searchQuery.trim())}`,
-                      );
-                    } else {
-                      navigate(`/parts`);
-                    }
-                  }}
-                  className="flex flex-col sm:flex-row gap-3 w-full"
-                >
-                  <div className="flex-1 w-full relative">
-                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                    <input
-                      type="text"
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      placeholder="Search for parts by name, brand, or OEM number..."
-                      className="w-full pl-12 pr-4 py-3.5 bg-background border border-border text-foreground rounded-lg focus:outline-none focus:border-neon focus:ring-1 focus:ring-neon transition-colors font-body text-sm shadow-sm"
-                    />
-                  </div>
+            <div className="w-full flex-1">
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  if (searchQuery.trim()) {
+                    navigate(
+                      `/parts?search=${encodeURIComponent(searchQuery.trim())}`,
+                    );
+                  } else {
+                    navigate(`/parts`);
+                  }
+                }}
+                className="flex items-center w-full bg-background border-2 border-neon rounded-full overflow-hidden shadow-sm hover:shadow-md focus-within:ring-2 focus-within:ring-neon/30 transition-all"
+              >
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Search for parts by name, brand, or OEM number..."
+                  className="w-full h-11 sm:h-12 md:h-14 pl-4 sm:pl-6 pr-2 bg-transparent text-foreground placeholder:text-muted-foreground/60 focus:outline-none text-xs sm:text-sm md:text-base font-body"
+                />
+                {searchQuery && (
                   <button
-                    type="submit"
-                    className="bg-neon text-accent-foreground font-bold uppercase tracking-widest px-8 py-3.5 rounded-lg hover:bg-neon-glow transition-colors shadow-md w-full sm:w-auto shrink-0"
+                    type="button"
+                    onClick={() => setSearchQuery("")}
+                    className="p-2 mr-1 text-muted-foreground hover:text-foreground transition-colors shrink-0"
                   >
-                    Search
+                    <X className="w-4 h-4 sm:w-5 sm:h-5" />
                   </button>
-                </form>
-              </div>
+                )}
+                <button
+                  type="submit"
+                  aria-label="Search"
+                  className="flex items-center justify-center w-11 h-11 sm:w-12 sm:h-12 md:w-14 md:h-14 bg-neon hover:bg-neon-glow text-white transition-colors shrink-0 cursor-pointer"
+                >
+                  <Search className="w-5 h-5 md:w-6 md:h-6 text-white" />
+                </button>
+              </form>
             </div>
           </motion.div>
         </div>
