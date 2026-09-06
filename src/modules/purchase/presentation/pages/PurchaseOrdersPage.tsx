@@ -23,6 +23,7 @@ import {
   Loader2,
   Printer,
   Search,
+  Trash2,
   X
 } from "lucide-react";
 import { useMemo, useState } from "react";
@@ -48,8 +49,26 @@ export default function PurchaseOrdersPage() {
     ...(filterDateTo ? { dateTo: filterDateTo } : {}),
   };
 
-  const { orders, isLoading } = usePurchaseOrders(filters);
+  const { orders, isLoading, deleteOrder } = usePurchaseOrders(filters);
   const { suppliers } = useSuppliers();
+
+  const handleDelete = async (order: any) => {
+    const isReceived =
+      order.status?.toLowerCase() === "received" ||
+      order.status?.toLowerCase() === "partially received";
+
+    const confirmMessage = isReceived
+      ? `Are you sure you want to delete ${order.po_number}? WARNING: Goods were received for this order. Deleting it will reverse the warehouse stock, delete goods receipts, and cancel supplier due payment.`
+      : `Are you sure you want to delete ${order.po_number}? This will cancel the purchase and reverse supplier due payment.`;
+
+    if (!window.confirm(confirmMessage)) return;
+
+    try {
+      await deleteOrder({ id: order.id, type: order.type });
+    } catch {
+      // Toast is handled by hook
+    }
+  };
 
   // ── Date range preset handler ───────────────────────────────────────────
   const handlePeriodChange = (preset: string) => {
@@ -611,6 +630,15 @@ export default function PurchaseOrdersPage() {
                               <Eye className="w-3.5 h-3.5 text-gray-500" />
                             </Button>
                           </Link>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-rose-500 hover:text-rose-700 hover:bg-rose-50"
+                            onClick={() => handleDelete(order)}
+                            title="Delete Purchase Order"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </Button>
                         </div>
                       </TableCell>
                     </TableRow>

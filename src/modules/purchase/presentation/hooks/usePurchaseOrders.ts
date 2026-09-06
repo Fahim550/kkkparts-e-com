@@ -70,12 +70,37 @@ export const usePurchaseOrders = (filters?: PurchaseOrderFilters) => {
     },
   });
 
+  const deleteMutation = useMutation({
+    mutationFn: (data: { id: string; type?: string }) =>
+      PurchaseOrderService.deleteOrder(data.id, data.type),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["purchase-orders"] });
+      queryClient.invalidateQueries({ queryKey: ["purchase-receipts"] });
+      queryClient.invalidateQueries({ queryKey: ["products"] });
+      queryClient.invalidateQueries({ queryKey: ["products", "active"] });
+      queryClient.invalidateQueries({ queryKey: ["stock_balances"] });
+      queryClient.invalidateQueries({ queryKey: ["stock-balances"] });
+      queryClient.invalidateQueries({ queryKey: ["stock_ledgers"] });
+      queryClient.invalidateQueries({ queryKey: ["fifo_ledgers"] });
+      queryClient.invalidateQueries({ queryKey: ["trial-balance"] });
+      queryClient.invalidateQueries({ queryKey: ["suppliers"] });
+      queryClient.invalidateQueries({ queryKey: ["supplier-history"] });
+      queryClient.invalidateQueries({ queryKey: ["supplier-dues"] });
+      toast({ title: "Deleted", description: "Purchase order deleted and reversed successfully." });
+    },
+    onError: (error: any) => {
+      toast({ variant: "destructive", title: "Error", description: error.message || "Failed to delete purchase order." });
+    },
+  });
+
   return {
     orders: query.data,
     isLoading: query.isLoading,
     createOrder: createMutation.mutateAsync,
     updateStatus: updateStatusMutation.mutateAsync,
+    deleteOrder: deleteMutation.mutateAsync,
     isCreating: createMutation.isPending,
+    isDeleting: deleteMutation.isPending,
   };
 };
 
