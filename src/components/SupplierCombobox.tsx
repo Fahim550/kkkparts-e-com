@@ -84,10 +84,10 @@ export function SupplierCombobox({ suppliers, value, onChange }: SupplierCombobo
                 className="w-full justify-start text-xs font-semibold text-primary hover:bg-primary/10 hover:text-primary h-8 gap-2 px-2"
                 onClick={() => handleOpenCreateModal(inputValue.trim())}
               >
-                <div className="w-5 h-5 rounded-md bg-primary/10 flex items-center justify-center text-primary shrink-0">
+                <div className="w-5 h-5 rounded-md bg-primary/10 flex items-center justify-center text-blue-600 dark:text-blue-400 shrink-0">
                   <Plus className="h-3.5 w-3.5" />
                 </div>
-                <span>Add New Supplier</span>
+                <span className="text-blue-600 font-semibold dark:text-blue-400">Add New Supplier</span>
               </Button>
             </div>
 

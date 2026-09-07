@@ -881,7 +881,9 @@ export default function AddSalePage() {
                   onCheckedChange={(c) => {
                     const checked = !!c;
                     setIsReceived(checked);
-                    if (!checked) {
+                    if (checked) {
+                      setReceivedAmount(Number(totalAmount.toFixed(2)));
+                    } else {
                       setReceivedAmount(0);
                     }
                   }} 
@@ -896,6 +898,8 @@ export default function AddSalePage() {
                   setReceivedAmount(val);
                   if (val > 0 && !isReceived) {
                     setIsReceived(true);
+                  } else if (val === 0 && isReceived) {
+                    setIsReceived(false);
                   }
                 }}
                 className="w-full sm:w-56 h-9 text-right bg-transparent border-gray-300 shadow-none font-bold"

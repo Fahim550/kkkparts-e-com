@@ -180,7 +180,7 @@ export default function ProductFormModal({ isOpen, onOpenChange, product, onSucc
       setValue("is_trending", (product as any).is_trending ?? false);
       setValue("is_new", (product as any).is_new ?? false);
     } else {
-      reset({ is_active: true, has_variants: false, image_url: "", price: 0, is_offer: false, is_trending: false, is_new: false });
+      reset({ is_active: true, has_variants: false, image_url: "", is_offer: false, is_trending: false, is_new: false });
     }
   }, [product, isOpen, reset, setValue]);
 
@@ -206,22 +206,45 @@ export default function ProductFormModal({ isOpen, onOpenChange, product, onSucc
 
   const onSubmit = async (data: ProductFormData) => {
     try {
+      const payload: ProductFormData = {
+        ...data,
+        item_code: data.item_code.trim(),
+        name: data.name.trim(),
+        brand_id: data.brand_id ? data.brand_id : null,
+        description: data.description?.trim() || null,
+        image_url: data.image_url || null,
+        price: Number(data.price),
+        original_price: Number(data.original_price),
+        dealer_price: Number(data.dealer_price),
+        dealer_original_price: Number(data.dealer_original_price),
+      };
+
       let savedProduct;
       if (product) {
-        savedProduct = await updateProduct.mutateAsync({ id: product.id, ...data });
+        savedProduct = await updateProduct.mutateAsync({ id: product.id, ...payload });
         toast.success("Product updated successfully");
       } else {
-        savedProduct = await createProduct.mutateAsync(data);
+        savedProduct = await createProduct.mutateAsync(payload);
         toast.success("Product created successfully");
       }
       
       let createdVariation = null;
-      if (!data.has_variants && !product) {
-         createdVariation = await createVariation.mutateAsync({
-           product_id: savedProduct.id,
-           sku: savedProduct.item_code,
-           is_active: true,
-         });
+      if (!payload.has_variants && !product) {
+        try {
+          createdVariation = await createVariation.mutateAsync({
+            product_id: savedProduct.id,
+            sku: savedProduct.item_code,
+            is_active: true,
+          });
+        } catch (varErr: any) {
+          console.warn("Variation creation with primary SKU failed, trying unique fallback:", varErr);
+          const fallbackSku = `${savedProduct.item_code}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
+          createdVariation = await createVariation.mutateAsync({
+            product_id: savedProduct.id,
+            sku: fallbackSku,
+            is_active: true,
+          });
+        }
       }
       
       await queryClient.invalidateQueries({ queryKey: ["products"] });
@@ -230,8 +253,13 @@ export default function ProductFormModal({ isOpen, onOpenChange, product, onSucc
         onSuccess(savedProduct, createdVariation);
       }
       onOpenChange(false);
-    } catch (error) {
-      toast.error("Failed to save product");
+    } catch (error: any) {
+      console.error("Failed to save product:", error);
+      const msg =
+        error?.message ||
+        error?.error_description ||
+        (typeof error === "string" ? error : "Failed to save product");
+      toast.error(`Failed to save product: ${msg}`);
     }
   };
 
@@ -243,8 +271,8 @@ export default function ProductFormModal({ isOpen, onOpenChange, product, onSucc
         is_active: true,
       });
       toast.success("Variation added");
-    } catch (error) {
-      toast.error("Failed to add variation");
+    } catch (error: any) {
+      toast.error(error?.message || "Failed to add variation");
     }
   };
 
@@ -252,8 +280,8 @@ export default function ProductFormModal({ isOpen, onOpenChange, product, onSucc
     try {
       await deleteVariation.mutateAsync(id);
       toast.success("Variation deleted");
-    } catch (error) {
-      toast.error("Failed to delete variation");
+    } catch (error: any) {
+      toast.error(error?.message || "Failed to delete variation");
     }
   };
 
@@ -290,12 +318,12 @@ export default function ProductFormModal({ isOpen, onOpenChange, product, onSucc
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
+      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto p-6">
+        <DialogHeader className="pb-2">
           <DialogTitle>{product ? "Edit Product" : "Create Product"}</DialogTitle>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 pt-4">
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 pt-2 pb-6">
           <div className="space-y-2">
             <Label>Product Image</Label>
             <div className="flex items-center gap-4">
@@ -350,24 +378,30 @@ export default function ProductFormModal({ isOpen, onOpenChange, product, onSucc
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <Label>Item Code *</Label>
+              <Label>
+                Item Code <span className="text-red-500 font-bold ml-0.5">*</span>
+              </Label>
               <Input {...register("item_code")} placeholder="e.g. PRD-001" disabled={!!product} />
               {errors.item_code && (
-                <p className="text-sm text-red-500 mt-1">{errors.item_code.message}</p>
+                <p className="text-xs text-red-500 mt-1">{errors.item_code.message}</p>
               )}
             </div>
             <div>
-              <Label>Name *</Label>
+              <Label>
+                Name <span className="text-red-500 font-bold ml-0.5">*</span>
+              </Label>
               <Input {...register("name")} placeholder="e.g. Premium Oil Filter" />
               {errors.name && (
-                <p className="text-sm text-red-500 mt-1">{errors.name.message}</p>
+                <p className="text-xs text-red-500 mt-1">{errors.name.message}</p>
               )}
             </div>
           </div>
 
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
             <div>
-              <Label>Price (OMR) *</Label>
+              <Label>
+                Price (OMR) <span className="text-red-500 font-bold ml-0.5">*</span>
+              </Label>
               <Input
                 type="number"
                 step="0.01"
@@ -376,11 +410,13 @@ export default function ProductFormModal({ isOpen, onOpenChange, product, onSucc
                 placeholder="e.g. 15.00"
               />
               {errors.price && (
-                <p className="text-sm text-red-500 mt-1">{errors.price.message}</p>
+                <p className="text-xs text-red-500 mt-1">{errors.price.message}</p>
               )}
             </div>
             <div>
-              <Label>Original Price</Label>
+              <Label>
+                Original Price <span className="text-red-500 font-bold ml-0.5">*</span>
+              </Label>
               <Input
                 type="number"
                 step="0.01"
@@ -388,9 +424,14 @@ export default function ProductFormModal({ isOpen, onOpenChange, product, onSucc
                 {...register("original_price", { valueAsNumber: true })}
                 placeholder="e.g. 20.00"
               />
+              {errors.original_price && (
+                <p className="text-xs text-red-500 mt-1">{errors.original_price.message}</p>
+              )}
             </div>
             <div>
-              <Label>Dealer Price</Label>
+              <Label>
+                Dealer Price <span className="text-red-500 font-bold ml-0.5">*</span>
+              </Label>
               <Input
                 type="number"
                 step="0.01"
@@ -398,9 +439,14 @@ export default function ProductFormModal({ isOpen, onOpenChange, product, onSucc
                 {...register("dealer_price", { valueAsNumber: true })}
                 placeholder="e.g. 12.00"
               />
+              {errors.dealer_price && (
+                <p className="text-xs text-red-500 mt-1">{errors.dealer_price.message}</p>
+              )}
             </div>
             <div>
-              <Label>Dealer Orig. Price</Label>
+              <Label>
+                Dealer Orig. Price <span className="text-red-500 font-bold ml-0.5">*</span>
+              </Label>
               <Input
                 type="number"
                 step="0.01"
@@ -408,12 +454,17 @@ export default function ProductFormModal({ isOpen, onOpenChange, product, onSucc
                 {...register("dealer_original_price", { valueAsNumber: true })}
                 placeholder="e.g. 18.00"
               />
+              {errors.dealer_original_price && (
+                <p className="text-xs text-red-500 mt-1">{errors.dealer_original_price.message}</p>
+              )}
             </div>
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <Label>Category *</Label>
+              <Label>
+                Category <span className="text-red-500 font-bold ml-0.5">*</span>
+              </Label>
               <div className="flex items-start gap-2">
                 <div className="flex-1">
                   <select
@@ -426,7 +477,7 @@ export default function ProductFormModal({ isOpen, onOpenChange, product, onSucc
                     ))}
                   </select>
                   {errors.category_id && (
-                    <p className="text-sm text-red-500 mt-1">{errors.category_id.message}</p>
+                    <p className="text-xs text-red-500 mt-1">{errors.category_id.message}</p>
                   )}
                 </div>
                 <QuickCreatePopover
@@ -450,6 +501,9 @@ export default function ProductFormModal({ isOpen, onOpenChange, product, onSucc
                       <option key={b.id} value={b.id}>{b.name}</option>
                     ))}
                   </select>
+                  {errors.brand_id && (
+                    <p className="text-xs text-red-500 mt-1">{errors.brand_id.message}</p>
+                  )}
                 </div>
                 <QuickCreatePopover
                   label="Brand"
@@ -466,7 +520,9 @@ export default function ProductFormModal({ isOpen, onOpenChange, product, onSucc
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <Label>Base Unit of Measure *</Label>
+              <Label>
+                Base Unit of Measure <span className="text-red-500 font-bold ml-0.5">*</span>
+              </Label>
               <div className="flex items-start gap-2">
                 <div className="flex-1">
                   <select
@@ -479,7 +535,7 @@ export default function ProductFormModal({ isOpen, onOpenChange, product, onSucc
                     ))}
                   </select>
                   {errors.base_uom_id && (
-                    <p className="text-sm text-red-500 mt-1">{errors.base_uom_id.message}</p>
+                    <p className="text-xs text-red-500 mt-1">{errors.base_uom_id.message}</p>
                   )}
                 </div>
                 <QuickCreatePopover
@@ -536,18 +592,23 @@ export default function ProductFormModal({ isOpen, onOpenChange, product, onSucc
           <div>
             <Label>Description</Label>
             <Input {...register("description")} placeholder="Optional product description" />
+            {errors.description && (
+              <p className="text-xs text-red-500 mt-1">{errors.description.message}</p>
+            )}
           </div>
 
-          <Button
-            type="submit"
-            className="w-full"
-            disabled={createProduct.isPending || updateProduct.isPending}
-          >
-            {(createProduct.isPending || updateProduct.isPending) && (
-              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-            )}
-            {product ? "Update Product" : "Create Product"}
-          </Button>
+          <div className="pt-2 pb-2">
+            <Button
+              type="submit"
+              className="w-full h-10 font-semibold"
+              disabled={createProduct.isPending || updateProduct.isPending}
+            >
+              {(createProduct.isPending || updateProduct.isPending) && (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              )}
+              {product ? "Update Product" : "Create Product"}
+            </Button>
+          </div>
         </form>
 
         {product && product.has_variants && (

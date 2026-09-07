@@ -28,6 +28,7 @@ export function ProductCombobox({ products, value, onChange, warehouseId }: Prod
   const [open, setOpen] = React.useState(false)
   const [createModalOpen, setCreateModalOpen] = React.useState(false)
   const [inputValue, setInputValue] = React.useState("")
+  const [justCreatedItem, setJustCreatedItem] = React.useState<{ id: string; name: string } | null>(null)
   const inputRef = React.useRef<HTMLInputElement>(null)
 
   // Flatten products into variations
@@ -64,7 +65,9 @@ export function ProductCombobox({ products, value, onChange, warehouseId }: Prod
     return list
   }, [products, warehouseId])
 
-  const selected = variations.find(v => v.id === value)
+  const selected =
+    variations.find((v) => v.id === value) ||
+    (value && justCreatedItem?.id === value ? justCreatedItem : undefined);
 
   return (
     <>
@@ -107,16 +110,16 @@ export function ProductCombobox({ products, value, onChange, warehouseId }: Prod
                 tabIndex={-1}
                 variant="ghost"
                 size="sm"
-                className="w-full justify-start text-xs font-semibold text-primary hover:bg-primary/10 hover:text-primary h-8 gap-2 px-2"
+                className="w-full justify-start text-xs font-semibold text-blue-600 hover:text-blue-700 hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-blue-950/40 h-8 gap-2 px-2"
                 onClick={() => {
                   setOpen(false)
                   setCreateModalOpen(true)
                 }}
               >
-                <div className="w-5 h-5 rounded-md bg-primary/10 flex items-center justify-center text-primary shrink-0">
+                <div className="w-5 h-5 rounded-md bg-blue-100 dark:bg-blue-900/40 flex items-center justify-center text-blue-600 dark:text-blue-400 shrink-0">
                   <Plus className="h-3.5 w-3.5" />
                 </div>
-                <span>Add New Product</span>
+                <span className="text-blue-600 font-semibold dark:text-blue-400">Add New Product</span>
               </Button>
             </div>
 
@@ -171,6 +174,11 @@ export function ProductCombobox({ products, value, onChange, warehouseId }: Prod
         onSuccess={(savedProduct, createdVariation) => {
           const varId = createdVariation?.id || savedProduct?.product_variations?.[0]?.id;
           if (varId) {
+            const skuText = createdVariation?.sku || savedProduct?.item_code;
+            setJustCreatedItem({
+              id: varId,
+              name: `${savedProduct.name}${skuText ? ` (${skuText})` : ""}`,
+            });
             onChange(varId, createdVariation, savedProduct);
           }
           setInputValue("");
