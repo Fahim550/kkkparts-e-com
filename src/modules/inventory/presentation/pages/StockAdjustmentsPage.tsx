@@ -1,6 +1,19 @@
 import { Button } from "@/components/ui/button";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import {
   Select,
   SelectContent,
@@ -11,8 +24,9 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
-import { AlertTriangle, Loader2, Settings2 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { cn } from "@/lib/utils";
+import { AlertTriangle, Check, ChevronsUpDown, Loader2, Settings2 } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
 import { useProductTemplates } from "../../../product/presentation/hooks/useProducts";
 import { useWarehouses } from "../../../warehouse/presentation/hooks/useWarehouses";
 import { useInventory } from "../hooks/useInventory";
@@ -34,11 +48,29 @@ export default function StockAdjustmentsPage() {
   const [avgCost, setAvgCost] = useState<number | null>(null);
   const [isFetchingCost, setIsFetchingCost] = useState(false);
 
+  // Combobox open states for variation pickers
+  const [adjVariationOpen, setAdjVariationOpen] = useState(false);
+  const [dmgVariationOpen, setDmgVariationOpen] = useState(false);
+
   // Damage Write-off State
   const [dmgWarehouseId, setDmgWarehouseId] = useState("");
   const [dmgVariationId, setDmgVariationId] = useState("");
   const [dmgQuantity, setDmgQuantity] = useState(1);
   const [dmgReason, setDmgReason] = useState("");
+
+  // Flatten all variations for easy lookup
+  const allVariations = useMemo(
+    () =>
+      products?.flatMap((p) =>
+        (p.variations ?? []).map((v: any) => ({
+          id: v.id as string,
+          label: `${p.name} — ${v.sku}`,
+          productName: p.name as string,
+          sku: v.sku as string,
+        }))
+      ) ?? [],
+    [products],
+  );
 
   const isPositive = adjQuantity > 0;
   const isNegative = adjQuantity < 0;
@@ -238,23 +270,55 @@ export default function StockAdjustmentsPage() {
 
               <div className="space-y-2">
                 <Label>Product Variation</Label>
-                <Select
-                  value={adjVariationId}
-                  onValueChange={setAdjVariationId}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select variation" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {products?.map((p) =>
-                      p.variations?.map((v: any) => (
-                        <SelectItem key={v.id} value={v.id}>
-                          {p.name} - {v.sku}
-                        </SelectItem>
-                      )),
-                    )}
-                  </SelectContent>
-                </Select>
+                <Popover open={adjVariationOpen} onOpenChange={setAdjVariationOpen}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      role="combobox"
+                      aria-expanded={adjVariationOpen}
+                      className="w-full justify-between font-normal bg-background px-3 h-10"
+                    >
+                      <span className="truncate text-sm">
+                        {adjVariationId
+                          ? allVariations.find((v) => v.id === adjVariationId)?.label
+                          : "Search product / SKU..."}
+                      </span>
+                      <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-[360px] p-0 shadow-lg" align="start">
+                    <Command>
+                      <CommandInput placeholder="Type product name or SKU..." />
+                      <CommandList>
+                        <CommandEmpty>No product variation found.</CommandEmpty>
+                        <CommandGroup>
+                          {allVariations.map((v) => (
+                            <CommandItem
+                              key={v.id}
+                              value={v.label}
+                              onSelect={() => {
+                                setAdjVariationId(v.id);
+                                setAdjVariationOpen(false);
+                              }}
+                              className="flex items-center gap-2"
+                            >
+                              <Check
+                                className={cn(
+                                  "h-4 w-4 shrink-0",
+                                  adjVariationId === v.id ? "opacity-100" : "opacity-0",
+                                )}
+                              />
+                              <div className="flex flex-col">
+                                <span className="text-sm font-medium">{v.productName}</span>
+                                <span className="text-xs text-muted-foreground font-mono">{v.sku}</span>
+                              </div>
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
               </div>
 
               <div className="space-y-2">
@@ -419,23 +483,55 @@ export default function StockAdjustmentsPage() {
 
               <div className="space-y-2">
                 <Label>Product Variation</Label>
-                <Select
-                  value={dmgVariationId}
-                  onValueChange={setDmgVariationId}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select variation" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {products?.map((p) =>
-                      p.variations?.map((v: any) => (
-                        <SelectItem key={v.id} value={v.id}>
-                          {p.name} - {v.sku}
-                        </SelectItem>
-                      )),
-                    )}
-                  </SelectContent>
-                </Select>
+                <Popover open={dmgVariationOpen} onOpenChange={setDmgVariationOpen}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      role="combobox"
+                      aria-expanded={dmgVariationOpen}
+                      className="w-full justify-between font-normal bg-background px-3 h-10"
+                    >
+                      <span className="truncate text-sm">
+                        {dmgVariationId
+                          ? allVariations.find((v) => v.id === dmgVariationId)?.label
+                          : "Search product / SKU..."}
+                      </span>
+                      <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-[360px] p-0 shadow-lg" align="start">
+                    <Command>
+                      <CommandInput placeholder="Type product name or SKU..." />
+                      <CommandList>
+                        <CommandEmpty>No product variation found.</CommandEmpty>
+                        <CommandGroup>
+                          {allVariations.map((v) => (
+                            <CommandItem
+                              key={v.id}
+                              value={v.label}
+                              onSelect={() => {
+                                setDmgVariationId(v.id);
+                                setDmgVariationOpen(false);
+                              }}
+                              className="flex items-center gap-2"
+                            >
+                              <Check
+                                className={cn(
+                                  "h-4 w-4 shrink-0",
+                                  dmgVariationId === v.id ? "opacity-100" : "opacity-0",
+                                )}
+                              />
+                              <div className="flex flex-col">
+                                <span className="text-sm font-medium">{v.productName}</span>
+                                <span className="text-xs text-muted-foreground font-mono">{v.sku}</span>
+                              </div>
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
               </div>
 
               <div className="space-y-2">
