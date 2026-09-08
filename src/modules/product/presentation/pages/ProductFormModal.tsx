@@ -23,7 +23,7 @@ import {
 } from "@/components/ui/table";
 import { uploadProductImage } from "@/lib/image-upload";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { ImageIcon, Loader2, Plus, Trash2, Upload, X } from "lucide-react";
+import { ImageIcon, Loader2, Package, Plus, Trash2, Upload, X } from "lucide-react";
 import React, { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
@@ -39,7 +39,15 @@ import {
   useUpdateProductTemplate,
 } from "../hooks/useProducts";
 import { useCreateUOM, useUOMs } from "../hooks/useUOMs";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { SupplierCombobox } from "@/components/SupplierCombobox";
+import { useSuppliers } from "@/modules/supplier/presentation/hooks/useSuppliers";
+import { WarehouseRepository } from "@/modules/warehouse/infrastructure/repositories/warehouse.repository";
+import { InventoryEngine } from "@/modules/inventory/application/services/inventory.engine";
+import { PurchaseOrderService } from "@/modules/purchase/application/services/purchase-order.service";
+import { PurchaseInvoiceService } from "@/modules/purchase/application/services/invoice.service";
+import { AccountingEngine } from "@/modules/accounting/application/services/accounting.engine";
+import { supabase } from "@/integrations/supabase/client";
 
 type ProductFormData = z.infer<typeof ProductSchema>;
 
@@ -48,6 +56,8 @@ interface ProductFormModalProps {
   onOpenChange: (open: boolean) => void;
   product: ProductTemplateWithDetails | null;
   onSuccess?: (product: any, variation?: any) => void;
+  quickSaleMode?: boolean;
+  warehouseId?: string;
 }
 
 // ── Reusable Quick-Create Popover ────────────────────────────────────────────
@@ -129,11 +139,32 @@ function QuickCreatePopover({ label, fields, isLoading, onSave }: QuickCreatePop
   );
 }
 
-export default function ProductFormModal({ isOpen, onOpenChange, product, onSuccess }: ProductFormModalProps) {
+export default function ProductFormModal({
+  isOpen,
+  onOpenChange,
+  product,
+  onSuccess,
+  quickSaleMode = false,
+  warehouseId,
+}: ProductFormModalProps) {
   const queryClient = useQueryClient();
   const { data: brands } = useBrands();
   const { data: categories } = useCategories();
   const { data: uoms } = useUOMs();
+  const { suppliers } = useSuppliers();
+
+  const { data: warehouses } = useQuery({
+    queryKey: ["warehouses"],
+    queryFn: () => WarehouseRepository.getAll(),
+    enabled: isOpen && !!quickSaleMode,
+  });
+
+  const [supplierId, setSupplierId] = useState<string>("");
+  const [openingQty, setOpeningQty] = useState<number>(0);
+  const [unitCost, setUnitCost] = useState<number>(0);
+  const [targetWarehouseId, setTargetWarehouseId] = useState<string>(warehouseId || "");
+  const [paymentType, setPaymentType] = useState<"Cash" | "Credit">("Cash");
+  const [amountPaid, setAmountPaid] = useState<number>(0);
 
   const createProduct = useCreateProductTemplate();
   const updateProduct = useUpdateProductTemplate();
@@ -160,6 +191,26 @@ export default function ProductFormModal({ isOpen, onOpenChange, product, onSucc
   });
 
   const imageUrl = watch("image_url");
+  const watchedOriginalPrice = watch("original_price");
+
+  useEffect(() => {
+    if (warehouseId) {
+      setTargetWarehouseId(warehouseId);
+    }
+  }, [warehouseId]);
+
+  useEffect(() => {
+    if (!targetWarehouseId && warehouses && warehouses.length > 0) {
+      setTargetWarehouseId(warehouseId || warehouses[0].id);
+    }
+  }, [warehouses, targetWarehouseId, warehouseId]);
+
+  // Sync original_price to unitCost if unitCost hasn't been set or matches previous original_price
+  useEffect(() => {
+    if (watchedOriginalPrice !== undefined && !product && (unitCost === 0 || unitCost === watchedOriginalPrice)) {
+      setUnitCost(Number(watchedOriginalPrice) || 0);
+    }
+  }, [watchedOriginalPrice, product]);
 
   useEffect(() => {
     if (product) {
@@ -181,8 +232,16 @@ export default function ProductFormModal({ isOpen, onOpenChange, product, onSucc
       setValue("is_new", (product as any).is_new ?? false);
     } else {
       reset({ is_active: true, has_variants: false, image_url: "", is_offer: false, is_trending: false, is_new: false });
+      if (isOpen) {
+        setSupplierId("");
+        setOpeningQty(0);
+        setUnitCost(0);
+        setPaymentType("Cash");
+        setAmountPaid(0);
+        if (warehouseId) setTargetWarehouseId(warehouseId);
+      }
     }
-  }, [product, isOpen, reset, setValue]);
+  }, [product, isOpen, reset, setValue, warehouseId]);
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -244,6 +303,162 @@ export default function ProductFormModal({ isOpen, onOpenChange, product, onSucc
             sku: fallbackSku,
             is_active: true,
           });
+        }
+      }
+      
+      // Handle Quick Sale Mode: Inbound Stock, Supplier & Purchase Order
+      const targetVarId = createdVariation?.id || savedProduct?.product_variations?.[0]?.id;
+      if (!product && quickSaleMode && targetVarId && openingQty > 0) {
+        const finalWarehouseId = targetWarehouseId || warehouses?.[0]?.id;
+        const uomId = payload.base_uom_id || uoms?.[0]?.id;
+        const cost = Number(unitCost || 0);
+        const qty = Number(openingQty);
+        const totalAmount = qty * cost;
+
+        if (finalWarehouseId && uomId) {
+          try {
+            let finalSupplierId = supplierId;
+
+            // Handle inline newly created supplier from combobox
+            if (finalSupplierId && finalSupplierId.startsWith("NEW:")) {
+              const newName = finalSupplierId.substring(4);
+              const { data: accounts } = await supabase
+                .from("chart_of_accounts")
+                .select("id")
+                .eq("account_type", "Liability")
+                .limit(1);
+
+              const { data: newSupp } = await supabase
+                .from("suppliers")
+                .insert({
+                  name: newName,
+                  payable_account_id: accounts?.[0]?.id || null,
+                  is_active: true,
+                })
+                .select()
+                .single();
+
+              if (newSupp) {
+                finalSupplierId = newSupp.id;
+              }
+            }
+
+            if (finalSupplierId) {
+              const today = new Date().toISOString().split("T")[0];
+              const poNumber = `PO-${Date.now()}`;
+              const isPaid = paymentType === "Cash";
+              const paidVal = isPaid ? totalAmount : Math.min(totalAmount, Math.max(0, Number(amountPaid || 0)));
+              const poStatus = (paidVal >= totalAmount && totalAmount > 0) ? "Paid" : "Pending";
+
+              // 1. Create Purchase Order
+              const createdPo = await PurchaseOrderService.createOrder(
+                {
+                  supplier_id: finalSupplierId,
+                  po_number: poNumber,
+                  order_date: today,
+                  status: poStatus,
+                },
+                [
+                  {
+                    variation_id: targetVarId,
+                    uom_id: uomId,
+                    quantity_ordered: qty,
+                    unit_price: cost,
+                  },
+                ]
+              );
+
+              // 2. Accounting Post
+              try {
+                let payableAccountId = undefined;
+                const { data: suppData } = await supabase
+                  .from("suppliers")
+                  .select("payable_account_id")
+                  .eq("id", finalSupplierId)
+                  .single();
+                if (suppData?.payable_account_id) {
+                  payableAccountId = suppData.payable_account_id;
+                }
+
+                await AccountingEngine.postPurchaseOrder(
+                  createdPo.id,
+                  createdPo.po_number,
+                  totalAmount,
+                  paidVal,
+                  payableAccountId
+                );
+              } catch (accError) {
+                console.error("Failed to post quick purchase order to accounting:", accError);
+              }
+
+              // 3. Purchase Invoice (for Supplier Due Page)
+              try {
+                const invoiceStatus: "Paid" | "PartiallyPaid" | "Unpaid" =
+                  paidVal >= totalAmount && totalAmount > 0
+                    ? "Paid"
+                    : paidVal > 0
+                    ? "PartiallyPaid"
+                    : "Unpaid";
+
+                await PurchaseInvoiceService.createInvoice(
+                  {
+                    supplier_id: finalSupplierId,
+                    invoice_number: `BILL-${Date.now()}`,
+                    supplier_invoice_number: poNumber,
+                    invoice_date: today,
+                    due_date: new Date(Date.now() + 30 * 86_400_000).toISOString().split("T")[0],
+                    status: invoiceStatus,
+                    total_amount: totalAmount,
+                    purchase_receipt_id: null,
+                  },
+                  [
+                    {
+                      variation_id: targetVarId,
+                      quantity_billed: qty,
+                      unit_price: cost,
+                      amount: totalAmount,
+                    },
+                  ]
+                );
+              } catch (invError) {
+                console.error("Failed to create purchase invoice for quick sale:", invError);
+              }
+
+              // 4. Inbound Stock via InventoryEngine
+              await InventoryEngine.processMovement({
+                variation_id: targetVarId,
+                warehouse_id: finalWarehouseId,
+                uom_id: uomId,
+                quantity: qty,
+                unit_cost: cost,
+                reference_type: "PURCHASE_ORDER",
+                reference_id: createdPo.id,
+              });
+
+              toast.success(`Purchased ${qty} items from supplier and added to stock`);
+            } else {
+              // Direct stock adjustment without supplier
+              await InventoryEngine.adjustStock({
+                variation_id: targetVarId,
+                warehouse_id: finalWarehouseId,
+                uom_id: uomId,
+                quantity: qty,
+                unit_cost: cost,
+                reason: "Initial Stock (Quick Sale Creation)",
+              });
+
+              toast.success(`Injected ${qty} opening stock into warehouse`);
+            }
+
+            await queryClient.invalidateQueries({ queryKey: ["stock-balances"] });
+            await queryClient.invalidateQueries({ queryKey: ["purchase-orders"] });
+            await queryClient.invalidateQueries({ queryKey: ["purchase-invoices"] });
+            await queryClient.invalidateQueries({ queryKey: ["suppliers"] });
+            await queryClient.invalidateQueries({ queryKey: ["trial-balance"] });
+          } catch (stockErr: any) {
+            console.error("Failed to inject opening stock:", stockErr);
+            toast.warning(`Product created, but stock adjustment failed: ${stockErr?.message || "Unknown error"}`);
+          }
         }
       }
       
@@ -596,6 +811,173 @@ export default function ProductFormModal({ isOpen, onOpenChange, product, onSucc
               <p className="text-xs text-red-500 mt-1">{errors.description.message}</p>
             )}
           </div>
+          {quickSaleMode && !product && (
+            <div className="rounded-lg border border-primary/20 bg-primary/5 p-4 space-y-4 shadow-sm">
+              <div className="flex items-center justify-between pb-2 border-b border-primary/10">
+                <div className="flex items-center gap-2">
+                  <Package className="w-5 h-5 text-primary" />
+                  <div>
+                    <h4 className="text-sm font-semibold text-foreground">
+                      Opening Stock & Supplier Purchase
+                    </h4>
+                    <p className="text-xs text-muted-foreground">
+                      Instantly add stock for this quick sale and automatically record purchase & supplier account balance.
+                    </p>
+                  </div>
+                </div>
+                <span className="text-xs font-medium px-2 py-0.5 rounded bg-primary/10 text-primary">
+                  Quick Sale Mode
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div>
+                  <Label className="text-xs font-medium">Warehouse</Label>
+                  <select
+                    value={targetWarehouseId}
+                    onChange={(e) => setTargetWarehouseId(e.target.value)}
+                    className="flex h-9 w-full items-center rounded-md border border-input bg-background px-3 py-1 text-sm ring-offset-background"
+                  >
+                    {warehouses && warehouses.length > 0 ? (
+                      warehouses.map((w) => (
+                        <option key={w.id} value={w.id}>
+                          {w.name}
+                        </option>
+                      ))
+                    ) : (
+                      <option value="">Default Warehouse</option>
+                    )}
+                  </select>
+                </div>
+
+                <div>
+                  <Label className="text-xs font-medium">
+                    Opening Stock Quantity
+                  </Label>
+                  <Input
+                    type="number"
+                    min="0"
+                    value={openingQty === 0 ? "" : openingQty}
+                    onChange={(e) => setOpeningQty(Math.max(0, Number(e.target.value)))}
+                    placeholder="0 (No opening stock)"
+                    className="h-9 text-center font-medium"
+                  />
+                  <span className="text-[10px] text-muted-foreground">
+                    Leave empty / 0 for negative stock sale
+                  </span>
+                </div>
+
+                <div>
+                  <Label className="text-xs font-medium">
+                    Unit Purchase Cost (OMR) <span className="text-primary font-bold">*</span>
+                  </Label>
+                  <Input
+                    type="number"
+                    step="0.001"
+                    min="0"
+                    value={unitCost === 0 ? "" : unitCost}
+                    onChange={(e) => setUnitCost(Math.max(0, Number(e.target.value)))}
+                    placeholder="e.g. 10.000"
+                    className="h-9 text-right font-medium"
+                  />
+                  <span className="text-[10px] text-muted-foreground">
+                    Used for FIFO stock valuation
+                  </span>
+                </div>
+              </div>
+
+              {/* Supplier & Payment Details */}
+              <div className="pt-2 border-t border-primary/10 space-y-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-end">
+                  <div>
+                    <Label className="text-xs font-medium">Supplier (Optional)</Label>
+                    <SupplierCombobox
+                      suppliers={suppliers || []}
+                      value={supplierId}
+                      onChange={(val) => setSupplierId(val)}
+                    />
+                    <span className="text-[10px] text-muted-foreground">
+                      Select or quick-create supplier to track Purchase Order & due balance
+                    </span>
+                  </div>
+
+                  <div className="flex items-center justify-between p-2 rounded-md bg-background border text-xs">
+                    <span className="text-muted-foreground">Total Purchase Cost:</span>
+                    <span className="font-bold text-foreground text-sm">
+                      OMR {(Number(openingQty || 0) * Number(unitCost || 0)).toFixed(3)}
+                    </span>
+                  </div>
+                </div>
+
+                {supplierId && (
+                  <div className="p-3 rounded-md bg-background border space-y-3">
+                    <div className="flex items-center justify-between">
+                      <Label className="text-xs font-semibold">Payment Status</Label>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant={paymentType === "Cash" ? "default" : "outline"}
+                          className="h-7 text-xs px-3"
+                          onClick={() => {
+                            setPaymentType("Cash");
+                            setAmountPaid(Number(openingQty || 0) * Number(unitCost || 0));
+                          }}
+                        >
+                          Cash (Fully Paid)
+                        </Button>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant={paymentType === "Credit" ? "default" : "outline"}
+                          className="h-7 text-xs px-3"
+                          onClick={() => {
+                            setPaymentType("Credit");
+                            setAmountPaid(0);
+                          }}
+                        >
+                          Credit / Pay Later
+                        </Button>
+                      </div>
+                    </div>
+
+                    {paymentType === "Credit" && (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t text-xs">
+                        <div>
+                          <Label className="text-xs font-medium">Amount Paid Now (OMR)</Label>
+                          <Input
+                            type="number"
+                            step="0.001"
+                            min="0"
+                            max={Number(openingQty || 0) * Number(unitCost || 0)}
+                            value={amountPaid === 0 ? "" : amountPaid}
+                            onChange={(e) => setAmountPaid(Math.max(0, Number(e.target.value)))}
+                            placeholder="0.000 (Pay full later)"
+                            className="h-8 text-right mt-1"
+                          />
+                        </div>
+                        <div className="flex flex-col justify-end p-2 rounded bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/40">
+                          <span className="text-[11px] text-amber-800 dark:text-amber-300 font-medium">
+                            Supplier Due Balance:
+                          </span>
+                          <span className="text-sm font-bold text-amber-900 dark:text-amber-200">
+                            OMR{" "}
+                            {Math.max(
+                              0,
+                              Number(openingQty || 0) * Number(unitCost || 0) - Number(amountPaid || 0)
+                            ).toFixed(3)}
+                          </span>
+                          <span className="text-[10px] text-amber-700 dark:text-amber-400">
+                            Will appear in Supplier Due page
+                          </span>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
 
           <div className="pt-2 pb-2">
             <Button

@@ -81,7 +81,25 @@ export class FifoEngine {
     }
 
     if (remainingToConsume > 0) {
-      console.warn(`[FIFO Engine] Insufficient cost layers to consume. Short by ${remainingToConsume}. This indicates a data inconsistency between stock_balances and fifo_ledgers (e.g. from manual seed data). Bypassing error to allow operation to complete.`);
+      console.warn(
+        `[FIFO Engine] Insufficient cost layers to consume. Short by ${remainingToConsume}. Calculating estimated COGS for negative/untracked inventory.`
+      );
+      try {
+        const { data: varData } = await supabase
+          .from("product_variations")
+          .select("cost_price, products(original_price)")
+          .eq("id", payload.variation_id)
+          .maybeSingle();
+
+        const estimatedUnitCost = Number(
+          varData?.cost_price || (varData?.products as any)?.original_price || 0
+        );
+        if (estimatedUnitCost > 0) {
+          totalCogs += remainingToConsume * estimatedUnitCost;
+        }
+      } catch (err) {
+        console.warn("Could not fetch estimated cost price for negative stock:", err);
+      }
     }
 
     return totalCogs;

@@ -566,7 +566,29 @@ export default function AddSalePage() {
           }))
         } as any);
         
-        toast({ title: "Success", description: "Sale created successfully." });
+        const hadNegativeStock = validItems.some((i) => {
+          const prod = products.find((p) =>
+            p.product_variations?.some((v: any) => v.id === i.variation_id)
+          );
+          const vr = prod?.product_variations?.find(
+            (v: any) => v.id === i.variation_id
+          );
+          const currentWhStock =
+            vr?.stock_balances
+              ?.filter((b: any) => !warehouseId || b.warehouse_id === warehouseId)
+              ?.reduce((s: number, b: any) => s + Number(b.quantity || 0), 0) ?? 0;
+          return currentWhStock < i.qty;
+        });
+
+        if (hadNegativeStock) {
+          toast({
+            title: "Sale recorded (Negative Stock)",
+            description:
+              "Items were sold on deficit. Reorder them via Warehouse Dashboard when convenient.",
+          });
+        } else {
+          toast({ title: "Success", description: "Sale created successfully." });
+        }
         navigate("/admin/orders");
       }
     } catch (e: any) {

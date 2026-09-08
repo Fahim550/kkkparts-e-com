@@ -1,3 +1,13 @@
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -15,17 +25,10 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { supabase } from "@/integrations/supabase/client";
+import { useQuery } from "@tanstack/react-query";
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-import {
+  AlertTriangle,
   Edit,
   Eye,
   FileSpreadsheet,
@@ -61,6 +64,19 @@ export default function PurchaseOrdersPage() {
 
   const { orders, isLoading, deleteOrder } = usePurchaseOrders(filters);
   const { suppliers } = useSuppliers();
+
+  // Query negative stock alerts across warehouses
+  const { data: negativeStockList } = useQuery({
+    queryKey: ["negative-stock-alerts"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("stock_balances")
+        .select(`id, variation_id, warehouse_id, quantity`)
+        .lt("quantity", 0);
+      if (error) return [];
+      return data || [];
+    },
+  });
 
   const [orderToDelete, setOrderToDelete] = useState<any | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -262,6 +278,53 @@ export default function PurchaseOrdersPage() {
           </Button>
         </div>
       </div>
+
+      {/* ── Negative Stock Deficit Alert Banner ── */}
+      {negativeStockList && negativeStockList.length > 0 && (
+        <div className="rounded-xl border border-red-200 dark:border-red-900/60 bg-red-50/80 dark:bg-red-950/30 p-4 flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-xs">
+          <div className="flex items-start gap-3">
+            <div className="p-2 rounded-lg bg-red-100 dark:bg-red-900/50 text-red-600 dark:text-red-300 shrink-0">
+              <AlertTriangle className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h4 className="text-sm font-semibold text-red-900 dark:text-red-200">
+                  Urgent Purchase Required: {negativeStockList.length} Item(s) with Negative Stock
+                </h4>
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-600 text-white">
+                  Action Needed
+                </span>
+              </div>
+              <p className="text-xs text-red-700 dark:text-red-300 mt-1">
+                Products have been sold with negative stock balances. Record purchases to reconcile inventory.
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <Button
+              size="sm"
+              variant="outline"
+              className="border-red-300 text-red-800 dark:text-red-200 hover:bg-red-100 dark:hover:bg-red-900/40 text-xs font-semibold"
+              asChild
+            >
+              <Link to="/admin/warehouse/dashboard">View Warehouse Balances</Link>
+            </Button>
+            <Button
+              size="sm"
+              className="bg-red-600 hover:bg-red-700 text-white text-xs font-semibold"
+              asChild
+            >
+              <Link
+                to={`/admin/purchases/new?variation_id=${negativeStockList[0].variation_id}&qty=${Math.abs(
+                  Number(negativeStockList[0].quantity)
+                )}&warehouse_id=${negativeStockList[0].warehouse_id}`}
+              >
+                Reorder Deficit Item
+              </Link>
+            </Button>
+          </div>
+        </div>
+      )}
 
       {/* ── Filter Bar matching screenshot ── */}
       <div className="flex flex-wrap items-center gap-3 p-3 border rounded-xl bg-white shadow-xs">

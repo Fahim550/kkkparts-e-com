@@ -169,6 +169,57 @@ export default function AddPurchasePage() {
     }
   }, [editId, editType, suppliers]);
 
+  // Support pre-filling deficit product & quantity from URL query params (e.g. from Warehouse Dashboard Negative Stock alert)
+  const paramVariationId = searchParams.get("variation_id");
+  const paramQty = searchParams.get("qty");
+  useEffect(() => {
+    if (!editId && paramVariationId && products && products.length > 0) {
+      const foundProduct = products.find(
+        (p) =>
+          p.product_variations?.some((v: any) => v.id === paramVariationId) ||
+          p.id === paramVariationId
+      );
+      const foundVariation = foundProduct?.product_variations?.find(
+        (v: any) => v.id === paramVariationId
+      );
+      if (foundProduct) {
+        const costPrice = Number(
+          foundVariation?.cost_price ||
+            foundProduct.original_price ||
+            foundProduct.price ||
+            0
+        );
+        const desiredQty = Math.max(1, Number(paramQty) || 1);
+        setItems([
+          {
+            id: Date.now(),
+            variation_id: paramVariationId,
+            qty: desiredQty,
+            uom: foundProduct.base_uom_id || "NONE",
+            price: costPrice,
+            discountPct: 0,
+            discountAmt: 0,
+            taxPct: 0,
+            taxAmt: 0,
+            amount: costPrice * desiredQty,
+          },
+          {
+            id: Date.now() + 1,
+            variation_id: "",
+            qty: 0,
+            uom: "NONE",
+            price: 0,
+            discountPct: 0,
+            discountAmt: 0,
+            taxPct: 0,
+            taxAmt: 0,
+            amount: 0,
+          },
+        ]);
+      }
+    }
+  }, [editId, paramVariationId, paramQty, products]);
+
 
   const handleAddRow = () => {
     setItems([

@@ -22,7 +22,13 @@ export class InventoryEngine {
       null,
     );
 
-    if (isOutbound) {
+    // Allow negative stock for sales, POS, or when explicitly enabled
+    const allowNegative =
+      payload.allow_negative ??
+      (payload.reference_type === "sales_order" ||
+        payload.reference_type === "pos_receipt");
+
+    if (isOutbound && !allowNegative) {
       if (!currentBalance || currentBalance.quantity < absQuantity) {
         throw new Error(
           `Insufficient stock in warehouse for variation ${payload.variation_id}.`,

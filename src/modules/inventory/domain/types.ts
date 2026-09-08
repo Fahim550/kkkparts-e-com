@@ -22,4 +22,5 @@ export type StockMovementPayload = {
   reference_type: string; // e.g. 'INVENTORY_ADJUSTMENT', 'DAMAGE_WRITE_OFF', 'PURCHASE_RECEIPT'
   reference_id: string;
   unit_cost?: number; // Needed for positive adjustments / inbound
+  allow_negative?: boolean; // If true, allows stock balance to drop below 0 (for sales)
 };

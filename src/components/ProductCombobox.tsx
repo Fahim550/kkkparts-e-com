@@ -22,9 +22,16 @@ interface ProductComboboxProps {
   value: string
   onChange: (value: string, variation?: any, product?: any) => void
   warehouseId?: string
+  quickSaleMode?: boolean
 }
 
-export function ProductCombobox({ products, value, onChange, warehouseId }: ProductComboboxProps) {
+export function ProductCombobox({
+  products,
+  value,
+  onChange,
+  warehouseId,
+  quickSaleMode = true,
+}: ProductComboboxProps) {
   const [open, setOpen] = React.useState(false)
   const [createModalOpen, setCreateModalOpen] = React.useState(false)
   const [inputValue, setInputValue] = React.useState("")
@@ -171,6 +178,8 @@ export function ProductCombobox({ products, value, onChange, warehouseId }: Prod
         isOpen={createModalOpen}
         onOpenChange={setCreateModalOpen}
         product={null}
+        quickSaleMode={quickSaleMode}
+        warehouseId={warehouseId}
         onSuccess={(savedProduct, createdVariation) => {
           const varId = createdVariation?.id || savedProduct?.product_variations?.[0]?.id;
           if (varId) {
