@@ -102,7 +102,7 @@ const DealerLayout: React.FC<DealerLayoutProps> = ({ children }) => {
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col lg:flex-row font-body">
       {/* Sidebar - Desktop */}
-      <aside className="hidden lg:flex flex-col w-64 bg-slate-900 text-white shrink-0 min-h-screen border-r border-slate-800 sticky top-0 h-screen overflow-y-auto">      
+      <aside className="hidden lg:flex flex-col w-64 bg-slate-900 text-white shrink-0 min-h-screen border-r border-slate-800 sticky top-0 h-screen overflow-y-auto sidebar-scroll">      
 
         {/* Profile Brief */}
         <div className="p-5 border-b border-slate-800 bg-slate-950/50">

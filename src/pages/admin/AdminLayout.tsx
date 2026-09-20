@@ -1,4 +1,12 @@
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -12,7 +20,9 @@ import {
   ChevronDown,
   ChevronLeft,
   ChevronRight,
+  ChevronsUpDown,
   Database,
+  ExternalLink,
   FileText,
   FolderTree,
   Image,
@@ -36,6 +46,7 @@ import {
   Settings2,
   ShoppingCart,
   Star,
+  Store,
   Tag,
   TrendingUp,
   Truck,
@@ -43,8 +54,21 @@ import {
   Users,
   UserSearch
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, Outlet, useLocation } from "react-router-dom";
+
+const AUTO_COLLAPSE_ROUTES = [
+  "/admin/sales/new",
+  "/admin/purchases/new",
+  "/admin/purchase/new",
+  "/admin/pos/terminal"
+];
+
+const isAutoCollapseRoute = (pathname: string) => {
+  return AUTO_COLLAPSE_ROUTES.some(
+    (route) => pathname === route || pathname.startsWith(route + "/")
+  );
+};
 
 const navCategories = [
   {
@@ -170,7 +194,12 @@ const isPathActive = (currentPath: string, path: string, exact?: boolean) => {
 
 const AdminLayout = () => {
   const location = useLocation();
-  const [collapsed, setCollapsed] = useState(false);
+  const prevPathnameRef = useRef(location.pathname);
+  const userPrefCollapsedRef = useRef(false);
+
+  const [collapsed, setCollapsed] = useState(() => {
+    return isAutoCollapseRoute(window.location.pathname);
+  });
   const [mobileOpen, setMobileOpen] = useState(false);
   const { user, signOut } = useAdminAuth();
   const isMobile = useIsMobile();
@@ -178,6 +207,31 @@ const AdminLayout = () => {
   const s = Array.isArray(settings) ? settings[0] || {} : settings || {};
   const logoUrl = s?.logo_url || "/logo.png";
   const siteName = s?.site_name || "Admin";
+
+  const toggleSidebar = () => {
+    setCollapsed(prev => {
+      const next = !prev;
+      if (!isAutoCollapseRoute(location.pathname)) {
+        userPrefCollapsedRef.current = next;
+      }
+      return next;
+    });
+  };
+
+  // Auto collapse sidebar when opening new sales or new purchase pages (desktop app behavior)
+  useEffect(() => {
+    const currentIsAuto = isAutoCollapseRoute(location.pathname);
+    const prevIsAuto = isAutoCollapseRoute(prevPathnameRef.current);
+
+    if (currentIsAuto) {
+      setCollapsed(true);
+    } else if (prevIsAuto && !currentIsAuto) {
+      // Restore user's previous preference when navigating away
+      setCollapsed(userPrefCollapsedRef.current);
+    }
+
+    prevPathnameRef.current = location.pathname;
+  }, [location.pathname]);
 
   const [openCategories, setOpenCategories] = useState<Record<string, boolean>>(() => {
     const initialState: Record<string, boolean> = {};
@@ -240,9 +294,14 @@ const AdminLayout = () => {
     window.location.href = "/admin/login";
   };
 
+  const userEmail = user?.email || "admin@system.com";
+  const userInitial = (userEmail.charAt(0) || "A").toUpperCase();
+  const userName = userEmail.split("@")[0] || "Admin";
+  const displayName = userName.charAt(0).toUpperCase() + userName.slice(1);
+
   const sidebarContent = (
     <>
-      <nav className="flex-1 py-4 px-2 overflow-y-auto space-y-4">
+      <nav className="flex-1 py-4 px-2 overflow-y-auto sidebar-scroll space-y-4">
         {navCategories.map((category, index) => {
           const isOpen = openCategories[category.title];
           const isCollapsed = !isMobile && collapsed;
@@ -284,7 +343,7 @@ const AdminLayout = () => {
                         key={item.path}
                         to={item.path}
                         onClick={() => isMobile && setMobileOpen(false)}
-                        className={`flex items-center gap-3 px-3 py-2.5 rounded-md font-body text-sm transition-all ${
+                        className={`flex items-center ${isCollapsed ? "justify-center px-2" : "gap-3 px-3"} py-2.5 rounded-md font-body text-sm transition-all ${
                           active
                             ? "bg-sidebar-primary/15 text-sidebar-primary border-l-2 border-sidebar-primary"
                             : "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent"
@@ -309,29 +368,108 @@ const AdminLayout = () => {
         })}
       </nav>
 
-      <div className="p-3 border-t border-sidebar-border space-y-1">
-        {(isMobile || !collapsed) && user && (
-          <div className="px-3 py-2">
-            <p className="font-body text-xs text-sidebar-foreground/40 truncate">
-              {user.email}
-            </p>
-          </div>
-        )}
-        <button
-          onClick={handleLogout}
-          className="flex items-center gap-3 px-3 py-2.5 rounded-md font-body text-sm text-sidebar-foreground/60 hover:text-destructive transition-colors w-full"
-          title={!isMobile && collapsed ? "Logout" : undefined}
-        >
-          <LogOut className="w-5 h-5 shrink-0" />
-          {(isMobile || !collapsed) && <span>Logout</span>}
-        </button>
-        <Link
-          to="/"
-          className="flex items-center gap-3 px-3 py-2.5 rounded-md font-body text-sm text-sidebar-foreground/60 hover:text-sidebar-primary transition-colors"
-        >
-          <ChevronLeft className="w-5 h-5 shrink-0" />
-          {(isMobile || !collapsed) && <span>Back to Store</span>}
-        </Link>
+      <div className="p-2.5 border-t border-sidebar-border bg-sidebar">
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            {!isMobile && collapsed ? (
+              <button
+                className="w-10 h-10 mx-auto rounded-xl flex items-center justify-center relative hover:bg-sidebar-accent/80 transition-all duration-200 focus:outline-none focus:ring-1 focus:ring-sidebar-ring group cursor-pointer"
+                title={`${displayName} (${userEmail})`}
+              >
+                <Avatar className="h-8 w-8 rounded-lg border border-sidebar-border/80 shadow-xs">
+                  <AvatarFallback className="bg-gradient-to-br from-blue-600 via-indigo-600 to-violet-700 text-white font-bold text-xs rounded-lg">
+                    {userInitial}
+                  </AvatarFallback>
+                </Avatar>
+                <span className="absolute bottom-1 right-1 w-2 h-2 rounded-full bg-emerald-500 ring-2 ring-sidebar" />
+              </button>
+            ) : (
+              <button
+                className="w-full flex items-center gap-3 p-2 rounded-xl bg-sidebar-accent/30 hover:bg-sidebar-accent/80 border border-sidebar-border/40 text-left transition-all duration-200 group focus:outline-none focus:ring-1 focus:ring-sidebar-ring cursor-pointer"
+              >
+                <div className="relative shrink-0">
+                  <Avatar className="h-9 w-9 rounded-lg border border-sidebar-border/80 shadow-xs">
+                    <AvatarFallback className="bg-gradient-to-br from-blue-600 via-indigo-600 to-violet-700 text-white font-bold text-xs rounded-lg">
+                      {userInitial}
+                    </AvatarFallback>
+                  </Avatar>
+                  <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-emerald-500 ring-2 ring-sidebar" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-1.5">
+                    <p className="text-xs font-semibold text-sidebar-foreground truncate">
+                      {displayName}
+                    </p>
+                    <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-blue-500/15 text-blue-400 font-semibold border border-blue-500/20 shrink-0 uppercase tracking-wider">
+                      Admin
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-sidebar-foreground/50 truncate font-mono mt-0.5">
+                    {userEmail}
+                  </p>
+                </div>
+                <ChevronsUpDown className="w-3.5 h-3.5 text-sidebar-foreground/40 group-hover:text-sidebar-foreground/80 shrink-0 transition-colors" />
+              </button>
+            )}
+          </DropdownMenuTrigger>
+
+          <DropdownMenuContent
+            side={!isMobile && collapsed ? "right" : "top"}
+            align={!isMobile && collapsed ? "end" : "start"}
+            sideOffset={10}
+            className="w-64 bg-sidebar border border-sidebar-border text-sidebar-foreground shadow-2xl rounded-xl p-1.5 z-50"
+          >
+            <div className="px-3 py-2.5 bg-sidebar-accent/40 rounded-lg mb-1 border border-sidebar-border/40">
+              <div className="flex items-center gap-2.5">
+                <Avatar className="h-8 w-8 rounded-lg shrink-0">
+                  <AvatarFallback className="bg-gradient-to-br from-blue-600 via-indigo-600 to-violet-700 text-white font-bold text-xs rounded-lg">
+                    {userInitial}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-xs font-semibold text-sidebar-foreground truncate">{displayName}</span>
+                    <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-blue-500/20 text-blue-400 font-medium border border-blue-500/30 shrink-0">
+                      Super Admin
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-sidebar-foreground/50 truncate font-mono mt-0.5">{userEmail}</p>
+                </div>
+              </div>
+            </div>
+
+            <DropdownMenuItem asChild>
+              <Link
+                to="/"
+                className="flex items-center gap-2.5 px-3 py-2 text-xs rounded-lg text-sidebar-foreground/80 hover:text-sidebar-foreground hover:bg-sidebar-accent cursor-pointer transition-colors"
+              >
+                <Store className="w-4 h-4 text-sidebar-foreground/60" />
+                <span className="font-medium flex-1">View Storefront</span>
+                <ExternalLink className="w-3.5 h-3.5 text-sidebar-foreground/40" />
+              </Link>
+            </DropdownMenuItem>
+
+            <DropdownMenuItem asChild>
+              <Link
+                to="/admin/settings"
+                className="flex items-center gap-2.5 px-3 py-2 text-xs rounded-lg text-sidebar-foreground/80 hover:text-sidebar-foreground hover:bg-sidebar-accent cursor-pointer transition-colors"
+              >
+                <Settings className="w-4 h-4 text-sidebar-foreground/60" />
+                <span className="font-medium">Store Settings</span>
+              </Link>
+            </DropdownMenuItem>
+
+            <DropdownMenuSeparator className="bg-sidebar-border/60 my-1" />
+
+            <DropdownMenuItem
+              onClick={handleLogout}
+              className="flex items-center gap-2.5 px-3 py-2 text-xs rounded-lg text-red-400 hover:text-red-300 hover:bg-red-500/10 cursor-pointer transition-colors"
+            >
+              <LogOut className="w-4 h-4 text-red-400" />
+              <span className="font-medium">Sign Out</span>
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
     </>
   );
@@ -399,22 +537,23 @@ const AdminLayout = () => {
       <aside
         className={`${collapsed ? "w-16" : "w-64"} bg-sidebar border-r border-sidebar-border flex flex-col shrink-0 transition-all duration-300 fixed h-full z-40 print:hidden`}
       >
-        <div className="h-16 flex items-center justify-between px-4 border-b border-sidebar-border">
+        <div className={`h-16 flex items-center ${collapsed ? "justify-center px-2" : "justify-between px-4"} border-b border-sidebar-border`}>
           {!collapsed && (
-            <Link to="/admin" className="flex items-center gap-2">
+            <Link to="/admin" className="flex items-center gap-2 overflow-hidden">
               <img
                 src={logoUrl}
                 alt={siteName}
-                className="h-10 w-auto brightness-0 invert object-contain"
+                className="h-10 w-auto brightness-0 invert object-contain shrink-0"
               />
-              <span className="text-xs text-sidebar-foreground/60 font-body font-normal">
+              <span className="text-xs text-sidebar-foreground/60 font-body font-normal truncate">
                 {siteName} Admin
               </span>
             </Link>
           )}
           <button
-            onClick={() => setCollapsed(!collapsed)}
-            className="text-sidebar-foreground/60 hover:text-sidebar-foreground transition-colors"
+            onClick={toggleSidebar}
+            className={`text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent/50 p-2 rounded-md transition-colors ${collapsed ? "mx-auto" : ""}`}
+            title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
           >
             {collapsed ? (
               <Menu className="w-5 h-5" />
