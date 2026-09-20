@@ -156,9 +156,10 @@ export default function ProductFormModal({
   const { data: warehouses } = useQuery({
     queryKey: ["warehouses"],
     queryFn: () => WarehouseRepository.getAll(),
-    enabled: isOpen && !!quickSaleMode,
+    enabled: isOpen && !product,
   });
 
+  const [showOpeningStock, setShowOpeningStock] = useState<boolean>(false);
   const [supplierId, setSupplierId] = useState<string>("");
   const [openingQty, setOpeningQty] = useState<number>(0);
   const [unitCost, setUnitCost] = useState<number>(0);
@@ -233,6 +234,7 @@ export default function ProductFormModal({
     } else {
       reset({ is_active: true, has_variants: false, image_url: "", is_offer: false, is_trending: false, is_new: false });
       if (isOpen) {
+        setShowOpeningStock(false);
         setSupplierId("");
         setOpeningQty(0);
         setUnitCost(0);
@@ -306,9 +308,9 @@ export default function ProductFormModal({
         }
       }
       
-      // Handle Quick Sale Mode: Inbound Stock, Supplier & Purchase Order
+      // Handle Opening Stock, Supplier & Purchase Order
       const targetVarId = createdVariation?.id || savedProduct?.product_variations?.[0]?.id;
-      if (!product && quickSaleMode && targetVarId && openingQty > 0) {
+      if (!product && showOpeningStock && targetVarId && openingQty > 0) {
         const finalWarehouseId = targetWarehouseId || warehouses?.[0]?.id;
         const uomId = payload.base_uom_id || uoms?.[0]?.id;
         const cost = Number(unitCost || 0);
@@ -811,8 +813,39 @@ export default function ProductFormModal({
               <p className="text-xs text-red-500 mt-1">{errors.description.message}</p>
             )}
           </div>
-          {quickSaleMode && !product && (
-            <div className="rounded-lg border border-primary/20 bg-primary/5 p-4 space-y-4 shadow-sm">
+          {!product && !showOpeningStock && (
+            <div className="pt-1">
+              <button
+                type="button"
+                onClick={() => setShowOpeningStock(true)}
+                className="w-full flex items-center justify-between p-3 rounded-lg border border-dashed border-primary/40 bg-primary/5 hover:bg-primary/10 transition-colors text-left group"
+              >
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-md bg-primary/10 flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
+                    <Package className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <div className="text-xs font-semibold text-foreground flex items-center gap-2">
+                      <span>Opening Stock & Supplier Purchase</span>
+                      <span className="text-[10px] font-normal text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
+                        Optional
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-muted-foreground">
+                      Click to add initial inventory quantity, purchase cost, or supplier details
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-1 text-xs font-medium text-primary">
+                  <Plus className="w-4 h-4" />
+                  <span>Add Stock</span>
+                </div>
+              </button>
+            </div>
+          )}
+
+          {!product && showOpeningStock && (
+            <div className="rounded-lg border border-primary/20 bg-primary/5 p-4 space-y-4 shadow-sm animate-in fade-in-50 duration-200">
               <div className="flex items-center justify-between pb-2 border-b border-primary/10">
                 <div className="flex items-center gap-2">
                   <Package className="w-5 h-5 text-primary" />
@@ -821,13 +854,30 @@ export default function ProductFormModal({
                       Opening Stock & Supplier Purchase
                     </h4>
                     <p className="text-xs text-muted-foreground">
-                      Instantly add stock for this quick sale and automatically record purchase & supplier account balance.
+                      Add initial stock and automatically record purchase & supplier account balance.
                     </p>
                   </div>
                 </div>
-                <span className="text-xs font-medium px-2 py-0.5 rounded bg-primary/10 text-primary">
-                  Quick Sale Mode
-                </span>
+                <div className="flex items-center gap-2">
+                  {quickSaleMode && (
+                    <span className="text-xs font-medium px-2 py-0.5 rounded bg-primary/10 text-primary">
+                      Quick Sale Mode
+                    </span>
+                  )}
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      setShowOpeningStock(false);
+                      setOpeningQty(0);
+                    }}
+                    className="h-7 text-xs text-muted-foreground hover:text-destructive hover:bg-destructive/10 px-2 gap-1"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                    <span>Hide</span>
+                  </Button>
+                </div>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
