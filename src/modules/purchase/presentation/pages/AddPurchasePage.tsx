@@ -266,31 +266,40 @@ export default function AddPurchasePage() {
     }
   }, [editId, editType, suppliers]);
 
-  // Support pre-filling deficit product & quantity from URL query params (e.g. from Warehouse Dashboard Negative Stock alert)
+  // Support pre-filling deficit product & quantity from URL query params (e.g. from Low Stock Reorder or Warehouse Dashboard Negative Stock alert)
   const paramVariationId = searchParams.get("variation_id");
+  const paramProductId = searchParams.get("product_id");
+  const paramProductName = searchParams.get("product_name") || searchParams.get("search");
   const paramQty = searchParams.get("qty");
+
   useEffect(() => {
-    if (!editId && paramVariationId && products && products.length > 0) {
-      const foundProduct = products.find(
-        (p) =>
-          p.product_variations?.some((v: any) => v.id === paramVariationId) ||
-          p.id === paramVariationId
-      );
-      const foundVariation = foundProduct?.product_variations?.find(
-        (v: any) => v.id === paramVariationId
-      );
+    if (!editId && (paramVariationId || paramProductId || paramProductName) && products && products.length > 0) {
+      const foundProduct = products.find((p) => {
+        if (paramVariationId && p.product_variations?.some((v: any) => v.id === paramVariationId)) return true;
+        if (paramProductId && p.id === paramProductId) return true;
+        if (paramProductName && p.name.toLowerCase().includes(paramProductName.toLowerCase())) return true;
+        return false;
+      });
+
       if (foundProduct) {
+        const foundVariation =
+          (paramVariationId
+            ? foundProduct.product_variations?.find((v: any) => v.id === paramVariationId)
+            : foundProduct.product_variations?.[0]) || foundProduct.product_variations?.[0];
+
+        const targetVariationId = foundVariation?.id || foundProduct.id;
         const costPrice = Number(
           foundVariation?.cost_price ||
             foundProduct.original_price ||
             foundProduct.price ||
             0
         );
-        const desiredQty = Math.max(1, Number(paramQty) || 1);
+        const desiredQty = Math.max(1, Number(paramQty) || 10);
+
         setItems([
           {
             id: Date.now(),
-            variation_id: paramVariationId,
+            variation_id: targetVariationId,
             qty: desiredQty,
             uom: foundProduct.base_uom_id || "NONE",
             price: costPrice,
@@ -313,9 +322,14 @@ export default function AddPurchasePage() {
             amount: 0,
           },
         ]);
+
+        toast({
+          title: "Product Pre-Selected for Purchase",
+          description: `Ready to restock ${foundProduct.name} (${desiredQty} units). Please select a supplier and review price.`,
+        });
       }
     }
-  }, [editId, paramVariationId, paramQty, products]);
+  }, [editId, paramVariationId, paramProductId, paramProductName, paramQty, products]);
 
 
   const handleAddRow = () => {

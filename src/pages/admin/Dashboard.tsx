@@ -195,13 +195,15 @@ const Dashboard = () => {
       }, 0);
       const level = varStock > 0 ? varStock : Number(p.stock || 0);
       return {
+        id: p.id,
         name: p.name,
+        sku: p.sku || p.part_number,
         stock_level: level,
       };
     })
     .filter((p: any) => p.stock_level <= lowStockThreshold)
     .sort((a: any, b: any) => a.stock_level - b.stock_level)
-    .slice(0, 5);
+    .slice(0, 6);
 
   return (
     <div className="flex flex-col min-h-screen bg-slate-50 font-body">
@@ -395,31 +397,85 @@ const Dashboard = () => {
 
           {/* Low Stock Items */}
           <div className="p-6 border-b border-gray-100 flex-1">
-            <div className="flex justify-between items-center mb-4">
-              <h4 className="text-gray-500 text-sm font-medium">Low Stock Items</h4>
-              <span className="text-gray-400 text-xs">As of Now</span>
-            </div>
-            <div className="space-y-3">
+            <Link
+              to="/admin/reports/inventory?lowStock=true"
+              className="flex justify-between items-center mb-3 group cursor-pointer"
+            >
+              <div className="flex items-center gap-2">
+                <h4 className="text-gray-500 text-sm font-medium group-hover:text-blue-600 transition-colors">
+                  Low Stock Items
+                </h4>
+                {lowStockItems.length > 0 && (
+                  <span className="px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-red-100 text-red-700">
+                    {lowStockItems.length}
+                  </span>
+                )}
+              </div>
+              <span className="text-gray-400 text-xs flex items-center gap-0.5 group-hover:text-blue-500">
+                As of Now <ChevronRight className="w-3.5 h-3.5" />
+              </span>
+            </Link>
+
+            <div className="space-y-1.5">
               {lowStockItems.length > 0 ? (
                 lowStockItems.map((item: any, idx: number) => (
-                  <div key={idx} className="flex justify-between items-center text-sm">
-                    <span className="text-gray-600 truncate mr-2 max-w-[180px]" title={item.name}>
-                      {item.name.toUpperCase()}
-                    </span>
-                    <span className="text-red-500 font-semibold">{item.stock_level}</span>
+                  <div
+                    key={item.id || idx}
+                    className="flex justify-between items-center p-2 rounded-lg -mx-2 hover:bg-red-50/70 border border-transparent hover:border-red-100 transition-all group"
+                  >
+                    <Link
+                      to={`/admin/reports/inventory?search=${encodeURIComponent(item.name)}&lowStock=true`}
+                      className="flex items-center gap-2 min-w-0 flex-1 cursor-pointer"
+                      title={`Click to view stock & warehouses for ${item.name}`}
+                    >
+                      <span className="w-1.5 h-1.5 rounded-full bg-red-500 shrink-0 group-hover:scale-125 transition-transform" />
+                      <span className="text-gray-700 text-xs font-semibold uppercase truncate max-w-[155px] group-hover:text-red-700">
+                        {item.name}
+                      </span>
+                    </Link>
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <span className="text-xs px-2 py-0.5 rounded-full font-bold bg-red-100 text-red-700">
+                        {item.stock_level}
+                      </span>
+                      <Link
+                        to={`/admin/purchases/new?product_id=${item.id}&search=${encodeURIComponent(item.name)}&qty=${Math.max(10, 10 - item.stock_level)}`}
+                        className="p-1 text-gray-400 hover:text-blue-600 hover:bg-blue-100/60 rounded transition"
+                        title={`Quick Purchase / Restock ${item.name}`}
+                      >
+                        <ShoppingCart className="w-3.5 h-3.5" />
+                      </Link>
+                      <Link
+                        to={`/admin/reports/inventory?search=${encodeURIComponent(item.name)}&lowStock=true`}
+                        className="text-gray-300 hover:text-red-500 transition-colors"
+                        title="View stock report"
+                      >
+                        <ChevronRight className="w-3.5 h-3.5" />
+                      </Link>
+                    </div>
                   </div>
                 ))
               ) : (
-                <div className="text-xs text-gray-400">All items well stocked</div>
+                <div className="text-xs text-gray-400 py-3 text-center bg-gray-50 rounded-lg">
+                  All items well stocked
+                </div>
               )}
             </div>
+
             {lowStockItems.length > 0 && (
-              <Link
-                to="/admin/reports/inventory"
-                className="text-blue-600 text-xs mt-3 flex items-center font-medium hover:underline"
-              >
-                See More <ChevronRight className="w-3 h-3 ml-1" />
-              </Link>
+              <div className="flex items-center justify-between mt-3 pt-3 border-t border-gray-100 text-xs">
+                <Link
+                  to="/admin/reports/inventory?lowStock=true"
+                  className="text-blue-600 font-medium flex items-center hover:underline"
+                >
+                  View All ({lowStockItems.length}) <ChevronRight className="w-3 h-3 ml-0.5" />
+                </Link>
+                <Link
+                  to={`/admin/purchases/new?search=${encodeURIComponent(lowStockItems[0]?.name || "")}&qty=10`}
+                  className="text-amber-600 font-medium flex items-center gap-0.5 hover:underline"
+                >
+                  <Plus className="w-3 h-3" /> Quick Reorder
+                </Link>
+              </div>
             )}
           </div>
 
@@ -445,7 +501,7 @@ const Dashboard = () => {
               </Link>
             </div>
             <Link
-              to="/pos"
+              to="/admin/pos/terminal"
               className="flex items-center justify-between p-2.5 bg-blue-600 text-white rounded-lg text-xs font-semibold hover:bg-blue-700 transition shadow-xs w-full"
             >
               <div className="flex items-center gap-1.5">

@@ -421,7 +421,7 @@ export class ReportingRepository {
     }
 
     // 2. Fetch Stock Balances with joined variation, product name, and warehouse
-    const { data: balances } = await supabase
+    const { data: balances, error: balErr } = await supabase
       .from("stock_balances")
       .select(`
         quantity,
@@ -429,17 +429,31 @@ export class ReportingRepository {
         product_variations(
           id, 
           sku,
-          products(name, cost_price, price)
+          product_id,
+          products(id, name, original_price, price, stock)
         ),
         warehouses(name)
-      `)
-      .gt("quantity", 0);
+      `);
+
+    if (balErr) {
+      console.error("Error fetching stock balances in getInventoryReport:", balErr);
+    }
+
+    // 3. Also fetch all catalog products to include any products/variations without existing stock_balance rows
+    const { data: allProducts, error: prodErr } = await supabase
+      .from("products")
+      .select("id, name, item_code, original_price, price, stock, product_variations(id, sku)");
+
+    if (prodErr) {
+      console.error("Error fetching products in getInventoryReport:", prodErr);
+    }
 
     // Group by variation_id to prevent duplicate rows across multiple warehouses
     const grouped = new Map<
       string,
       {
         variation_id: string;
+        product_id?: string;
         sku: string;
         name: string;
         quantity: number;
@@ -455,7 +469,12 @@ export class ReportingRepository {
 
         const sku = b.product_variations?.sku || "SKU-UNKNOWN";
         const name = b.product_variations?.products?.name || "Product";
-        const cost_price = Number(b.product_variations?.products?.cost_price || 0);
+        const productId = b.product_variations?.products?.id || b.product_variations?.product_id;
+        const cost_price = Number(
+          b.product_variations?.products?.original_price ||
+          b.product_variations?.products?.price ||
+          0
+        );
         const whName = b.warehouses?.name || "Main Warehouse";
         const qty = Number(b.quantity || 0);
 
@@ -466,11 +485,45 @@ export class ReportingRepository {
         } else {
           grouped.set(varId, {
             variation_id: varId,
+            product_id: productId,
             sku,
             name,
             quantity: qty,
             cost_price,
             warehouses: [{ warehouse_name: whName, quantity: qty }],
+          });
+        }
+      });
+    }
+
+    // Merge any catalog products or variations that might not have a stock_balance record yet
+    if (allProducts) {
+      allProducts.forEach((p: any) => {
+        const variations = p.product_variations || [];
+        const fallbackCost = Number(p.original_price || p.price || 0);
+        if (variations.length > 0) {
+          variations.forEach((v: any) => {
+            if (!grouped.has(v.id)) {
+              grouped.set(v.id, {
+                variation_id: v.id,
+                product_id: p.id,
+                sku: v.sku || p.item_code || "SKU-UNKNOWN",
+                name: p.name,
+                quantity: Number(p.stock || 0),
+                cost_price: fallbackCost,
+                warehouses: [{ warehouse_name: "Main Warehouse", quantity: Number(p.stock || 0) }],
+              });
+            }
+          });
+        } else if (!grouped.has(p.id)) {
+          grouped.set(p.id, {
+            variation_id: p.id,
+            product_id: p.id,
+            sku: p.item_code || "SKU-UNKNOWN",
+            name: p.name,
+            quantity: Number(p.stock || 0),
+            cost_price: fallbackCost,
+            warehouses: [{ warehouse_name: "Main Warehouse", quantity: Number(p.stock || 0) }],
           });
         }
       });
@@ -483,13 +536,14 @@ export class ReportingRepository {
 
       // Fallback to cost_price if FIFO layer isn't recorded yet
       if (totalVal === 0 && item.cost_price > 0) {
-        totalVal = item.cost_price * item.quantity;
+        totalVal = item.cost_price * Math.max(0, item.quantity);
       }
 
       const unitCost = item.quantity > 0 ? totalVal / item.quantity : item.cost_price;
 
       report.push({
         variation_id: item.variation_id,
+        product_id: item.product_id,
         sku: item.sku,
         name: item.name,
         quantity: item.quantity,

@@ -1,4 +1,5 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
+import { useSearchParams, Link } from "react-router-dom";
 import { useInventoryReport } from "../hooks/useReporting";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -21,16 +22,32 @@ import {
   ChevronLeft,
   ChevronRight,
   Warehouse,
+  ShoppingCart,
+  ExternalLink,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 
 export default function InventoryReport() {
   const { data: inventory, isLoading } = useInventoryReport();
-  const [searchTerm, setSearchTerm] = useState("");
-  const [lowStockOnly, setLowStockOnly] = useState(false);
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  const [searchTerm, setSearchTerm] = useState(() => searchParams.get("search") || "");
+  const [lowStockOnly, setLowStockOnly] = useState(() => searchParams.get("lowStock") === "true");
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 25;
+
+  // Sync with URL search params when navigating from Dashboard or other pages
+  useEffect(() => {
+    const urlSearch = searchParams.get("search");
+    const urlLowStock = searchParams.get("lowStock");
+    if (urlSearch !== null) {
+      setSearchTerm(urlSearch);
+    }
+    if (urlLowStock !== null) {
+      setLowStockOnly(urlLowStock === "true");
+    }
+  }, [searchParams]);
 
   const filteredInventory = useMemo(() => {
     if (!inventory) return [];
@@ -158,6 +175,11 @@ export default function InventoryReport() {
               onClick={() => {
                 setSearchTerm("");
                 setCurrentPage(1);
+                setSearchParams((prev) => {
+                  const p = new URLSearchParams(prev);
+                  p.delete("search");
+                  return p;
+                });
               }}
               className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
             >
@@ -170,8 +192,15 @@ export default function InventoryReport() {
           variant={lowStockOnly ? "default" : "outline"}
           size="sm"
           onClick={() => {
-            setLowStockOnly(!lowStockOnly);
+            const next = !lowStockOnly;
+            setLowStockOnly(next);
             setCurrentPage(1);
+            setSearchParams((prev) => {
+              const p = new URLSearchParams(prev);
+              if (next) p.set("lowStock", "true");
+              else p.delete("lowStock");
+              return p;
+            });
           }}
           className="gap-1.5"
         >
@@ -187,6 +216,7 @@ export default function InventoryReport() {
               setSearchTerm("");
               setLowStockOnly(false);
               setCurrentPage(1);
+              setSearchParams({});
             }}
           >
             <X className="w-3.5 h-3.5 mr-1" /> Reset
@@ -215,6 +245,7 @@ export default function InventoryReport() {
                   <TableHead className="text-right">Qty on Hand</TableHead>
                   <TableHead className="text-right">Avg Unit Cost (OMR)</TableHead>
                   <TableHead className="text-right">Total FIFO Value (OMR)</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -259,12 +290,31 @@ export default function InventoryReport() {
                       <TableCell className="text-right font-bold text-sm text-blue-700 font-mono">
                         OMR {item.total_value.toFixed(3)}
                       </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex items-center justify-end gap-1.5">
+                          <Link
+                            to={`/admin/purchases/new?variation_id=${item.variation_id}&product_id=${item.product_id || ""}&product_name=${encodeURIComponent(item.name)}&qty=${Math.max(10, 10 - item.quantity)}`}
+                            className="inline-flex items-center gap-1.5 px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded text-xs font-semibold shadow-xs transition"
+                            title={`Create Purchase Order to restock ${item.name}`}
+                          >
+                            <ShoppingCart className="w-3.5 h-3.5" />
+                            Purchase
+                          </Link>
+                          <Link
+                            to={`/admin/products?search=${encodeURIComponent(item.name)}`}
+                            className="inline-flex items-center gap-1 p-1 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition"
+                            title="View in Products Management"
+                          >
+                            <ExternalLink className="w-3.5 h-3.5" />
+                          </Link>
+                        </div>
+                      </TableCell>
                     </TableRow>
                   );
                 })}
                 {filteredInventory.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center py-10 text-muted-foreground">
+                    <TableCell colSpan={7} className="text-center py-10 text-muted-foreground">
                       No inventory items found matching your criteria.
                     </TableCell>
                   </TableRow>

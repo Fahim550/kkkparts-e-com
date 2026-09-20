@@ -1,4 +1,5 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import {
   useProductTemplates,
   useDeleteProductTemplate,
@@ -18,12 +19,20 @@ import { Loader2, Plus, Edit, Trash2, Box, ImageIcon } from "lucide-react";
 import ProductFormModal from "./ProductFormModal";
 
 export default function ProductsPage() {
+  const [searchParams, setSearchParams] = useSearchParams();
   const { data: products, isLoading } = useProductTemplates();
   const deleteProduct = useDeleteProductTemplate();
 
   const [isOpen, setIsOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<ProductTemplateWithDetails | null>(null);
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useState(() => searchParams.get("search") || "");
+
+  useEffect(() => {
+    const q = searchParams.get("search");
+    if (q !== null) {
+      setSearch(q);
+    }
+  }, [searchParams]);
 
   const filteredProducts = products?.filter((p) => 
     p.name.toLowerCase().includes(search.toLowerCase()) || 

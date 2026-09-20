@@ -17,6 +17,7 @@ export type SalesChartData = {
 
 export type InventoryReportItem = {
   variation_id: string;
+  product_id?: string;
   sku: string;
   name: string;
   quantity: number;
