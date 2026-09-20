@@ -367,7 +367,7 @@ const PayablePartiesPage = () => {
 
       <div className="flex flex-1 overflow-hidden">
         {/* Left Sidebar */}
-        <div className="w-1/3 bg-white border-r border-gray-200 flex flex-col">
+        <div className="w-72 lg:w-80 shrink-0 bg-white border-r border-gray-200 flex flex-col">
           <div className="p-4 border-b border-gray-100">
             <div className="relative">
               <Search className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />

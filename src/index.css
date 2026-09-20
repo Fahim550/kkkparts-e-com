@@ -49,14 +49,14 @@ body { top: 0 !important; }
 
     --radius: 0.375rem;
 
-    --sidebar-background: 220 20% 10%;
-    --sidebar-foreground: 220 10% 85%;
-    --sidebar-primary: 217 91% 56%;
+    --sidebar-background: 222 47% 7%;
+    --sidebar-foreground: 215 20% 75%;
+    --sidebar-primary: 217 91% 60%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 220 20% 16%;
-    --sidebar-accent-foreground: 0 0% 100%;
-    --sidebar-border: 220 20% 18%;
-    --sidebar-ring: 217 91% 56%;
+    --sidebar-accent: 217 33% 13%;
+    --sidebar-accent-foreground: 210 40% 98%;
+    --sidebar-border: 217 30% 12%;
+    --sidebar-ring: 217 91% 60%;
 
     --font-heading: system-ui, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
     --font-body: system-ui, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
