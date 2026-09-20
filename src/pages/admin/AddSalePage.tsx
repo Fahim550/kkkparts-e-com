@@ -283,6 +283,73 @@ export default function AddSalePage() {
     }
   }, [editId, editType, customers]);
 
+  // Support pre-filling product from URL query params (e.g. from Admin Global Search or Inventory Report)
+  const paramVariationId = searchParams.get("variation_id");
+  const paramProductId = searchParams.get("product_id");
+  const paramProductName = searchParams.get("product_name") || searchParams.get("search");
+  const paramQty = searchParams.get("qty");
+
+  useEffect(() => {
+    if (!editId && (paramVariationId || paramProductId || paramProductName) && products && products.length > 0) {
+      const foundProduct = products.find((p) => {
+        if (paramVariationId && p.product_variations?.some((v: any) => v.id === paramVariationId)) return true;
+        if (paramProductId && p.id === paramProductId) return true;
+        if (paramProductName && p.name.toLowerCase().includes(paramProductName.toLowerCase())) return true;
+        return false;
+      });
+
+      if (foundProduct) {
+        const foundVariation =
+          (paramVariationId
+            ? foundProduct.product_variations?.find((v: any) => v.id === paramVariationId)
+            : foundProduct.product_variations?.[0]) || foundProduct.product_variations?.[0];
+
+        const targetVariationId = foundVariation?.id || foundProduct.id;
+        const currentCust = customers?.find((c) => c.id === customerId);
+        const isDealer = currentCust?.customer_group === "Dealer";
+        const dealerPrice = foundProduct.dealer_price && Number(foundProduct.dealer_price) > 0 ? Number(foundProduct.dealer_price) : null;
+        const sellPrice = Number(
+          (isDealer && dealerPrice != null)
+            ? dealerPrice
+            : (foundVariation?.sell_price || foundVariation?.price || foundProduct.price || 0)
+        );
+        const desiredQty = Math.max(1, Number(paramQty) || 1);
+
+        setItems([
+          {
+            id: Date.now(),
+            variation_id: targetVariationId,
+            qty: desiredQty,
+            uom: foundProduct.base_uom_id || "NONE",
+            price: sellPrice,
+            discountPct: 0,
+            discountAmt: 0,
+            taxPct: 0,
+            taxAmt: 0,
+            amount: sellPrice * desiredQty,
+          },
+          {
+            id: Date.now() + 1,
+            variation_id: "",
+            qty: 0,
+            uom: "NONE",
+            price: 0,
+            discountPct: 0,
+            discountAmt: 0,
+            taxPct: 0,
+            taxAmt: 0,
+            amount: 0,
+          },
+        ]);
+
+        toast({
+          title: "Product Added to Sale",
+          description: `Pre-selected ${foundProduct.name} (${desiredQty} qty).`,
+        });
+      }
+    }
+  }, [editId, paramVariationId, paramProductId, paramProductName, paramQty, products]);
+
   const handleAddRow = () => {
     setItems([
       ...items,

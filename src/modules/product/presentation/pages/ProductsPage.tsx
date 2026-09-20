@@ -15,7 +15,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Loader2, Plus, Edit, Trash2, Box, ImageIcon } from "lucide-react";
+import { Loader2, Plus, Edit, Trash2, Box, ImageIcon, X } from "lucide-react";
 import ProductFormModal from "./ProductFormModal";
 
 export default function ProductsPage() {
@@ -34,10 +34,17 @@ export default function ProductsPage() {
     }
   }, [searchParams]);
 
-  const filteredProducts = products?.filter((p) => 
-    p.name.toLowerCase().includes(search.toLowerCase()) || 
-    p.item_code.toLowerCase().includes(search.toLowerCase())
-  ) || [];
+  const filteredProducts = products?.filter((p) => {
+    const q = search.trim().toLowerCase();
+    if (!q) return true;
+    return (
+      (p.name && p.name.toLowerCase().includes(q)) || 
+      (p.item_code && p.item_code.toLowerCase().includes(q)) ||
+      (p.brand?.name && p.brand.name.toLowerCase().includes(q)) ||
+      (p.category?.name && p.category.name.toLowerCase().includes(q)) ||
+      (p.variations && p.variations.some((v: any) => v.sku && v.sku.toLowerCase().includes(q)))
+    );
+  }) || [];
 
   const handleEdit = (product: ProductTemplateWithDetails) => {
     setEditingProduct(product);
@@ -76,13 +83,34 @@ export default function ProductsPage() {
         </Button>
       </div>
 
-      <div className="flex gap-4 mb-4">
-        <Input 
-          placeholder="Search by name or item code..." 
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="max-w-sm"
-        />
+      <div className="flex items-center gap-2 mb-4">
+        <div className="relative max-w-sm w-full">
+          <Input 
+            placeholder="Search by product name, code, brand..." 
+            value={search}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setSearchParams(e.target.value ? { search: e.target.value } : {});
+            }}
+            className="pr-8"
+          />
+          {search && (
+            <button
+              onClick={() => {
+                setSearch("");
+                setSearchParams({});
+              }}
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          )}
+        </div>
+        {search && (
+          <span className="text-xs text-muted-foreground">
+            Found {filteredProducts.length} product{filteredProducts.length !== 1 ? "s" : ""}
+          </span>
+        )}
       </div>
 
       <div className="border rounded-md">

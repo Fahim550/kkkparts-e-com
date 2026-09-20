@@ -56,6 +56,7 @@ import {
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { Link, Outlet, useLocation } from "react-router-dom";
+import AdminGlobalSearch from "@/components/admin/AdminGlobalSearch";
 
 const AUTO_COLLAPSE_ROUTES = [
   "/admin/sales/new",
@@ -570,14 +571,7 @@ const AdminLayout = () => {
       >
         <header className="h-16 border-b border-gray-400 bg-gray-100 flex items-center justify-between px-6 sticky top-0 z-30 print:hidden">
           <div className="flex-1 flex items-center">
-            <div className="relative w-64">
-              <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Input
-                type="search"
-                placeholder="Search Transactions"
-                className="pl-9  bg-transparent border-gray-600 outline-none text-sm w-full focus:ring-0"
-              />
-            </div>
+            <AdminGlobalSearch />
           </div>
           <div className="flex items-center space-x-3">
             <Link to="/admin/sales/new">
