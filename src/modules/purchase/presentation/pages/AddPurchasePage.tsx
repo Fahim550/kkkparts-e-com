@@ -1,3 +1,4 @@
+import { QuickCalculatorPopover } from "@/components/admin/QuickCalculatorPopover";
 import { InvoiceData, InvoicePreviewModal } from "@/components/admin/InvoicePreviewModal";
 import { ProductCombobox } from "@/components/ProductCombobox";
 import { SupplierCombobox } from "@/components/SupplierCombobox";
@@ -27,9 +28,52 @@ import { useUOMs } from "@/modules/product/presentation/hooks/useUOMs";
 import { usePurchaseOrders } from "@/modules/purchase/presentation/hooks/usePurchaseOrders";
 import { useSuppliers } from "@/modules/supplier/presentation/hooks/useSuppliers";
 import { useQueryClient } from "@tanstack/react-query";
-import { Loader2, Plus, Trash2, Upload } from "lucide-react";
+import { Loader2, Plus, Settings, Trash2, Upload, X } from "lucide-react";
 import { useEffect, useState } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
+
+interface PurchaseDraft {
+  id: string;
+  tabNumber: number;
+  supplierId: string;
+  phone: string;
+  billNumber: string;
+  billDate: string;
+  paymentType: string;
+  roundOff: boolean;
+  roundOffAmount: number;
+  isReceived: boolean;
+  receivedAmount: number;
+  items: Array<{
+    id: number;
+    variation_id: string;
+    qty: number;
+    uom: string;
+    price: number;
+    discountPct: number;
+    discountAmt: number;
+    taxPct: number;
+    taxAmt: number;
+    amount: number;
+  }>;
+}
+
+const createInitialPurchaseDraft = (tabNum: number): PurchaseDraft => ({
+  id: `purchase-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+  tabNumber: tabNum,
+  supplierId: "",
+  phone: "",
+  billNumber: "",
+  billDate: new Date().toISOString().split("T")[0],
+  paymentType: "Cash",
+  roundOff: false,
+  roundOffAmount: 0,
+  isReceived: false,
+  receivedAmount: 0,
+  items: [
+    { id: 1, variation_id: "", qty: 0, uom: "NONE", price: 0, discountPct: 0, discountAmt: 0, taxPct: 0, taxAmt: 0, amount: 0 }
+  ]
+});
 
 export default function AddPurchasePage() {
   const navigate = useNavigate();
@@ -45,26 +89,79 @@ export default function AddPurchasePage() {
   const { data: uoms = [] } = useUOMs();
   const { createOrder, isCreating } = usePurchaseOrders();
 
-  const [supplierId, setSupplierId] = useState("");
-  const [phone, setPhone] = useState("");
-  const [billNumber, setBillNumber] = useState("");
-  const [billDate, setBillDate] = useState(
-    new Date().toISOString().split("T")[0]
-  );
-  
-  const [paymentType, setPaymentType] = useState("Cash");
-  const [roundOff, setRoundOff] = useState(false);
-  const [roundOffAmount, setRoundOffAmount] = useState(0);
-  const [isReceived, setIsReceived] = useState(false);
-  const [receivedAmount, setReceivedAmount] = useState(0);
+  const [tabs, setTabs] = useState<PurchaseDraft[]>(() => [createInitialPurchaseDraft(1)]);
+  const [activeTabId, setActiveTabId] = useState<string>(() => tabs[0]?.id || "");
+  const [tabCounter, setTabCounter] = useState(2);
+
+  const activeDraft = tabs.find((t) => t.id === activeTabId) || tabs[0];
+
+  const updateActiveDraft = (
+    updater: Partial<PurchaseDraft> | ((prev: PurchaseDraft) => Partial<PurchaseDraft>)
+  ) => {
+    setTabs((prevTabs) =>
+      prevTabs.map((t) => {
+        if (t.id === activeDraft.id) {
+          const updates = typeof updater === "function" ? updater(t) : updater;
+          return { ...t, ...updates };
+        }
+        return t;
+      })
+    );
+  };
+
+  const supplierId = activeDraft.supplierId;
+  const phone = activeDraft.phone;
+  const billNumber = activeDraft.billNumber;
+  const billDate = activeDraft.billDate;
+  const paymentType = activeDraft.paymentType;
+  const roundOff = activeDraft.roundOff;
+  const roundOffAmount = activeDraft.roundOffAmount;
+  const isReceived = activeDraft.isReceived;
+  const receivedAmount = activeDraft.receivedAmount;
+  const items = activeDraft.items;
+
+  const setSupplierId = (val: string) => updateActiveDraft({ supplierId: val });
+  const setPhone = (val: string) => updateActiveDraft({ phone: val });
+  const setBillNumber = (val: string) => updateActiveDraft({ billNumber: val });
+  const setBillDate = (val: string) => updateActiveDraft({ billDate: val });
+  const setPaymentType = (val: string) => updateActiveDraft({ paymentType: val });
+  const setRoundOff = (val: boolean) => updateActiveDraft({ roundOff: val });
+  const setRoundOffAmount = (val: number) => updateActiveDraft({ roundOffAmount: val });
+  const setIsReceived = (val: boolean) => updateActiveDraft({ isReceived: val });
+  const setReceivedAmount = (val: number) => updateActiveDraft({ receivedAmount: val });
+  const setItems = (action: React.SetStateAction<typeof activeDraft.items>) => {
+    updateActiveDraft((prev) => {
+      const nextItems = typeof action === "function" ? action(prev.items) : action;
+      return { items: nextItems };
+    });
+  };
+
+  const handleAddNewTab = () => {
+    const newDraft = createInitialPurchaseDraft(tabCounter);
+    setTabCounter((prev) => prev + 1);
+    setTabs((prev) => [...prev, newDraft]);
+    setActiveTabId(newDraft.id);
+  };
+
+  const handleCloseTab = (tabIdToClose: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (tabs.length === 1) {
+      const reset = createInitialPurchaseDraft(1);
+      setTabs([reset]);
+      setActiveTabId(reset.id);
+      return;
+    }
+    const idx = tabs.findIndex((t) => t.id === tabIdToClose);
+    const remaining = tabs.filter((t) => t.id !== tabIdToClose);
+    setTabs(remaining);
+    if (activeTabId === tabIdToClose) {
+      const nextActive = remaining[Math.max(0, idx - 1)];
+      setActiveTabId(nextActive.id);
+    }
+  };
 
   const [showPreview, setShowPreview] = useState(false);
   const [previewData, setPreviewData] = useState<InvoiceData | null>(null);
-
-  const [items, setItems] = useState([
-    { id: 1, variation_id: "", qty: 0, uom: "NONE", price: 0, discountPct: 0, discountAmt: 0, taxPct: 0, taxAmt: 0, amount: 0 }
-  ]);
-
   const [isFetchingData, setIsFetchingData] = useState(false);
 
   useEffect(() => {
@@ -539,7 +636,13 @@ export default function AddPurchasePage() {
         });
         
         toast({ title: "Success", description: "Purchase order created successfully." });
-        navigate("/admin/purchase-orders");
+        if (tabs.length > 1) {
+          const remaining = tabs.filter((t) => t.id !== activeDraft.id);
+          setTabs(remaining);
+          setActiveTabId(remaining[0].id);
+        } else {
+          navigate("/admin/purchase-orders");
+        }
       }
     } catch (e: any) {
       toast({ variant: "destructive", title: "Error", description: e.message });
@@ -555,7 +658,71 @@ export default function AddPurchasePage() {
   }
 
   return (
-    <div className="space-y-6 max-w-[1200px] mx-auto pb-20">
+    <div className="space-y-4 max-w-[1200px] mx-auto pb-20">
+      {/* Vyapar Desktop Tab Bar */}
+      <div className="bg-slate-100/90 border border-slate-200/90 rounded-xl px-3.5 py-2 flex items-center justify-between shadow-xs">
+        {/* Left: Tab List + Plus Button */}
+        <div className="flex items-center gap-2 overflow-x-auto py-0.5 hide-scrollbar">
+          {tabs.map((tab) => {
+            const isActive = tab.id === activeTabId;
+            const supplierName = suppliers?.find((s) => s.id === tab.supplierId)?.name;
+            const label = `Purchase #${tab.tabNumber}${supplierName ? ` (${supplierName})` : ""}`;
+
+            return (
+              <div
+                key={tab.id}
+                onClick={() => setActiveTabId(tab.id)}
+                className={`group flex items-center gap-2 px-3.5 py-1.5 text-xs font-semibold rounded-lg border cursor-pointer transition-all duration-150 select-none ${
+                  isActive
+                    ? "bg-white text-slate-900 border-slate-300/90 shadow-xs ring-1 ring-slate-200"
+                    : "bg-slate-200/70 text-slate-600 border-slate-300/50 hover:bg-slate-200 hover:text-slate-900"
+                }`}
+              >
+                <span className="truncate max-w-[150px]">{label}</span>
+                <button
+                  type="button"
+                  onClick={(e) => handleCloseTab(tab.id, e)}
+                  className="w-4 h-4 rounded-full flex items-center justify-center text-slate-400 hover:text-red-600 hover:bg-slate-100 transition-colors"
+                  title="Close tab"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              </div>
+            );
+          })}
+
+          {/* Plus Button */}
+          <button
+            type="button"
+            onClick={handleAddNewTab}
+            className="w-7 h-7 rounded-full bg-blue-600 hover:bg-blue-700 text-white flex items-center justify-center shadow-xs transition-transform active:scale-95 ml-1 shrink-0 cursor-pointer"
+            title="New Purchase (Add Tab)"
+          >
+            <Plus className="w-4 h-4" />
+          </button>
+        </div>
+
+        {/* Right: Quick Tools */}
+        <div className="flex items-center gap-1.5 text-slate-500 shrink-0 pl-3">
+          <QuickCalculatorPopover />
+          <Link
+            to="/admin/settings"
+            className="p-1.5 rounded-lg hover:text-slate-900 hover:bg-slate-200/80 transition-colors"
+            title="Settings"
+          >
+            <Settings className="w-4 h-4" />
+          </Link>
+          <button
+            type="button"
+            onClick={() => navigate("/admin/purchase-orders")}
+            className="p-1.5 rounded-lg hover:text-red-600 hover:bg-slate-200/80 transition-colors"
+            title="Close"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      </div>
+
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold tracking-tight">{isEditing ? "Edit Purchase Order" : "Purchase"}</h1>
       </div>
@@ -761,21 +928,7 @@ export default function AddPurchasePage() {
             </Button>
           </div>
 
-          <div className="space-y-2 md:col-span-1">
-            <Label className="text-xs font-semibold text-muted-foreground uppercase">Payment Type</Label>
-            <Select value={paymentType} onValueChange={setPaymentType}>
-              <SelectTrigger className="bg-background">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="Cash">Cash</SelectItem>
-                <SelectItem value="Bank">Bank Transfer</SelectItem>
-                <SelectItem value="Card">Credit Card</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="space-y-4 md:col-span-2">
+          <div className="space-y-4 md:col-span-3">
             <div className="flex flex-wrap sm:flex-nowrap items-center justify-end gap-3 text-sm">
               <div className="flex items-center gap-2">
                 <Checkbox id="round-off" checked={roundOff} onCheckedChange={(c) => setRoundOff(!!c)} />
