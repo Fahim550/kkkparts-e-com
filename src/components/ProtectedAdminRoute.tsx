@@ -1,50 +1,27 @@
 import { useAdminAuth } from "@/hooks/useAdminAuth";
-import { supabase } from "@/lib/supabase";
-import { Loader2 } from "lucide-react";
-import { useEffect, useState } from "react";
-import { Navigate } from "react-router-dom";
+import { Loader2, ShieldAlert } from "lucide-react";
+import React from "react";
+import { Link, Navigate } from "react-router-dom";
+import { Button } from "@/components/ui/button";
 
-const ProtectedAdminRoute: React.FC<{ children: React.ReactNode }> = ({
+interface ProtectedAdminRouteProps {
+  children: React.ReactNode;
+  allowedRoles?: string[];
+}
+
+export const ProtectedAdminRoute: React.FC<ProtectedAdminRouteProps> = ({
   children,
+  allowedRoles,
 }) => {
-  const { user, loading } = useAdminAuth();
-  const [role, setRole] = useState<string | null>(null);
-  const [roleLoading, setRoleLoading] = useState(true);
+  const { user, loading, isStaff, isAdmin, hasAnyRole } = useAdminAuth();
 
-  useEffect(() => {
-    if (user) {
-      // Check legacy users table first, then check the new ERP RPC function
-      Promise.all([
-        supabase.from("users").select("role").eq("id", user.id).maybeSingle(),
-        supabase.rpc("has_role", { role_name: "Admin" }),
-      ])
-        .then(([usersRes, rpcRes]) => {
-          const isLegacyAdmin = usersRes.data?.role === "admin";
-          const isErpAdmin = rpcRes.data === true;
-
-          if (isLegacyAdmin || isErpAdmin) {
-            setRole("admin");
-          } else {
-            setRole("user");
-          }
-          setRoleLoading(false);
-        })
-        .catch((err) => {
-          console.error("Error checking roles:", err);
-          setRoleLoading(false);
-        });
-    } else {
-      setRoleLoading(false);
-    }
-  }, [user]);
-
-  if (loading || roleLoading) {
+  if (loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
           <Loader2 className="w-8 h-8 animate-spin text-primary mx-auto mb-3" />
           <p className="font-body text-sm text-muted-foreground">
-            Verifying access...
+            Verifying permissions...
           </p>
         </div>
       </div>
@@ -55,23 +32,93 @@ const ProtectedAdminRoute: React.FC<{ children: React.ReactNode }> = ({
     return <Navigate to="/admin/login" replace />;
   }
 
-  if (role !== "admin") {
+  // If specific roles are required on top level
+  if (allowedRoles && allowedRoles.length > 0) {
+    const hasPermission = isAdmin || hasAnyRole(allowedRoles);
+    if (!hasPermission) {
+      return (
+        <div className="min-h-screen bg-background flex items-center justify-center p-4">
+          <div className="text-center max-w-md bg-card p-8 rounded-xl border shadow-sm">
+            <ShieldAlert className="w-12 h-12 text-destructive mx-auto mb-4" />
+            <h1 className="font-heading text-2xl font-bold uppercase tracking-wider text-foreground mb-2">
+              Access Restricted
+            </h1>
+            <p className="font-body text-sm text-muted-foreground mb-6">
+              This section requires elevated privileges. Required role: {allowedRoles.join(", ")}.
+            </p>
+            <div className="flex gap-3 justify-center">
+              <Button asChild variant="outline">
+                <Link to="/admin">Go to Dashboard</Link>
+              </Button>
+              <Button asChild>
+                <Link to="/">Go to Store</Link>
+              </Button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+  }
+
+  // If entering /admin without specific allowedRoles, user must at least be ERP staff or admin
+  if (!isAdmin && !isStaff) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center p-4">
-        <div className="text-center max-w-md">
-          <h1 className="font-heading text-3xl font-bold uppercase tracking-wider text-foreground mb-4">
+        <div className="text-center max-w-md bg-card p-8 rounded-xl border shadow-sm">
+          <ShieldAlert className="w-12 h-12 text-destructive mx-auto mb-4" />
+          <h1 className="font-heading text-2xl font-bold uppercase tracking-wider text-foreground mb-2">
             Access Denied
           </h1>
           <p className="font-body text-sm text-muted-foreground mb-6">
-            Your account does not have admin privileges. Contact the store owner
-            for access.
+            Your account does not have staff or admin privileges for the ERP system.
+            Please contact the administrator for an assigned role.
           </p>
-          <button
-            onClick={() => (window.location.href = "/")}
-            className="bg-primary text-primary-foreground px-6 py-3 rounded-md font-body text-sm font-bold tracking-wider uppercase hover:bg-primary/90 transition-all"
-          >
-            Go to Store
-          </button>
+          <Button asChild>
+            <Link to="/">Return to Storefront</Link>
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  return <>{children}</>;
+};
+
+/**
+ * Route wrapper to restrict specific sub-pages to designated roles (e.g. Accounting for Admin/Accountant only)
+ */
+export const RequireRole: React.FC<{
+  allowedRoles: string[];
+  children: React.ReactNode;
+}> = ({ allowedRoles, children }) => {
+  const { isAdmin, hasAnyRole, loading } = useAdminAuth();
+
+  if (loading) {
+    return (
+      <div className="p-8 flex items-center justify-center">
+        <Loader2 className="w-6 h-6 animate-spin text-primary mr-2" />
+        <span className="text-sm text-muted-foreground">Checking access...</span>
+      </div>
+    );
+  }
+
+  if (!isAdmin && !hasAnyRole(allowedRoles)) {
+    return (
+      <div className="p-8 max-w-2xl mx-auto my-12 text-center bg-card border rounded-2xl shadow-sm">
+        <div className="w-12 h-12 rounded-full bg-destructive/10 text-destructive flex items-center justify-center mx-auto mb-4">
+          <ShieldAlert className="w-6 h-6" />
+        </div>
+        <h2 className="text-xl font-bold tracking-tight mb-2">Restricted Access</h2>
+        <p className="text-muted-foreground text-sm mb-6 max-w-md mx-auto">
+          You do not have the required permissions to view this module. This section is restricted to <strong>{allowedRoles.join(" or ")}</strong>.
+        </p>
+        <div className="flex justify-center gap-3">
+          <Button asChild variant="outline">
+            <Link to="/admin">Back to Dashboard</Link>
+          </Button>
+          <Button asChild>
+            <Link to="/admin/pos">Open POS Terminal</Link>
+          </Button>
         </div>
       </div>
     );
