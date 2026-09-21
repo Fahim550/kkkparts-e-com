@@ -10,6 +10,13 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   ArrowLeft,
   CreditCard,
   Search,
@@ -39,6 +46,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useCustomers } from "../../../customer/presentation/hooks/useCustomers";
 import { useCategories } from "@/hooks/useCategories";
+import { useWarehouses } from "@/modules/warehouse/presentation/hooks/useWarehouses";
 import { useProductTemplates } from "../../../product/presentation/hooks/useProducts";
 import PosPaymentModal, { PosPaymentEntry } from "../components/PosPaymentModal";
 import { usePosCart } from "../hooks/usePosCart";
@@ -70,9 +78,11 @@ export default function PosTerminal() {
 
 
 
+  const { warehouses } = useWarehouses();
   const selectedCustomer = customers?.find((c) => c.id === selectedCustomerId);
   const register = registers?.find((r) => r.id === currentShift?.register_id);
   const warehouseId = register?.warehouse_id || "";
+  const warehouse = warehouses?.find((w) => w.id === warehouseId);
 
   // ── 1. Fetch Real-time Stock Balances for the active warehouse ───────────
   const { data: warehouseStock = [] } = useQuery({
@@ -317,32 +327,87 @@ export default function PosTerminal() {
             activeMobileTab === "cart" ? "hidden md:flex" : "flex"
           }`}
         >
-          {/* Top Header Bar */}
-          <div className="p-2.5 sm:p-3 border-b bg-white flex items-center gap-2 sm:gap-3">
-            <Link to="/admin/pos">
-              <Button variant="ghost" size="icon" className="h-7 w-7 sm:h-8 sm:w-8 text-gray-600" title="Return to POS Overview">
-                <ArrowLeft className="w-4 h-4" />
-              </Button>
-            </Link>
+          {/* ── 1. Top Full Row: Shop / Register Header ── */}
+          <div className="p-2.5 sm:p-3 border-b bg-white flex items-center justify-between gap-3 shrink-0">
+            <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
+              <Link to="/admin/pos">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 text-gray-600 hover:bg-slate-100 rounded-lg shrink-0"
+                  title="Return to POS Overview"
+                >
+                  <ArrowLeft className="w-4 h-4" />
+                </Button>
+              </Link>
 
-            <div className="hidden sm:flex items-center gap-2 pr-3 border-r">
-              <Store className="w-4 h-4 text-blue-600" />
-              <div>
-                <div className="text-xs font-semibold text-gray-900 leading-none truncate max-w-[120px]">
-                  {register?.name || "Main Counter"}
+              <div className="w-8 h-8 rounded-lg bg-blue-50 border border-blue-100 flex items-center justify-center text-blue-600 shrink-0">
+                <Store className="w-4 h-4" />
+              </div>
+
+              <div className="min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h2 className="text-sm sm:text-base font-bold text-gray-900 leading-tight truncate">
+                    {register?.name || "Main Counter"}
+                  </h2>
+                  {warehouse?.name && warehouse.name !== register?.name && (
+                    <span className="text-xs text-gray-500 font-medium hidden sm:inline">
+                      • {warehouse.name}
+                    </span>
+                  )}
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 shrink-0">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                    Active Shift
+                  </span>
                 </div>
-                <div className="text-[10px] text-emerald-600 font-medium">Active Shift</div>
               </div>
             </div>
 
+            {currentShift?.opened_at && (
+              <div className="hidden sm:flex items-center gap-1.5 text-[11px] text-gray-500 bg-slate-50 px-2.5 py-1 rounded-md border border-slate-200 shrink-0">
+                <Clock className="w-3.5 h-3.5 text-gray-400" />
+                <span>
+                  Opened: {new Date(currentShift.opened_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                </span>
+              </div>
+            )}
+          </div>
+
+          {/* ── 2. Filter Bar: Category Select Dropdown & Searchbar in Same Row ── */}
+          <div className="p-2.5 sm:p-3 border-b bg-slate-50/70 flex items-center gap-2 sm:gap-3 shrink-0">
+            {/* Category Select Dropdown */}
+            <div className="w-36 sm:w-52 shrink-0">
+              <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+                <SelectTrigger className="h-8 sm:h-9 text-xs bg-white border-gray-200 shadow-2xs">
+                  <div className="flex items-center gap-1.5 truncate">
+                    <Tag className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+                    <SelectValue placeholder="All Categories" />
+                  </div>
+                </SelectTrigger>
+                <SelectContent className="max-h-72">
+                  <SelectItem value="all" className="text-xs font-medium">
+                    All Categories ({products.length})
+                  </SelectItem>
+                  {categories.map((cat: any) => {
+                    const count = products.filter((p: any) => p.category_id === cat.id).length;
+                    return (
+                      <SelectItem key={cat.id} value={cat.id} className="text-xs">
+                        {cat.name} {count > 0 ? `(${count})` : ""}
+                      </SelectItem>
+                    );
+                  })}
+                </SelectContent>
+              </Select>
+            </div>
+
             {/* Live Search & Barcode Form */}
-            <form onSubmit={handleBarcodeSubmit} className="flex-1 flex items-center gap-2">
-              <div className="relative flex-1">
+            <form onSubmit={handleBarcodeSubmit} className="flex-1 min-w-0">
+              <div className="relative">
                 <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400" />
                 <Input
                   autoFocus
                   placeholder="Search products, scan barcode..."
-                  className="pl-8 pr-7 h-7 sm:h-8 text-xs bg-slate-50 border-gray-200"
+                  className="pl-8 pr-7 h-8 sm:h-9 text-xs bg-white border-gray-200 shadow-2xs"
                   value={searchInput}
                   onChange={(e) => setSearchInput(e.target.value)}
                 />
@@ -350,42 +415,13 @@ export default function PosTerminal() {
                   <button
                     type="button"
                     onClick={() => setSearchInput("")}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 p-0.5 rounded-full hover:bg-slate-100"
                   >
-                    <X className="w-3 h-3" />
+                    <X className="w-3.5 h-3.5" />
                   </button>
                 )}
               </div>
             </form>
-          </div>
-
-          {/* Category Filter Chips */}
-          <div className="px-2.5 sm:px-3 py-1.5 sm:py-2 border-b bg-slate-50 flex items-center gap-1.5 overflow-x-auto text-xs no-scrollbar">
-            <Button
-              type="button"
-              variant={selectedCategory === "all" ? "default" : "outline"}
-              size="sm"
-              className={`h-5 sm:h-6 px-2 sm:px-2.5 text-[10px] sm:text-[11px] rounded-full shrink-0 ${
-                selectedCategory === "all" ? "bg-slate-900 text-white" : "bg-white text-gray-700"
-              }`}
-              onClick={() => setSelectedCategory("all")}
-            >
-              All ({products.length})
-            </Button>
-            {categories.map((cat: any) => (
-              <Button
-                key={cat.id}
-                type="button"
-                variant={selectedCategory === cat.id ? "default" : "outline"}
-                size="sm"
-                className={`h-5 sm:h-6 px-2 sm:px-2.5 text-[10px] sm:text-[11px] rounded-full shrink-0 whitespace-nowrap ${
-                  selectedCategory === cat.id ? "bg-slate-900 text-white" : "bg-white text-gray-700"
-                }`}
-                onClick={() => setSelectedCategory(cat.id)}
-              >
-                {cat.name}
-              </Button>
-            ))}
           </div>
 
           {/* Responsive Products Grid */}
