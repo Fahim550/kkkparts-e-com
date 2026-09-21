@@ -68,106 +68,118 @@ const isAutoCollapseRoute = (pathname: string) => {
   );
 };
 
-const navCategories = [
+interface NavItem {
+  path: string;
+  label: string;
+  icon: any;
+  exact?: boolean;
+  allowedRoles?: string[];
+}
+
+interface NavCategory {
+  title: string;
+  items: NavItem[];
+}
+
+const navCategories: NavCategory[] = [
   {
     title: "Overview",
     items: [
       { path: "/admin", label: "Dashboard", icon: LayoutDashboard, exact: true },
-      { path: "/admin/receivable-parties", label: "Receivables", icon: Users, exact: false },
-      { path: "/admin/payable-parties", label: "Payables", icon: Truck, exact: false },
+      { path: "/admin/receivable-parties", label: "Receivables", icon: Users, exact: false, allowedRoles: ["Admin", "Sales", "Salesman", "Accountant"] },
+      { path: "/admin/payable-parties", label: "Payables", icon: Truck, exact: false, allowedRoles: ["Admin", "Accountant", "Purchasing"] },
     ]
   },
   {
     title: "Catalog",
     items: [
-      { path: "/admin/products", label: "Products", icon: Package },
-      { path: "/admin/categories", label: "Categories", icon: FolderTree },
-      { path: "/admin/brands", label: "Brands", icon: Package },
-      { path: "/admin/uoms", label: "UOMs", icon: Package },
-      { path: "/admin/attributes", label: "Attributes", icon: Package },
+      { path: "/admin/products", label: "Products", icon: Package, allowedRoles: ["Admin", "Sales", "Salesman", "WarehouseManager"] },
+      { path: "/admin/categories", label: "Categories", icon: FolderTree, allowedRoles: ["Admin", "WarehouseManager"] },
+      { path: "/admin/brands", label: "Brands", icon: Package, allowedRoles: ["Admin", "WarehouseManager"] },
+      { path: "/admin/uoms", label: "UOMs", icon: Package, allowedRoles: ["Admin", "WarehouseManager"] },
+      { path: "/admin/attributes", label: "Attributes", icon: Package, allowedRoles: ["Admin", "WarehouseManager"] },
     ]
   },
   {
     title: "Inventory",
     items: [
-      { path: "/admin/warehouse/dashboard", label: "Warehouse Dashboard", icon: BarChart3 },
-      { path: "/admin/warehouses", label: "Warehouses", icon: Package },
-      { path: "/admin/warehouse-locations", label: "Warehouse Locations", icon: MapPin },
-      { path: "/admin/stock-transfers", label: "Stock Transfers", icon: Activity },
-      { path: "/admin/stock-ledger", label: "Stock Ledger", icon: Database },
-      { path: "/admin/stock-adjustments", label: "Adjustments & Damage", icon: Settings2 },
-      { path: "/admin/fifo-layers", label: "FIFO Cost Layers", icon: Layers },
+      { path: "/admin/warehouse/dashboard", label: "Warehouse Dashboard", icon: BarChart3, allowedRoles: ["Admin", "WarehouseManager"] },
+      { path: "/admin/warehouses", label: "Warehouses", icon: Package, allowedRoles: ["Admin", "WarehouseManager"] },
+      { path: "/admin/warehouse-locations", label: "Warehouse Locations", icon: MapPin, allowedRoles: ["Admin", "WarehouseManager"] },
+      { path: "/admin/stock-transfers", label: "Stock Transfers", icon: Activity, allowedRoles: ["Admin", "WarehouseManager"] },
+      { path: "/admin/stock-ledger", label: "Stock Ledger", icon: Database, allowedRoles: ["Admin", "WarehouseManager"] },
+      { path: "/admin/stock-adjustments", label: "Adjustments & Damage", icon: Settings2, allowedRoles: ["Admin", "WarehouseManager"] },
+      { path: "/admin/fifo-layers", label: "FIFO Cost Layers", icon: Layers, allowedRoles: ["Admin", "WarehouseManager", "Accountant"] },
     ]
   },
   {
     title: "Sales & POS",
     items: [
-      { path: "/admin/pos", label: "Point of Sale", icon: Monitor },
-      { path: "/admin/orders", label: "Customer Orders", icon: ShoppingCart },
-      { path: "/admin/dealer-orders", label: "Dealer Orders", icon: ShoppingCart },
+      { path: "/admin/pos", label: "Point of Sale", icon: Monitor, allowedRoles: ["Admin", "Sales", "Salesman", "Cashier"] },
+      { path: "/admin/orders", label: "Customer Orders", icon: ShoppingCart, allowedRoles: ["Admin", "Sales", "Salesman"] },
+      { path: "/admin/dealer-orders", label: "Dealer Orders", icon: ShoppingCart, allowedRoles: ["Admin", "Sales", "Salesman"] },
     ]
   },
   {
     title: "Purchases",
     items: [
-      { path: "/admin/purchase-orders", label: "Purchase Orders", icon: ShoppingCart },
-      { path: "/admin/goods-receive", label: "Goods Receive", icon: Package },
-      { path: "/admin/payable-parties", label: "Supplier Due", icon: FileText },
-      { path: "/admin/purchase-history", label: "Purchase History", icon: Activity },
+      { path: "/admin/purchase-orders", label: "Purchase Orders", icon: ShoppingCart, allowedRoles: ["Admin", "Purchasing", "Accountant"] },
+      { path: "/admin/goods-receive", label: "Goods Receive", icon: Package, allowedRoles: ["Admin", "Purchasing", "WarehouseManager"] },
+      { path: "/admin/payable-parties", label: "Supplier Due", icon: FileText, allowedRoles: ["Admin", "Purchasing", "Accountant"] },
+      { path: "/admin/purchase-history", label: "Purchase History", icon: Activity, allowedRoles: ["Admin", "Purchasing", "Accountant"] },
     ]
   },
   {
     title: "Accounting & Finance",
     items: [
-      { path: "/admin/accounting/coa", label: "Chart of Accounts", icon: Library },
-      { path: "/admin/accounting/journals", label: "Journal Entries", icon: BookOpen },
-      { path: "/admin/accounting/financials", label: "Financial Reports", icon: Landmark },
+      { path: "/admin/accounting/coa", label: "Chart of Accounts", icon: Library, allowedRoles: ["Admin", "Accountant"] },
+      { path: "/admin/accounting/journals", label: "Journal Entries", icon: BookOpen, allowedRoles: ["Admin", "Accountant"] },
+      { path: "/admin/accounting/financials", label: "Financial Reports", icon: Landmark, allowedRoles: ["Admin", "Accountant"] },
     ]
   },
   {
     title: "Reports & Analytics",
     items: [
-      { path: "/admin/reports", label: "Dashboard KPIs", icon: TrendingUp, exact: true },
-      { path: "/admin/reports/sales", label: "Sales Report", icon: FileText },
-      { path: "/admin/reports/inventory", label: "Inventory Report", icon: Package },
-      { path: "/admin/analytics", label: "Analytics", icon: BarChart3 },
-      { path: "/admin/visitor-analytics", label: "Visitor Tracker", icon: Activity },
+      { path: "/admin/reports", label: "Dashboard KPIs", icon: TrendingUp, exact: true, allowedRoles: ["Admin"] },
+      { path: "/admin/reports/sales", label: "Sales Report", icon: FileText, allowedRoles: ["Admin", "Sales", "Salesman"] },
+      { path: "/admin/reports/inventory", label: "Inventory Report", icon: Package, allowedRoles: ["Admin", "WarehouseManager"] },
+      { path: "/admin/analytics", label: "Analytics", icon: BarChart3, allowedRoles: ["Admin"] },
+      { path: "/admin/visitor-analytics", label: "Visitor Tracker", icon: Activity, allowedRoles: ["Admin"] },
     ]
   },
   {
     title: "People",
     items: [
-      { path: "/admin/customers", label: "Customers", icon: Users },
-      { path: "/admin/suppliers", label: "Suppliers", icon: Users },
-      { path: "/admin/users", label: "Dealers Details", icon: UserCog },
-      // { path: "/admin/job-applications", label: "Job Applications", icon: Briefcase },
+      { path: "/admin/customers", label: "Customers", icon: Users, allowedRoles: ["Admin", "Sales", "Salesman"] },
+      { path: "/admin/suppliers", label: "Suppliers", icon: Users, allowedRoles: ["Admin", "Purchasing", "Accountant"] },
+      { path: "/admin/users", label: "Staff & Dealers", icon: UserCog, allowedRoles: ["Admin"] },
     ]
   },
   {
     title: "Marketing & Pricing",
     items: [
-      { path: "/admin/price-lists", label: "Price Lists", icon: Tag },
-      { path: "/admin/discount-rules", label: "Discount Rules", icon: Percent },
-      { path: "/admin/coupons", label: "Coupons", icon: Tag },
-      { path: "/admin/marketing", label: "Marketing", icon: Megaphone },
-      { path: "/admin/checkout-leads", label: "Checkout Leads", icon: UserSearch },
+      { path: "/admin/price-lists", label: "Price Lists", icon: Tag, allowedRoles: ["Admin"] },
+      { path: "/admin/discount-rules", label: "Discount Rules", icon: Percent, allowedRoles: ["Admin"] },
+      { path: "/admin/coupons", label: "Coupons", icon: Tag, allowedRoles: ["Admin"] },
+      { path: "/admin/marketing", label: "Marketing", icon: Megaphone, allowedRoles: ["Admin"] },
+      { path: "/admin/checkout-leads", label: "Checkout Leads", icon: UserSearch, allowedRoles: ["Admin", "Sales", "Salesman"] },
     ]
   },
   {
     title: "Storefront & Content",
     items: [
-      { path: "/admin/banners", label: "Banners", icon: Image },
-      { path: "/admin/pages", label: "Pages", icon: FileText },
-      { path: "/admin/reviews", label: "Reviews", icon: Star },
-      { path: "/admin/messages", label: "Messages", icon: MessageSquare },
-      { path: "/admin/vehicle-data", label: "Vehicle Data", icon: Car },
+      { path: "/admin/banners", label: "Banners", icon: Image, allowedRoles: ["Admin"] },
+      { path: "/admin/pages", label: "Pages", icon: FileText, allowedRoles: ["Admin"] },
+      { path: "/admin/reviews", label: "Reviews", icon: Star, allowedRoles: ["Admin"] },
+      { path: "/admin/messages", label: "Messages", icon: MessageSquare, allowedRoles: ["Admin", "Sales", "Salesman"] },
+      { path: "/admin/vehicle-data", label: "Vehicle Data", icon: Car, allowedRoles: ["Admin"] },
     ]
   },
   {
     title: "System",
     items: [
-      { path: "/admin/shipping", label: "Shipping Methods", icon: Truck },
-      { path: "/admin/settings", label: "Settings", icon: Settings },
+      { path: "/admin/shipping", label: "Shipping Methods", icon: Truck, allowedRoles: ["Admin"] },
+      { path: "/admin/settings", label: "Settings", icon: Settings, allowedRoles: ["Admin"] },
     ]
   }
 ];
@@ -199,12 +211,24 @@ const AdminLayout = () => {
     return isAutoCollapseRoute(window.location.pathname);
   });
   const [mobileOpen, setMobileOpen] = useState(false);
-  const { user, signOut } = useAdminAuth();
+  const { user, signOut, isAdmin, isSalesman, primaryRole, hasRole } = useAdminAuth();
   const isMobile = useIsMobile();
   const { data: settings } = useSettings();
   const s = Array.isArray(settings) ? settings[0] || {} : settings || {};
   const logoUrl = s?.logo_url || "/logo.png";
   const siteName = s?.site_name || "Admin";
+
+  // Filter categories based on user roles
+  const visibleCategories = navCategories
+    .map(category => ({
+      ...category,
+      items: category.items.filter(item => {
+        if (!item.allowedRoles || item.allowedRoles.length === 0) return true;
+        if (isAdmin) return true;
+        return item.allowedRoles.some(r => hasRole(r));
+      })
+    }))
+    .filter(category => category.items.length > 0);
 
   const toggleSidebar = () => {
     setCollapsed(prev => {
@@ -233,7 +257,7 @@ const AdminLayout = () => {
 
   const [openCategories, setOpenCategories] = useState<Record<string, boolean>>(() => {
     const initialState: Record<string, boolean> = {};
-    navCategories.forEach(cat => {
+    visibleCategories.forEach(cat => {
       const hasActive = cat.items.some(item => isPathActive(location.pathname, item.path, item.exact));
       if (hasActive) {
         initialState[cat.title] = true;
@@ -258,7 +282,7 @@ const AdminLayout = () => {
 
   // Auto-expand category containing the active item when route changes or redirects
   useEffect(() => {
-    navCategories.forEach(cat => {
+    visibleCategories.forEach(cat => {
       const hasActive = cat.items.some(item => isPathActive(location.pathname, item.path, item.exact));
       if (hasActive) {
         setOpenCategories(prev => {
@@ -270,7 +294,7 @@ const AdminLayout = () => {
         });
       }
     });
-  }, [location.pathname]);
+  }, [location.pathname, visibleCategories]);
 
   useEffect(() => {
     if (s?.favicon_url) {
@@ -300,7 +324,7 @@ const AdminLayout = () => {
   const sidebarContent = (
     <>
       <nav className="flex-1 py-4 px-2 overflow-y-auto sidebar-scroll space-y-4">
-        {navCategories.map((category, index) => {
+        {visibleCategories.map((category, index) => {
           const isOpen = openCategories[category.title];
           const isCollapsed = !isMobile && collapsed;
           const isCategoryActive = category.items.some(item => isActive(item.path, item.exact));
@@ -366,7 +390,7 @@ const AdminLayout = () => {
                 </div>
               )}
               
-              {isCollapsed && index < navCategories.length - 1 && (
+              {isCollapsed && index < visibleCategories.length - 1 && (
                 <div className="my-3 border-b border-sidebar-border/30 w-8 mx-auto" />
               )}
             </div>
@@ -406,8 +430,12 @@ const AdminLayout = () => {
                     <p className="text-xs font-semibold text-sidebar-foreground truncate">
                       {displayName}
                     </p>
-                    <span className="text-[8.5px] px-1 py-0.2 rounded-full bg-blue-500/15 text-blue-400 font-semibold border border-blue-500/20 shrink-0 uppercase tracking-wider">
-                      Admin
+                    <span className={`text-[8.5px] px-1.5 py-0.2 rounded-full font-semibold border shrink-0 uppercase tracking-wider ${
+                      isAdmin
+                        ? "bg-blue-500/15 text-blue-400 border-blue-500/20"
+                        : "bg-emerald-500/15 text-emerald-400 border-emerald-500/20"
+                    }`}>
+                      {primaryRole || "Staff"}
                     </span>
                   </div>
                   <p className="text-[10px] text-sidebar-foreground/50 truncate font-mono">
@@ -435,8 +463,12 @@ const AdminLayout = () => {
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-1.5">
                     <span className="text-xs font-semibold text-sidebar-foreground truncate">{displayName}</span>
-                    <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-blue-500/20 text-blue-400 font-medium border border-blue-500/30 shrink-0">
-                      Super Admin
+                    <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-medium border shrink-0 ${
+                      isAdmin
+                        ? "bg-blue-500/20 text-blue-400 border-blue-500/30"
+                        : "bg-emerald-500/20 text-emerald-400 border-emerald-500/30"
+                    }`}>
+                      {primaryRole || "Staff"}
                     </span>
                   </div>
                   <p className="text-[11px] text-sidebar-foreground/50 truncate font-mono mt-0.5">{userEmail}</p>
@@ -455,15 +487,17 @@ const AdminLayout = () => {
               </Link>
             </DropdownMenuItem>
 
-            <DropdownMenuItem asChild>
-              <Link
-                to="/admin/settings"
-                className="flex items-center gap-2.5 px-3 py-2 text-xs rounded-lg text-sidebar-foreground/80 hover:text-sidebar-foreground hover:bg-sidebar-accent cursor-pointer transition-colors"
-              >
-                <Settings className="w-4 h-4 text-sidebar-foreground/60" />
-                <span className="font-medium">Store Settings</span>
-              </Link>
-            </DropdownMenuItem>
+            {isAdmin && (
+              <DropdownMenuItem asChild>
+                <Link
+                  to="/admin/settings"
+                  className="flex items-center gap-2.5 px-3 py-2 text-xs rounded-lg text-sidebar-foreground/80 hover:text-sidebar-foreground hover:bg-sidebar-accent cursor-pointer transition-colors"
+                >
+                  <Settings className="w-4 h-4 text-sidebar-foreground/60" />
+                  <span className="font-medium">Store Settings</span>
+                </Link>
+              </DropdownMenuItem>
+            )}
 
             <DropdownMenuSeparator className="bg-sidebar-border/60 my-1" />
 
@@ -586,16 +620,21 @@ const AdminLayout = () => {
             <AdminGlobalSearch />
           </div>
           <div className="flex items-center space-x-3">
+            <span className="hidden md:inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-white border shadow-xs text-foreground/80">
+              Role: <strong className="ml-1 text-primary">{primaryRole || "Staff"}</strong>
+            </span>
             <Link to="/admin/sales/new">
               <Button className="bg-red-500 hover:bg-red-600 text-white rounded-full h-9 px-4 font-semibold shadow-sm">
                 + Add Sale
               </Button>
             </Link>
-            <Link to="/admin/purchases/new">
-              <Button className="bg-blue-600 hover:bg-blue-700 text-white rounded-full h-9 px-4 font-semibold shadow-sm">
-                + Add Purchase
-              </Button>
-            </Link>
+            {(isAdmin || hasRole("Purchasing")) && (
+              <Link to="/admin/purchases/new">
+                <Button className="bg-blue-600 hover:bg-blue-700 text-white rounded-full h-9 px-4 font-semibold shadow-sm">
+                  + Add Purchase
+                </Button>
+              </Link>
+            )}
             <Button variant="ghost" size="icon" className="p-2 text-blue-500 bg-blue-50 rounded-full hover:bg-blue-100 transition">
               <Plus className="h-4 w-4" />
             </Button>

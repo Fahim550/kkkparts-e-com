@@ -12,7 +12,7 @@ import { BrowserRouter, Route, Routes, Navigate } from "react-router-dom";
 import FacebookPixelProvider from "@/components/FacebookPixelProvider";
 import LanguagePopup from "@/components/LanguagePopup";
 import PageTitleUpdater from "@/components/PageTitleUpdater";
-import ProtectedAdminRoute from "@/components/ProtectedAdminRoute";
+import ProtectedAdminRoute, { RequireRole } from "@/components/ProtectedAdminRoute";
 import ScrollToTop from "@/components/ScrollToTop";
 import VisitorTracker from "@/components/VisitorTracker";
 import { Loader2 } from "lucide-react";
@@ -276,18 +276,44 @@ const App = () => (
                       <Route path="attributes" element={<AttributesPage />} />
                       <Route
                         path="warehouse/dashboard"
-                        element={<WarehouseDashboardPage />}
+                        element={
+                          <RequireRole allowedRoles={["Admin", "WarehouseManager"]}>
+                            <WarehouseDashboardPage />
+                          </RequireRole>
+                        }
                       />
-                      <Route path="warehouses" element={<WarehousesPage />} />
+                      <Route
+                        path="warehouses"
+                        element={
+                          <RequireRole allowedRoles={["Admin", "WarehouseManager"]}>
+                            <WarehousesPage />
+                          </RequireRole>
+                        }
+                      />
                       <Route
                         path="warehouse-locations"
-                        element={<WarehouseLocationsPage />}
+                        element={
+                          <RequireRole allowedRoles={["Admin", "WarehouseManager"]}>
+                            <WarehouseLocationsPage />
+                          </RequireRole>
+                        }
                       />
                       <Route
                         path="stock-transfers"
-                        element={<StockTransfersPage />}
+                        element={
+                          <RequireRole allowedRoles={["Admin", "WarehouseManager"]}>
+                            <StockTransfersPage />
+                          </RequireRole>
+                        }
                       />
-                      <Route path="suppliers" element={<SuppliersManager />} />
+                      <Route
+                        path="suppliers"
+                        element={
+                          <RequireRole allowedRoles={["Admin", "Purchasing", "Accountant"]}>
+                            <SuppliersManager />
+                          </RequireRole>
+                        }
+                      />
                       <Route path="customers" element={<CustomersManager />} />
                       <Route
                         path="customers/:id"
@@ -295,21 +321,44 @@ const App = () => (
                       />
                       <Route
                         path="accounting/coa"
-                        element={<ChartOfAccountsPage />}
+                        element={
+                          <RequireRole allowedRoles={["Admin", "Accountant"]}>
+                            <ChartOfAccountsPage />
+                          </RequireRole>
+                        }
                       />
                       <Route
                         path="accounting/journals"
-                        element={<JournalEntriesPage />}
+                        element={
+                          <RequireRole allowedRoles={["Admin", "Accountant"]}>
+                            <JournalEntriesPage />
+                          </RequireRole>
+                        }
                       />
                       <Route
                         path="accounting/financials"
-                        element={<FinancialReportsPage />}
+                        element={
+                          <RequireRole allowedRoles={["Admin", "Accountant"]}>
+                            <FinancialReportsPage />
+                          </RequireRole>
+                        }
                       />
-                      <Route path="reports" element={<ReportsDashboard />} />
+                      <Route
+                        path="reports"
+                        element={
+                          <RequireRole allowedRoles={["Admin"]}>
+                            <ReportsDashboard />
+                          </RequireRole>
+                        }
+                      />
                       <Route path="reports/sales" element={<SalesReport />} />
                       <Route
                         path="reports/inventory"
-                        element={<InventoryReport />}
+                        element={
+                          <RequireRole allowedRoles={["Admin", "WarehouseManager"]}>
+                            <InventoryReport />
+                          </RequireRole>
+                        }
                       />
                       <Route path="pos" element={<PosDashboard />} />
                       <Route path="pos/terminal" element={<PosTerminal />} />
@@ -323,39 +372,75 @@ const App = () => (
                       />
                       <Route
                         path="price-lists"
-                        element={<PriceListsManager />}
+                        element={
+                          <RequireRole allowedRoles={["Admin"]}>
+                            <PriceListsManager />
+                          </RequireRole>
+                        }
                       />
                       <Route
                         path="discount-rules"
-                        element={<DiscountRulesManager />}
+                        element={
+                          <RequireRole allowedRoles={["Admin"]}>
+                            <DiscountRulesManager />
+                          </RequireRole>
+                        }
                       />
                       <Route
                         path="purchases"
-                        element={<PurchaseOrdersPage />}
+                        element={
+                          <RequireRole allowedRoles={["Admin", "Purchasing", "Accountant"]}>
+                            <PurchaseOrdersPage />
+                          </RequireRole>
+                        }
                       />
                       <Route
                         path="purchase-orders"
-                        element={<PurchaseOrdersPage />}
+                        element={
+                          <RequireRole allowedRoles={["Admin", "Purchasing", "Accountant"]}>
+                            <PurchaseOrdersPage />
+                          </RequireRole>
+                        }
                       />
                       <Route
                         path="purchases/new"
-                        element={<AddPurchasePage />}
+                        element={
+                          <RequireRole allowedRoles={["Admin", "Purchasing", "Accountant"]}>
+                            <AddPurchasePage />
+                          </RequireRole>
+                        }
                       />
                       <Route
                         path="purchase/new"
-                        element={<AddPurchasePage />}
+                        element={
+                          <RequireRole allowedRoles={["Admin", "Purchasing", "Accountant"]}>
+                            <AddPurchasePage />
+                          </RequireRole>
+                        }
                       />
                       <Route
                         path="purchase-orders/:id"
-                        element={<PurchaseOrderDetailsPage />}
+                        element={
+                          <RequireRole allowedRoles={["Admin", "Purchasing", "Accountant"]}>
+                            <PurchaseOrderDetailsPage />
+                          </RequireRole>
+                        }
                       />
                       <Route
                         path="goods-receive"
-                        element={<GoodsReceivePage />}
+                        element={
+                          <RequireRole allowedRoles={["Admin", "Purchasing", "WarehouseManager"]}>
+                            <GoodsReceivePage />
+                          </RequireRole>
+                        }
                       />
                       <Route
                         path="goods-receive/:id"
-                        element={<GoodsReceiveDetailsPage />}
+                        element={
+                          <RequireRole allowedRoles={["Admin", "Purchasing", "WarehouseManager"]}>
+                            <GoodsReceiveDetailsPage />
+                          </RequireRole>
+                        }
                       />
                       <Route
                         path="supplier-due"
@@ -363,25 +448,52 @@ const App = () => (
                       />
                       <Route
                         path="purchase-history"
-                        element={<PurchaseHistoryPage />}
+                        element={
+                          <RequireRole allowedRoles={["Admin", "Purchasing", "Accountant"]}>
+                            <PurchaseHistoryPage />
+                          </RequireRole>
+                        }
                       />
                       <Route
                         path="stock-ledger"
-                        element={<StockLedgerPage />}
+                        element={
+                          <RequireRole allowedRoles={["Admin", "WarehouseManager"]}>
+                            <StockLedgerPage />
+                          </RequireRole>
+                        }
                       />
                       <Route
                         path="stock-adjustments"
-                        element={<StockAdjustmentsPage />}
+                        element={
+                          <RequireRole allowedRoles={["Admin", "WarehouseManager"]}>
+                            <StockAdjustmentsPage />
+                          </RequireRole>
+                        }
                       />
                       <Route
                         path="fifo-layers"
-                        element={<FifoCostLayersPage />}
+                        element={
+                          <RequireRole allowedRoles={["Admin", "WarehouseManager", "Accountant"]}>
+                            <FifoCostLayersPage />
+                          </RequireRole>
+                        }
                       />
                       <Route
                         path="vehicle-data"
-                        element={<VehicleDataManager />}
+                        element={
+                          <RequireRole allowedRoles={["Admin"]}>
+                            <VehicleDataManager />
+                          </RequireRole>
+                        }
                       />
-                      <Route path="coupons" element={<CouponsManager />} />
+                      <Route
+                        path="coupons"
+                        element={
+                          <RequireRole allowedRoles={["Admin"]}>
+                            <CouponsManager />
+                          </RequireRole>
+                        }
+                      />
                       <Route
                         path="checkout-leads"
                         element={<CheckoutLeadsManager />}
@@ -393,15 +505,33 @@ const App = () => (
                         path="visitor-analytics"
                         element={<VisitorAnalyticsPage />}
                       />
-                      <Route path="users" element={<UsersManager />} />
-                      <Route path="settings" element={<SettingsPage />} />
+                      <Route
+                        path="users"
+                        element={
+                          <RequireRole allowedRoles={["Admin"]}>
+                            <UsersManager />
+                          </RequireRole>
+                        }
+                      />
+                      <Route
+                        path="settings"
+                        element={
+                          <RequireRole allowedRoles={["Admin"]}>
+                            <SettingsPage />
+                          </RequireRole>
+                        }
+                      />
                       <Route
                         path="marketing"
                         element={<MarketingTrackingPage />}
                       />
                       <Route
                         path="shipping"
-                        element={<ShippingMethodsManager />}
+                        element={
+                          <RequireRole allowedRoles={["Admin"]}>
+                            <ShippingMethodsManager />
+                          </RequireRole>
+                        }
                       />
                       <Route path="reviews" element={<ReviewsManager />} />
                       <Route path="pages" element={<PagesManager />} />

@@ -26,6 +26,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { createClient } from "@supabase/supabase-js";
+import { ErpStaffManager } from "@/components/admin/ErpStaffManager";
+import { Shield, Building2 } from "lucide-react";
 
 interface DbUser {
   id: string;
@@ -42,6 +44,7 @@ interface DbUser {
 
 const UsersManager = () => {
   const queryClient = useQueryClient();
+  const [activeTab, setActiveTab] = useState<"staff" | "dealers">("staff");
   const [search, setSearch] = useState("");
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [newDealerData, setNewDealerData] = useState({
@@ -253,34 +256,67 @@ const UsersManager = () => {
     return searchTerms.every((term) => searchableText.includes(term));
   });
 
-  if (isLoading)
-    return (
-      <p className="text-center py-10 text-muted-foreground">
-        Loading users...
-      </p>
-    );
-
-  if (error)
-    return (
-      <div className="bg-red-50 border border-red-200 text-red-700 p-6 rounded-2xl text-center my-6">
-        <h3 className="font-bold text-lg mb-1">Failed to load dealers</h3>
-        <p className="text-sm">{(error as Error).message || "An unexpected error occurred while communicating with Supabase."}</p>
-      </div>
-    );
-
   return (
-    <div>
-      <div className="flex items-center justify-between mb-8">
+    <div className="space-y-6">
+      {/* Top Navigation Tabs */}
+      <div className="flex items-center gap-2 border-b pb-3">
+        <button
+          onClick={() => setActiveTab("staff")}
+          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all cursor-pointer ${
+            activeTab === "staff"
+              ? "bg-primary text-primary-foreground shadow-xs"
+              : "text-muted-foreground hover:text-foreground hover:bg-secondary/60"
+          }`}
+        >
+          <Shield className="w-4 h-4" />
+          ERP Staff & Roles
+        </button>
+        <button
+          onClick={() => setActiveTab("dealers")}
+          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all cursor-pointer ${
+            activeTab === "dealers"
+              ? "bg-primary text-primary-foreground shadow-xs"
+              : "text-muted-foreground hover:text-foreground hover:bg-secondary/60"
+          }`}
+        >
+          <Building2 className="w-4 h-4" />
+          Wholesale Dealers
+        </button>
+      </div>
+
+      {activeTab === "staff" ? (
+        <ErpStaffManager />
+      ) : (
         <div>
-          <h1 className="font-heading text-3xl font-bold uppercase tracking-wider text-foreground">
-            Dealers
-          </h1>
-          <p className="font-body text-sm text-muted-foreground mt-1">
-            Manage wholesale dealer registrations and approvals
-          </p>
-        </div>
-        <Dialog open={isCreateModalOpen} onOpenChange={setIsCreateModalOpen}>
-          <DialogTrigger asChild>
+          {isLoading && (
+            <p className="text-center py-10 text-muted-foreground">
+              Loading users...
+            </p>
+          )}
+
+          {error && (
+            <div className="bg-red-50 border border-red-200 text-red-700 p-6 rounded-2xl text-center my-6">
+              <h3 className="font-bold text-lg mb-1">Failed to load dealers</h3>
+              <p className="text-sm">
+                {(error as Error).message ||
+                  "An unexpected error occurred while communicating with Supabase."}
+              </p>
+            </div>
+          )}
+
+          {!isLoading && !error && (
+            <div>
+              <div className="flex items-center justify-between mb-8">
+                <div>
+                  <h1 className="font-heading text-3xl font-bold uppercase tracking-wider text-foreground">
+                    Dealers
+                  </h1>
+                  <p className="font-body text-sm text-muted-foreground mt-1">
+                    Manage wholesale dealer registrations and approvals
+                  </p>
+                </div>
+                <Dialog open={isCreateModalOpen} onOpenChange={setIsCreateModalOpen}>
+                  <DialogTrigger asChild>
             <Button className="bg-primary hover:bg-primary/90 text-white font-bold uppercase tracking-widest px-6 rounded-xl shadow-[0_4px_15px_rgba(0,0,0,0.1)] transition-all flex items-center gap-2">
               <Plus className="w-5 h-5" />
               Add Dealer
@@ -573,7 +609,11 @@ const UsersManager = () => {
         )}
       </div>
     </div>
-  );
+  )}
+</div>
+)}
+</div>
+);
 };
 
 export default UsersManager;

@@ -8,7 +8,16 @@ import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 
 const AdminLoginPage = () => {
-  const { signIn, signUp, user, loading: authLoading } = useAdminAuth();
+  const {
+    signIn,
+    signUp,
+    user,
+    loading: authLoading,
+    rolesLoading,
+    isAdmin,
+    isStaff,
+    userRoles,
+  } = useAdminAuth();
   const navigate = useNavigate();
   const [isSignUp, setIsSignUp] = useState(false);
   const [email, setEmail] = useState("");
@@ -20,24 +29,17 @@ const AdminLoginPage = () => {
   const logoUrl = s?.logo_url || "/logo.png";
 
   useEffect(() => {
-    if (!authLoading && user) {
-      // Check both tables to be safe
-      Promise.all([
-        supabase.from("users").select("role").eq("id", user.id).maybeSingle(),
-        supabase.rpc("has_role", { role_name: "Admin" }),
-      ]).then(([usersRes, rpcRes]) => {
-        const isLegacyAdmin = usersRes.data?.role === "admin";
-        const isErpAdmin = rpcRes.data === true;
-
-        if (isLegacyAdmin || isErpAdmin) {
-          navigate("/admin", { replace: true });
-        } else {
-          if (!isSignUp) toast.error(`You do not have admin privileges.`);
-          supabase.auth.signOut();
-        }
-      });
+    // Only check once both auth and roles have finished loading
+    if (authLoading || rolesLoading) return;
+    if (user) {
+      if (isAdmin || isStaff) {
+        navigate("/admin", { replace: true });
+      } else if (!isSignUp && userRoles.length === 0) {
+        toast.error("You do not have staff or admin privileges.");
+        supabase.auth.signOut();
+      }
     }
-  }, [user, authLoading, navigate, isSignUp]);
+  }, [user, authLoading, rolesLoading, isAdmin, isStaff, userRoles, navigate, isSignUp]);
 
   useEffect(() => {
     if (s?.favicon_url) {
@@ -68,16 +70,57 @@ const AdminLoginPage = () => {
     setLoading(true);
     try {
       if (isSignUp) {
-        const { error } = await signUp(email, password);
+        let authEmail = email.trim();
+        if (!authEmail.includes("@")) {
+          authEmail = `${authEmail.replace(/\s+/g, "").replace(/-/g, "")}@staff.local`;
+        }
+        const { error } = await signUp(authEmail, password);
         if (error) {
           toast.error(error);
         } else {
           toast.success("Account created! Please wait for admin approval.");
         }
       } else {
-        const { error } = await signIn(email, password);
-        if (error) {
-          toast.error(error);
+        let authEmail = email.trim();
+        let res: { error: string | null; roles?: string[] };
+
+        if (!authEmail.includes("@")) {
+          // Input is a mobile number or phone ID
+          const cleanPhone = authEmail.replace(/\s+/g, "").replace(/-/g, "");
+          res = await signIn(`${cleanPhone}@staff.local`, password);
+          if (res.error) {
+            // Try dealer format fallback
+            res = await signIn(`${cleanPhone}@dealer.local`, password);
+          }
+        } else {
+          res = await signIn(authEmail, password);
+        }
+
+        if (res.error) {
+          toast.error(res.error);
+          return;
+        }
+
+        const userRolesList = res.roles || [];
+        const hasStaffRole = userRolesList.some((r) =>
+          [
+            "admin",
+            "sales",
+            "salesman",
+            "cashier",
+            "warehousemanager",
+            "accountant",
+            "purchasing",
+            "staff",
+          ].includes(r.toLowerCase()),
+        );
+
+        if (hasStaffRole) {
+          toast.success("Welcome back!");
+          navigate("/admin", { replace: true });
+        } else {
+          toast.error("You do not have staff or admin privileges.");
+          await supabase.auth.signOut();
         }
       }
     } finally {
@@ -100,7 +143,7 @@ const AdminLoginPage = () => {
           <p className="font-body text-sm text-muted-foreground mt-1">
             {isSignUp
               ? "Create your admin account"
-              : "Sign in to manage your store"}
+              : "Sign in with your Mobile Number or Email"}
           </p>
         </div>
 
@@ -108,15 +151,15 @@ const AdminLoginPage = () => {
           <form onSubmit={handleSubmit} className="space-y-5">
             <div>
               <label className="block font-body text-xs uppercase tracking-wider text-muted-foreground mb-1.5">
-                Email
+                Mobile Number or Email
               </label>
               <div className="relative">
                 <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <Input
-                  type="email"
+                  type="text"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="admin@kkkparts.com"
+                  placeholder="e.g. 017xxxxxxxx or admin@kkkparts.com"
                   className="pl-10"
                   required
                 />
