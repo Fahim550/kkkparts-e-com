@@ -323,7 +323,7 @@ const AdminLayout = () => {
 
   const sidebarContent = (
     <>
-      <nav className="flex-1 py-4 px-2 overflow-y-auto sidebar-scroll space-y-4">
+      <nav className="flex-1 py-4 px-2.5 overflow-y-auto sidebar-scroll space-y-4">
         {visibleCategories.map((category, index) => {
           const isOpen = openCategories[category.title];
           const isCollapsed = !isMobile && collapsed;
@@ -334,19 +334,19 @@ const AdminLayout = () => {
               {!isCollapsed && (
                 <button
                   onClick={() => toggleCategory(category.title)}
-                  className={`w-full flex items-center justify-between px-2.5 py-1 text-[10.5px] font-semibold uppercase tracking-wider transition-colors rounded-lg group ${
+                  className={`w-full flex items-center justify-between px-2.5 py-1.5 text-xs font-semibold uppercase tracking-wider transition-colors rounded-lg group ${
                     isCategoryActive
-                      ? "text-sidebar-primary/90"
-                      : "text-sidebar-foreground/50 hover:text-sidebar-foreground/80 hover:bg-sidebar-accent/40"
+                      ? "text-sidebar-primary/95"
+                      : "text-sidebar-foreground/60 hover:text-sidebar-foreground/90 hover:bg-sidebar-accent/50"
                   }`}
                 >
                   <span className="truncate">
                     {category.title}
                   </span>
                   <ChevronDown
-                    className={`w-3.5 h-3.5 shrink-0 transition-transform duration-200 ${
+                    className={`w-4 h-4 shrink-0 transition-transform duration-200 ${
                       isOpen ? "" : "-rotate-90"
-                    } ${isCategoryActive ? "text-sidebar-primary/70" : "text-sidebar-foreground/30 group-hover:text-sidebar-foreground/60"}`}
+                    } ${isCategoryActive ? "text-sidebar-primary/80" : "text-sidebar-foreground/40 group-hover:text-sidebar-foreground/70"}`}
                   />
                 </button>
               )}
@@ -363,19 +363,19 @@ const AdminLayout = () => {
                         className={`group relative flex items-center ${
                           isCollapsed
                             ? "justify-center w-10 h-10 mx-auto rounded-lg"
-                            : "gap-2.5 px-2.5 py-1.5 rounded-lg"
-                        } text-xs font-medium transition-all duration-150 ${
+                            : "gap-3 px-3 py-2 rounded-lg"
+                        } text-sm font-medium transition-all duration-150 ${
                           active
-                            ? "bg-sidebar-primary/15 text-white shadow-xs ring-1 ring-sidebar-primary/25"
+                            ? "bg-sidebar-primary/15 text-white shadow-xs ring-1 ring-sidebar-primary/25 font-semibold"
                             : "text-sidebar-foreground/80 hover:text-white hover:bg-sidebar-accent/70"
                         }`}
                         title={!isMobile && collapsed ? item.label : undefined}
                       >
                         {active && !isCollapsed && (
-                          <span className="absolute left-1 top-1/2 -translate-y-1/2 w-1 h-3.5 rounded-full bg-sidebar-primary" />
+                          <span className="absolute left-1 top-1/2 -translate-y-1/2 w-1 h-4 rounded-full bg-sidebar-primary" />
                         )}
                         <item.icon
-                          className={`w-4 h-4 shrink-0 transition-colors ${
+                          className={`w-4.5 h-4.5 shrink-0 transition-colors ${
                             active
                               ? "text-sidebar-primary"
                               : "text-sidebar-foreground/60 group-hover:text-sidebar-foreground"
@@ -415,22 +415,22 @@ const AdminLayout = () => {
               </button>
             ) : (
               <button
-                className="w-full flex items-center gap-2 p-1.5 rounded-xl bg-sidebar-accent/30 hover:bg-sidebar-accent/80 border border-sidebar-border/40 text-left transition-all duration-200 group focus:outline-none focus:ring-1 focus:ring-sidebar-ring cursor-pointer"
+                className="w-full flex items-center gap-2.5 p-2 rounded-xl bg-sidebar-accent/30 hover:bg-sidebar-accent/80 border border-sidebar-border/40 text-left transition-all duration-200 group focus:outline-none focus:ring-1 focus:ring-sidebar-ring cursor-pointer"
               >
                 <div className="relative shrink-0">
-                  <Avatar className="h-8 w-8 rounded-lg border border-sidebar-border/80 shadow-xs">
-                    <AvatarFallback className="bg-gradient-to-br from-blue-600 via-indigo-600 to-violet-700 text-white font-bold text-xs rounded-lg">
+                  <Avatar className="h-9 w-9 rounded-lg border border-sidebar-border/80 shadow-xs">
+                    <AvatarFallback className="bg-gradient-to-br from-blue-600 via-indigo-600 to-violet-700 text-white font-bold text-sm rounded-lg">
                       {userInitial}
                     </AvatarFallback>
                   </Avatar>
-                  <span className="absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full bg-emerald-500 ring-2 ring-sidebar" />
+                  <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-emerald-500 ring-2 ring-sidebar" />
                 </div>
                 <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-1">
-                    <p className="text-xs font-semibold text-sidebar-foreground truncate">
+                  <div className="flex items-center gap-1.5">
+                    <p className="text-sm font-semibold text-sidebar-foreground truncate">
                       {displayName}
                     </p>
-                    <span className={`text-[8.5px] px-1.5 py-0.2 rounded-full font-semibold border shrink-0 uppercase tracking-wider ${
+                    <span className={`text-[9.5px] px-1.5 py-0.5 rounded-full font-semibold border shrink-0 uppercase tracking-wider ${
                       isAdmin
                         ? "bg-blue-500/15 text-blue-400 border-blue-500/20"
                         : "bg-emerald-500/15 text-emerald-400 border-emerald-500/20"
@@ -438,11 +438,11 @@ const AdminLayout = () => {
                       {primaryRole || "Staff"}
                     </span>
                   </div>
-                  <p className="text-[10px] text-sidebar-foreground/50 truncate font-mono">
+                  <p className="text-xs text-sidebar-foreground/60 truncate font-mono">
                     {userEmail}
                   </p>
                 </div>
-                <ChevronsUpDown className="w-3.5 h-3.5 text-sidebar-foreground/40 group-hover:text-sidebar-foreground/80 shrink-0 transition-colors" />
+                <ChevronsUpDown className="w-4 h-4 text-sidebar-foreground/40 group-hover:text-sidebar-foreground/80 shrink-0 transition-colors" />
               </button>
             )}
           </DropdownMenuTrigger>
@@ -451,19 +451,19 @@ const AdminLayout = () => {
             side={!isMobile && collapsed ? "right" : "top"}
             align={!isMobile && collapsed ? "end" : "start"}
             sideOffset={10}
-            className="w-56 bg-sidebar border border-sidebar-border text-sidebar-foreground shadow-2xl rounded-xl p-1.5 z-50"
+            className="w-64 bg-sidebar border border-sidebar-border text-sidebar-foreground shadow-2xl rounded-xl p-1.5 z-50"
           >
             <div className="px-3 py-2.5 bg-sidebar-accent/40 rounded-lg mb-1 border border-sidebar-border/40">
               <div className="flex items-center gap-2.5">
-                <Avatar className="h-8 w-8 rounded-lg shrink-0">
+                <Avatar className="h-8.5 w-8.5 rounded-lg shrink-0">
                   <AvatarFallback className="bg-gradient-to-br from-blue-600 via-indigo-600 to-violet-700 text-white font-bold text-xs rounded-lg">
                     {userInitial}
                   </AvatarFallback>
                 </Avatar>
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-1.5">
-                    <span className="text-xs font-semibold text-sidebar-foreground truncate">{displayName}</span>
-                    <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-medium border shrink-0 ${
+                    <span className="text-sm font-semibold text-sidebar-foreground truncate">{displayName}</span>
+                    <span className={`text-[9.5px] px-1.5 py-0.5 rounded-full font-medium border shrink-0 ${
                       isAdmin
                         ? "bg-blue-500/20 text-blue-400 border-blue-500/30"
                         : "bg-emerald-500/20 text-emerald-400 border-emerald-500/30"
@@ -471,7 +471,7 @@ const AdminLayout = () => {
                       {primaryRole || "Staff"}
                     </span>
                   </div>
-                  <p className="text-[11px] text-sidebar-foreground/50 truncate font-mono mt-0.5">{userEmail}</p>
+                  <p className="text-xs text-sidebar-foreground/60 truncate font-mono mt-0.5">{userEmail}</p>
                 </div>
               </div>
             </div>
@@ -479,7 +479,7 @@ const AdminLayout = () => {
             <DropdownMenuItem asChild>
               <Link
                 to="/"
-                className="flex items-center gap-2.5 px-3 py-2 text-xs rounded-lg text-sidebar-foreground/80 hover:text-sidebar-foreground hover:bg-sidebar-accent cursor-pointer transition-colors"
+                className="flex items-center gap-2.5 px-3 py-2 text-sm rounded-lg text-sidebar-foreground/80 hover:text-sidebar-foreground hover:bg-sidebar-accent cursor-pointer transition-colors"
               >
                 <Store className="w-4 h-4 text-sidebar-foreground/60" />
                 <span className="font-medium flex-1">View Storefront</span>
@@ -491,7 +491,7 @@ const AdminLayout = () => {
               <DropdownMenuItem asChild>
                 <Link
                   to="/admin/settings"
-                  className="flex items-center gap-2.5 px-3 py-2 text-xs rounded-lg text-sidebar-foreground/80 hover:text-sidebar-foreground hover:bg-sidebar-accent cursor-pointer transition-colors"
+                  className="flex items-center gap-2.5 px-3 py-2 text-sm rounded-lg text-sidebar-foreground/80 hover:text-sidebar-foreground hover:bg-sidebar-accent cursor-pointer transition-colors"
                 >
                   <Settings className="w-4 h-4 text-sidebar-foreground/60" />
                   <span className="font-medium">Store Settings</span>
@@ -503,7 +503,7 @@ const AdminLayout = () => {
 
             <DropdownMenuItem
               onClick={handleLogout}
-              className="flex items-center gap-2.5 px-3 py-2 text-xs rounded-lg text-red-400 hover:text-red-300 hover:bg-red-500/10 cursor-pointer transition-colors"
+              className="flex items-center gap-2.5 px-3 py-2 text-sm rounded-lg text-red-400 hover:text-red-300 hover:bg-red-500/10 cursor-pointer transition-colors"
             >
               <LogOut className="w-4 h-4 text-red-400" />
               <span className="font-medium">Sign Out</span>
@@ -531,7 +531,7 @@ const AdminLayout = () => {
               alt={siteName}
               className="h-8 w-auto brightness-0 invert object-contain"
             />
-            <span className="text-xs text-sidebar-foreground/60 font-body">
+            <span className="text-sm font-semibold text-sidebar-foreground/80 font-body">
               {siteName} Admin
             </span>
           </Link>
@@ -556,7 +556,7 @@ const AdminLayout = () => {
                   alt={siteName}
                   className="h-8 w-auto brightness-0 invert object-contain"
                 />
-                <span className="text-xs text-sidebar-foreground/60 font-body">
+                <span className="text-sm font-semibold text-sidebar-foreground/80 font-body">
                   {siteName} Admin
                 </span>
               </Link>
@@ -575,11 +575,11 @@ const AdminLayout = () => {
   return (
     <div className="min-h-screen bg-secondary/30 flex notranslate">
       <aside
-        className={`${collapsed ? "w-16" : "w-56"} bg-sidebar border-r border-sidebar-border flex flex-col shrink-0 transition-all duration-300 fixed h-full z-40 print:hidden shadow-xl`}
+        className={`${collapsed ? "w-16" : "w-64"} bg-sidebar border-r border-sidebar-border flex flex-col shrink-0 transition-all duration-300 fixed h-full z-40 print:hidden shadow-xl`}
       >
-        <div className={`h-16 flex items-center ${collapsed ? "justify-center px-2" : "justify-between px-3"} border-b border-sidebar-border/70`}>
+        <div className={`h-16 flex items-center ${collapsed ? "justify-center px-2" : "justify-between px-4"} border-b border-sidebar-border/70`}>
           {!collapsed && (
-            <Link to="/admin" className="flex items-center gap-2 overflow-hidden group">
+            <Link to="/admin" className="flex items-center gap-2.5 overflow-hidden group">
               <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-600 via-indigo-600 to-blue-700 flex items-center justify-center shadow-xs shrink-0 border border-white/10 group-hover:scale-105 transition-transform">
                 <img
                   src={logoUrl}
@@ -588,10 +588,10 @@ const AdminLayout = () => {
                 />
               </div>
               <div className="min-w-0">
-                <span className="text-xs font-semibold text-white tracking-tight block truncate">
+                <span className="text-sm font-bold text-white tracking-tight block truncate">
                   {siteName}
                 </span>
-                <span className="text-[9.5px] uppercase font-mono tracking-wider text-sidebar-foreground/60 block -mt-0.5">
+                <span className="text-[11px] uppercase font-mono tracking-wider text-sidebar-foreground/60 block">
                   Control Center
                 </span>
               </div>
@@ -613,7 +613,7 @@ const AdminLayout = () => {
       </aside>
 
       <main
-        className={`flex-1 ${collapsed ? "ml-16" : "ml-56"} transition-all duration-300 flex flex-col overflow-hidden print:ml-0 print:overflow-visible print:w-full`}
+        className={`flex-1 ${collapsed ? "ml-16" : "ml-64"} transition-all duration-300 flex flex-col overflow-hidden print:ml-0 print:overflow-visible print:w-full`}
       >
         <header className="h-16 border-b border-gray-400 bg-gray-100 flex items-center justify-between px-6 sticky top-0 z-30 print:hidden">
           <div className="flex-1 flex items-center">

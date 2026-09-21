@@ -1,7 +1,7 @@
 import { supabase } from "@/integrations/supabase/client";
 import type { Database } from "@/integrations/supabase/types";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AccountingEngine } from "@/modules/accounting/application/services/accounting.engine";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 export { useActiveCategories, useCategories } from "./useCategories";
 
@@ -26,6 +26,7 @@ export const useProducts = () =>
         .select("*, categories(name), brands(name), product_variations(*, stock_balances(*, warehouse_bins(*)))");
 
       if (error) {
+        console.warn("Error fetching products:", error);
         const { data: fallbackData } = await supabase
           .from("products")
           .select("*");
@@ -41,10 +42,11 @@ export const useActiveProducts = () =>
     queryFn: async () => {
       const { data, error } = await supabase
         .from("products")
-        .select("*, categories(name), brands(name), product_variations(*, stock_balances(*, warehouse_bins(*)))")
+        .select("*, categories(name,slug), brands(name), product_variations(*)")
         .eq("is_active", true);
 
       if (error) {
+        console.warn("Error fetching active products:", error);
         const { data: fallbackData } = await supabase
           .from("products")
           .select("*")
