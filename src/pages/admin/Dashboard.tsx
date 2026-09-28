@@ -20,6 +20,7 @@ import {
 } from "recharts";
 
 import { useOrders, useProducts } from "@/hooks/useDatabase";
+import { AdminOrdersQuickView } from "@/components/admin/AdminOrdersQuickView";
 import { useTrialBalance } from "@/modules/accounting/presentation/hooks/useAccounting";
 import { useCustomers, useCustomerDues } from "@/modules/customer/presentation/hooks/useCustomers";
 import { usePurchaseOrders } from "@/modules/purchase/presentation/hooks/usePurchaseOrders";
@@ -27,7 +28,7 @@ import { useInvoices } from "@/modules/purchase/presentation/hooks/useInvoices";
 import { useSuppliers, useSupplierDues } from "@/modules/supplier/presentation/hooks/useSuppliers";
 
 const Dashboard = () => {
-  const { data: allOrders = [] } = useOrders();
+  const { data: allOrders = [], isLoading: loadingOrders } = useOrders();
   const { data: products = [] } = useProducts();
   const { orders: purchaseOrders = [] } = usePurchaseOrders();
   const { invoices = [] } = useInvoices();
@@ -208,9 +209,9 @@ const Dashboard = () => {
   return (
     <div className="flex flex-col min-h-screen bg-slate-50 font-body">
       {/* Main Content Grid */}
-      <div className="flex-1 flex flex-col lg:flex-row">
+      <div className="flex-1 flex flex-col lg:flex-row min-w-0">
         {/* Left Column */}
-        <div className="flex-1 flex flex-col border-r border-gray-200">
+        <div className="min-w-0 flex-1 flex flex-col border-r border-gray-200">
           {/* Top Row: Receivable & Payable */}
           <div className="grid grid-cols-1 sm:grid-cols-2 bg-white border-b border-gray-200">
             <Link
@@ -254,6 +255,9 @@ const Dashboard = () => {
               </div>
             </Link>
           </div>
+
+          {/* Customer & Dealer Orders Quick View (Top of Total Sale Chart) */}
+          <AdminOrdersQuickView orders={allOrders} isLoading={loadingOrders} />
 
           {/* Chart Section */}
           <div className="p-6 bg-white flex-1 border-b border-gray-200">
@@ -350,7 +354,7 @@ const Dashboard = () => {
         </div>
 
         {/* Right Column (Side Panel) */}
-        <div className="w-full lg:w-80 bg-white flex flex-col">
+        <div className="w-full lg:w-80 shrink-0 bg-white flex flex-col">
           <Link
             to="/admin/purchase-orders"
             className="p-6 border-b border-gray-100 group hover:bg-gray-50 cursor-pointer flex justify-between items-start transition-colors"

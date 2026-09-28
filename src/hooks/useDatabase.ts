@@ -209,6 +209,7 @@ export const useOrders = () =>
 
       return combined.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
     },
+    refetchInterval: 10000,
   });
 
 export const useCustomerOrders = (email?: string) =>

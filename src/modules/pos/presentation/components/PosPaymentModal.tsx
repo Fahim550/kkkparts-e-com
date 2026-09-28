@@ -18,7 +18,6 @@ import {
   CheckCircle2,
   AlertCircle,
   Loader2,
-  Sparkles,
   ArrowRightLeft,
   User,
 } from "lucide-react";
@@ -590,7 +589,7 @@ export default function PosPaymentModal({
                 {/* Split Promo Banner */}
                 <div className="bg-blue-50/70 border border-blue-200/80 rounded-xl p-3 flex items-center justify-between gap-2">
                   <div className="flex items-center gap-2">
-                    <Sparkles className="w-4 h-4 text-blue-600 shrink-0" />
+                    <ArrowRightLeft className="w-4 h-4 text-blue-600 shrink-0" />
                     <span className="text-xs text-blue-900 font-medium">
                       Customer paying with mixed methods?
                     </span>

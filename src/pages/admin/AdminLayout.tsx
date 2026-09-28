@@ -1,4 +1,5 @@
 import AdminGlobalSearch from "@/components/admin/AdminGlobalSearch";
+import { AdminOrderNotification } from "@/components/admin/AdminOrderNotification";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
@@ -648,9 +649,7 @@ const AdminLayout = () => {
                 </Button>
               </Link>
             )}
-            <Button variant="ghost" size="icon" className="p-2 text-blue-500 bg-blue-50 rounded-full hover:bg-blue-100 transition">
-              <Plus className="h-4 w-4" />
-            </Button>
+            <AdminOrderNotification />
             <Button variant="ghost" size="icon" className="rounded-full h-9 w-9 text-muted-foreground">
               <Printer className="h-4 w-4" />
             </Button>

@@ -3,7 +3,6 @@ import { Link } from "react-router-dom";
 import {
   Shield,
   Users,
-  Sparkles,
   Download,
   MessageSquare,
   Box,
@@ -51,7 +50,7 @@ const AboutPage = () => {
                 className="w-full lg:w-1/2 space-y-8"
               >
                 <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-secondary/50 border border-border/50 text-xs font-bold uppercase tracking-widest text-muted-foreground backdrop-blur-md">
-                  <Sparkles className="w-4 h-4 text-neon" /> Premium Auto Parts
+                  <Shield className="w-4 h-4 text-neon" /> Premium Auto Parts
                 </div>
 
                 <h1 className="text-3xl md:text-6xl lg:text-7xl font-heading font-black tracking-tighter leading-[1.1]">

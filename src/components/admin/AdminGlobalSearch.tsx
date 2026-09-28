@@ -13,7 +13,6 @@ import {
   ExternalLink,
   Receipt,
   Layers,
-  Sparkles,
 } from "lucide-react";
 import { useProducts, useOrders } from "@/hooks/useDatabase";
 import { useCustomers } from "@/modules/customer/presentation/hooks/useCustomers";
@@ -217,7 +216,7 @@ export default function AdminGlobalSearch() {
           {/* Search Header Info */}
           <div className="px-4 py-2.5 bg-gray-50/80 border-b border-gray-100 flex items-center justify-between text-xs text-gray-500">
             <div className="flex items-center gap-1.5">
-              <Sparkles className="w-3.5 h-3.5 text-blue-500" />
+              <Search className="w-3.5 h-3.5 text-blue-500" />
               <span>
                 Search results for <strong className="text-gray-900">"{query.trim()}"</strong>
               </span>
