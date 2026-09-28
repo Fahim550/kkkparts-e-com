@@ -120,24 +120,6 @@ export const AdminAuthProvider: React.FC<{ children: React.ReactNode }> = ({
         // ignore
       }
 
-      // 4. Fallback: check legacy users table
-      try {
-        const { data: legacyUser } = await supabase
-          .from("users")
-          .select("role")
-          .eq("id", userId)
-          .maybeSingle();
-
-        if (legacyUser?.role) {
-          const lower = legacyUser.role.toLowerCase();
-          if (lower === "admin") rolesFound.add("Admin");
-          else if (lower === "sales" || lower === "salesman") rolesFound.add("Salesman");
-          else rolesFound.add(legacyUser.role);
-        }
-      } catch {
-        // ignore
-      }
-
       // Normalize synonymous roles (Sales and Salesman)
       if (rolesFound.has("Sales") || rolesFound.has("sales")) {
         rolesFound.add("Salesman");

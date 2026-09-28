@@ -45,12 +45,19 @@ const useVisitorSessions = () =>
   useQuery({
     queryKey: ["visitor_sessions"],
     queryFn: async () => {
-      const { data, error } = await (supabase.from("visitor_sessions") as any)
-        .select("*")
-        .order("last_active_at", { ascending: false })
-        .limit(1000);
-      if (error) throw error;
-      return data as VisitorSession[];
+      try {
+        const { data, error } = await (supabase.from("visitor_sessions") as any)
+          .select("*")
+          .order("last_active_at", { ascending: false })
+          .limit(1000);
+        if (error) {
+          console.warn("visitor_sessions query notice:", error.message);
+          return [];
+        }
+        return (data || []) as VisitorSession[];
+      } catch {
+        return [];
+      }
     },
     refetchInterval: 30_000,
   });
@@ -59,12 +66,19 @@ const usePageViews = () =>
   useQuery({
     queryKey: ["page_views"],
     queryFn: async () => {
-      const { data, error } = await (supabase.from("page_views") as any)
-        .select("*")
-        .order("created_at", { ascending: false })
-        .limit(5000);
-      if (error) throw error;
-      return data as PageView[];
+      try {
+        const { data, error } = await (supabase.from("page_views") as any)
+          .select("*")
+          .order("created_at", { ascending: false })
+          .limit(5000);
+        if (error) {
+          console.warn("page_views query notice:", error.message);
+          return [];
+        }
+        return (data || []) as PageView[];
+      } catch {
+        return [];
+      }
     },
     refetchInterval: 30_000,
   });

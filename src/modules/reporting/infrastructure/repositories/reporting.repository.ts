@@ -125,7 +125,7 @@ export class ReportingRepository {
         .neq("status", "Cancelled"),
       supabase
         .from("purchase_receipts")
-        .select("id, total_amount, status")
+        .select("id, status, purchase_orders(total_amount)")
         .eq("status", "Received")
         .gte("created_at", firstDayOfMonth)
     ]);
@@ -135,7 +135,7 @@ export class ReportingRepository {
 
     const total_purchases =
       (piList?.reduce((sum, p) => sum + Number(p.total_amount || 0), 0) || 0) +
-      (unbilledReceipts.reduce((sum, p) => sum + Number(p.total_amount || 0), 0) || 0);
+      (unbilledReceipts.reduce((sum, p: any) => sum + Number(p.purchase_orders?.total_amount || 0), 0) || 0);
 
     // 4. Inventory Value (FIFO Cost Layers if active, otherwise cost * stock)
     const { data: fifoLayers } = await supabase

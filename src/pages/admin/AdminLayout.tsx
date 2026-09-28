@@ -50,10 +50,21 @@ import {
   Truck,
   UserCog,
   Users,
-  UserSearch
+  UserSearch,
+  Loader2
 } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import { Link, Outlet, useLocation } from "react-router-dom";
+
+// Localized content loader for the inner page area to keep the sidebar & header persistent
+const AdminContentLoader = () => (
+  <div className="flex h-[50vh] w-full items-center justify-center">
+    <div className="flex flex-col items-center gap-2">
+      <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      <span className="text-xs text-muted-foreground font-medium">Loading section...</span>
+    </div>
+  </div>
+);
 
 const AUTO_COLLAPSE_ROUTES = [
   "/admin/sales/new",
@@ -566,7 +577,9 @@ const AdminLayout = () => {
         </Sheet>
 
         <main className="p-4">
-          <Outlet />
+          <Suspense fallback={<AdminContentLoader />}>
+            <Outlet />
+          </Suspense>
         </main>
       </div>
     );
@@ -648,7 +661,9 @@ const AdminLayout = () => {
         </header>
 
         <div className="p-4 flex-1 overflow-hidden print:p-0 print:overflow-visible">
-          <Outlet />
+          <Suspense fallback={<AdminContentLoader />}>
+            <Outlet />
+          </Suspense>
         </div>
       </main>
     </div>
