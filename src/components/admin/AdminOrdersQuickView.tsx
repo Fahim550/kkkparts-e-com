@@ -18,6 +18,7 @@ import {
   Store,
   Truck,
   User,
+  UserCheck,
   XCircle,
 } from "lucide-react";
 
@@ -41,6 +42,9 @@ export interface DashboardOrder {
   shipping_address?: string;
   total: number;
   type?: "sales_order" | "pos_receipt" | string;
+  salesman_id?: string;
+  salesman_name?: string;
+  order_source?: string;
   items?: OrderItem[];
 }
 
@@ -70,7 +74,17 @@ export const AdminOrdersQuickView = ({
 
   const [activeTab, setActiveTab] = useState<"today" | "customer" | "dealer" | "session" | "all">("today");
   const [searchQuery, setSearchQuery] = useState("");
+  const [selectedSalesman, setSelectedSalesman] = useState<string>("all");
   const [currentPage, setCurrentPage] = useState(1);
+
+  // Available unique salesmen in current orders list
+  const availableSalesmen = useMemo(() => {
+    const names = new Set<string>();
+    orders.forEach((o) => {
+      if (o.salesman_name) names.add(o.salesman_name);
+    });
+    return Array.from(names).sort();
+  }, [orders]);
 
   // Helper date checkers
   const isToday = (dateStr?: string) => {
@@ -138,21 +152,27 @@ export const AdminOrdersQuickView = ({
       }
       // "all" shows all orders
 
-      // 2. Search query filter
+      // 2. Salesman filter
+      if (selectedSalesman !== "all") {
+        if (o.salesman_name !== selectedSalesman) return false;
+      }
+
+      // 3. Search query filter
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase().trim();
         const matchesNumber = o.order_number?.toLowerCase().includes(q);
         const matchesName = o.customer_name?.toLowerCase().includes(q);
         const matchesPhone = o.customer_phone?.toLowerCase().includes(q);
         const matchesEmail = o.customer_email?.toLowerCase().includes(q);
-        if (!matchesNumber && !matchesName && !matchesPhone && !matchesEmail) {
+        const matchesSalesman = o.salesman_name?.toLowerCase().includes(q);
+        if (!matchesNumber && !matchesName && !matchesPhone && !matchesEmail && !matchesSalesman) {
           return false;
         }
       }
 
       return true;
     });
-  }, [orders, activeTab, searchQuery, sessionStartTime]);
+  }, [orders, activeTab, searchQuery, selectedSalesman, sessionStartTime]);
 
   // Pagination calculation
   const totalPages = Math.max(1, Math.ceil(filteredOrders.length / PAGE_SIZE));
@@ -417,24 +437,46 @@ export const AdminOrdersQuickView = ({
             </button>
           </div>
 
-          {/* Quick Search */}
-          <div className="relative sm:w-56 shrink-0">
-            <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" />
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => handleSearchChange(e.target.value)}
-              placeholder="Search orders..."
-              className="w-full pl-8 pr-3 py-1.5 text-xs bg-slate-50 border border-gray-200 rounded-lg text-gray-900 placeholder:text-gray-400 focus:outline-none focus:bg-white focus:border-blue-500 transition"
-            />
-            {searchQuery && (
-              <button
-                onClick={() => handleSearchChange("")}
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 text-xs"
-              >
-                ×
-              </button>
+          {/* Quick Search & Salesman Filter */}
+          <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
+            {availableSalesmen.length > 0 && (
+              <div className="relative sm:w-40 shrink-0">
+                <select
+                  value={selectedSalesman}
+                  onChange={(e) => {
+                    setSelectedSalesman(e.target.value);
+                    setCurrentPage(1);
+                  }}
+                  className="w-full px-2.5 py-1.5 text-xs bg-slate-50 border border-gray-200 rounded-lg text-gray-900 focus:outline-none focus:bg-white focus:border-blue-500 transition font-medium"
+                >
+                  <option value="all">All Sales Reps</option>
+                  {availableSalesmen.map((name) => (
+                    <option key={name} value={name}>
+                      👤 {name}
+                    </option>
+                  ))}
+                </select>
+              </div>
             )}
+
+            <div className="relative sm:w-52 shrink-0">
+              <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => handleSearchChange(e.target.value)}
+                placeholder="Search orders, rep..."
+                className="w-full pl-8 pr-3 py-1.5 text-xs bg-slate-50 border border-gray-200 rounded-lg text-gray-900 placeholder:text-gray-400 focus:outline-none focus:bg-white focus:border-blue-500 transition"
+              />
+              {searchQuery && (
+                <button
+                  onClick={() => handleSearchChange("")}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 text-xs"
+                >
+                  ×
+                </button>
+              )}
+            </div>
           </div>
         </div>
       </div>
@@ -523,6 +565,25 @@ export const AdminOrdersQuickView = ({
                       <div className="text-[10px] text-gray-400 truncate">
                         {order.customer_phone || order.customer_email || "No contact"}
                       </div>
+                      {order.salesman_name && (
+                        <div className="flex items-center gap-1 mt-0.5">
+                          <span
+                            title="Salesman / Booked By"
+                            className="inline-flex items-center gap-0.5 px-1.5 py-0.2 rounded text-[10px] font-medium bg-amber-50 text-amber-800 border border-amber-200"
+                          >
+                            <UserCheck className="w-2.5 h-2.5 text-amber-600" />
+                            <span className="truncate max-w-[100px]">{order.salesman_name}</span>
+                          </span>
+                          {order.order_source === "field_marketing" && (
+                            <span
+                              title="Field Marketing Order"
+                              className="inline-flex items-center px-1 py-0.2 rounded text-[9px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 shrink-0"
+                            >
+                              Field
+                            </span>
+                          )}
+                        </div>
+                      )}
                     </td>
 
                     {/* Type Badge */}

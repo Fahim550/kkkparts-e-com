@@ -307,6 +307,7 @@ export type Database = {
           receivable_account_id: string;
           shipping_address: string | null;
           tax_id: string | null;
+          salesman_id: string | null;
           updated_at: string | null;
         };
         Insert: {
@@ -322,6 +323,7 @@ export type Database = {
           receivable_account_id: string;
           shipping_address?: string | null;
           tax_id?: string | null;
+          salesman_id?: string | null;
           updated_at?: string | null;
         };
         Update: {
@@ -337,6 +339,7 @@ export type Database = {
           receivable_account_id?: string;
           shipping_address?: string | null;
           tax_id?: string | null;
+          salesman_id?: string | null;
           updated_at?: string | null;
         };
         Relationships: [
@@ -904,6 +907,8 @@ export type Database = {
           walk_in_customer_phone: string | null;
           walk_in_dealer_name: string | null;
           walk_in_dealer_phone: string | null;
+          salesman_id: string | null;
+          salesman_name: string | null;
         };
         Insert: {
           created_at?: string | null;
@@ -921,6 +926,8 @@ export type Database = {
           walk_in_customer_phone?: string | null;
           walk_in_dealer_name?: string | null;
           walk_in_dealer_phone?: string | null;
+          salesman_id?: string | null;
+          salesman_name?: string | null;
         };
         Update: {
           created_at?: string | null;
@@ -938,6 +945,8 @@ export type Database = {
           walk_in_customer_phone?: string | null;
           walk_in_dealer_name?: string | null;
           walk_in_dealer_phone?: string | null;
+          salesman_id?: string | null;
+          salesman_name?: string | null;
         };
         Relationships: [
           {
@@ -1856,6 +1865,9 @@ export type Database = {
           so_number: string;
           status: string;
           total_amount: number;
+          salesman_id: string | null;
+          salesman_name: string | null;
+          order_source: string | null;
           updated_at: string | null;
         };
         Insert: {
@@ -1867,6 +1879,9 @@ export type Database = {
           so_number: string;
           status?: string;
           total_amount?: number;
+          salesman_id?: string | null;
+          salesman_name?: string | null;
+          order_source?: string | null;
           updated_at?: string | null;
         };
         Update: {
@@ -1878,6 +1893,9 @@ export type Database = {
           so_number?: string;
           status?: string;
           total_amount?: number;
+          salesman_id?: string | null;
+          salesman_name?: string | null;
+          order_source?: string | null;
           updated_at?: string | null;
         };
         Relationships: [

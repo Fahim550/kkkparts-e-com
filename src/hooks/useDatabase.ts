@@ -172,6 +172,9 @@ export const useOrders = () =>
           total: o.total_amount,
           is_hidden: false,
           type: 'sales_order',
+          salesman_id: o.salesman_id || null,
+          salesman_name: o.salesman_name || null,
+          order_source: o.order_source || 'admin',
           items: o.sales_order_items?.map((i: any) => ({
             productName: i.product_variations?.products?.name || "Item",
             size: "",
@@ -196,6 +199,9 @@ export const useOrders = () =>
           total: r.total_amount,
           is_hidden: false,
           type: 'pos_receipt',
+          salesman_id: r.salesman_id || null,
+          salesman_name: r.salesman_name || null,
+          order_source: 'pos',
           items: r.pos_receipt_items?.map((i: any) => ({
             productName: i.product_variations?.products?.name || "Item",
             size: "",
@@ -277,7 +283,27 @@ export const useAddOrder = () => {
         }
       }
 
-      const salesOrderPayload = {
+      // Resolve salesman / staff info
+      let salesmanId = (order as any).salesman_id;
+      let salesmanName = (order as any).salesman_name;
+      let orderSource = (order as any).order_source || "admin";
+
+      if (!salesmanId) {
+        try {
+          const { data: authData } = await supabase.auth.getUser();
+          if (authData?.user) {
+            salesmanId = authData.user.id;
+            salesmanName =
+              authData.user.user_metadata?.full_name ||
+              authData.user.email?.split("@")[0] ||
+              "Sales Rep";
+          }
+        } catch {
+          // ignore
+        }
+      }
+
+      const salesOrderPayload: any = {
         so_number: (order as any).order_number || `SO-${Date.now()}`,
         order_date: new Date().toISOString().split("T")[0],
         total_amount: Number((order as any).total || 0),
@@ -285,11 +311,30 @@ export const useAddOrder = () => {
         customer_id: validCustomerId || "00000000-0000-0000-0000-000000000000",
       };
 
-      const { data, error } = await supabase
+      if (salesmanId) salesOrderPayload.salesman_id = salesmanId;
+      if (salesmanName) salesOrderPayload.salesman_name = salesmanName;
+      if (orderSource) salesOrderPayload.order_source = orderSource;
+
+      let { data, error } = await supabase
         .from("sales_orders")
         .insert(salesOrderPayload)
         .select()
         .single();
+
+      // Graceful fallback if database does not yet have salesman columns
+      if (error && (error.message?.includes("salesman") || error.code === "PGRST204")) {
+        delete salesOrderPayload.salesman_id;
+        delete salesOrderPayload.salesman_name;
+        delete salesOrderPayload.order_source;
+
+        const retry = await supabase
+          .from("sales_orders")
+          .insert(salesOrderPayload)
+          .select()
+          .single();
+        data = retry.data;
+        error = retry.error;
+      }
 
       let salesOrderData = data;
 

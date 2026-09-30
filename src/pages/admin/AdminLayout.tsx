@@ -43,6 +43,7 @@ import {
   Printer,
   Settings,
   Settings2,
+  ShieldAlert,
   ShoppingCart,
   Star,
   Store,
@@ -52,9 +53,9 @@ import {
   UserCog,
   Users,
   UserSearch,
-  Loader2
+  Loader2,
 } from "lucide-react";
-import { Suspense, useEffect, useRef, useState } from "react";
+import React, { Component, Suspense, useEffect, useRef, useState } from "react";
 import { Link, Outlet, useLocation } from "react-router-dom";
 
 // Localized content loader for the inner page area to keep the sidebar & header persistent
@@ -66,6 +67,51 @@ const AdminContentLoader = () => (
     </div>
   </div>
 );
+
+class AdminErrorBoundary extends React.Component<
+  { children: React.ReactNode },
+  { hasError: boolean; error: Error | null }
+> {
+  constructor(props: { children: React.ReactNode }) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error: Error) {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+    console.error("Admin dashboard runtime error:", error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="p-8 text-center bg-white rounded-xl border border-red-200 my-4 max-w-lg mx-auto">
+          <div className="w-12 h-12 bg-red-50 text-red-500 rounded-full flex items-center justify-center mx-auto mb-3">
+            <ShieldAlert className="w-6 h-6" />
+          </div>
+          <h2 className="text-lg font-bold text-gray-900 mb-1">Something went wrong</h2>
+          <p className="text-xs text-gray-500 mb-4">
+            {this.state.error?.message || "An unexpected error occurred while loading this view."}
+          </p>
+          <Button
+            onClick={() => {
+              this.setState({ hasError: false, error: null });
+              window.location.reload();
+            }}
+            size="sm"
+            className="text-xs font-semibold"
+          >
+            Reload Page
+          </Button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 const AUTO_COLLAPSE_ROUTES = [
   "/admin/sales/new",
@@ -660,9 +706,11 @@ const AdminLayout = () => {
         </header>
 
         <div className="p-4 flex-1 overflow-hidden print:p-0 print:overflow-visible">
-          <Suspense fallback={<AdminContentLoader />}>
-            <Outlet />
-          </Suspense>
+          <AdminErrorBoundary>
+            <Suspense fallback={<AdminContentLoader />}>
+              <Outlet />
+            </Suspense>
+          </AdminErrorBoundary>
         </div>
       </main>
     </div>

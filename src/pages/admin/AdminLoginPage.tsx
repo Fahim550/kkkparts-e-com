@@ -128,6 +128,19 @@ const AdminLoginPage = () => {
     }
   };
 
+  if (user && (isAdmin || isStaff)) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center p-4">
+        <div className="text-center">
+          <Loader2 className="w-8 h-8 animate-spin text-primary mx-auto mb-3" />
+          <p className="font-body text-sm text-muted-foreground">
+            Redirecting to Dashboard...
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4">
       <div className="w-full max-w-md">

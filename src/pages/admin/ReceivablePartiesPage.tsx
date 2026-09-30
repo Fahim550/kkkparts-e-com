@@ -36,11 +36,15 @@ import {
   Search,
   Trash2,
   X,
-  XCircle
+  XCircle,
+  Store,
+  UserCheck,
 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
+import { useAdminAuth } from "@/hooks/useAdminAuth";
+import { FieldOrderDialog } from "@/components/admin/FieldOrderDialog";
 
 const ReceivablePartiesPage = () => {
   const [searchParams] = useSearchParams();
@@ -50,6 +54,9 @@ const ReceivablePartiesPage = () => {
   const { customers = [], isLoading: loadingCustomers } = useCustomers();
   const { data: trialBalance = [], isLoading: loadingTb } = useTrialBalance();
   const { data: customerDueMap = {}, isLoading: loadingDues } = useCustomerDues();
+  const { user, isSalesman, isAdmin } = useAdminAuth();
+  const isSalesmanOnly = isSalesman && !isAdmin;
+  const currentUserId = user?.id;
 
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedPartyId, setSelectedPartyId] = useState<string | null>(null);
@@ -57,6 +64,9 @@ const ReceivablePartiesPage = () => {
     defaultType === "dealer" ? "dealer" : "customer"
   );
   const [balanceFilter, setBalanceFilter] = useState<"due" | "all">("due");
+  const [territoryFilter, setTerritoryFilter] = useState<"my" | "all">(
+    isSalesmanOnly ? "my" : "all"
+  );
 
   // Sorting state for parties list
   const [sortField, setSortField] = useState<"name" | "balance">("name");
@@ -89,6 +99,13 @@ const ReceivablePartiesPage = () => {
       filtered = customers.filter((c: any) => c.customer_group !== "Dealer");
     } else if (activeTab === "dealer") {
       filtered = customers.filter((c: any) => c.customer_group === "Dealer");
+    }
+
+    if (territoryFilter === "my" && currentUserId) {
+      const myFiltered = filtered.filter((c: any) => c.salesman_id === currentUserId);
+      if (myFiltered.length > 0) {
+        filtered = myFiltered;
+      }
     }
 
     let parties = filtered.map((c: any) => {
@@ -581,7 +598,19 @@ const ReceivablePartiesPage = () => {
                     </div>
                   </div>
 
-                  <div className="flex gap-2">
+                  <div className="flex items-center gap-2">
+                    <FieldOrderDialog
+                      defaultCustomerId={selectedParty.id}
+                      trigger={
+                        <Button
+                          size="sm"
+                          className="bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs gap-1.5 h-8 shadow-xs"
+                        >
+                          <Store className="w-3.5 h-3.5" />
+                          <span>Take Order</span>
+                        </Button>
+                      }
+                    />
                     {selectedParty.contact_phone ? (
                       <a
                         href={`tel:${selectedParty.contact_phone}`}

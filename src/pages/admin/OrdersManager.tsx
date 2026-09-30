@@ -20,7 +20,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Eye, Loader2, Printer, Trash2, Truck } from "lucide-react";
+import { Eye, Loader2, Printer, Trash2, Truck, UserCheck } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
@@ -42,14 +42,26 @@ const OrdersManager = () => {
   const updateStatus = useUpdateOrderStatus();
   const deleteOrder = useDeleteOrder();
   const [statusFilter, setStatusFilter] = useState("all");
+  const [salesmanFilter, setSalesmanFilter] = useState("all");
+
+  const availableSalesmen = useMemo(() => {
+    const names = new Set<string>();
+    orders.forEach((o) => {
+      if (o.salesman_name) names.add(o.salesman_name);
+    });
+    return Array.from(names).sort();
+  }, [orders]);
 
   const filtered = useMemo(() => {
     let result = orders.filter((o) => o.customer_group !== 'Dealer');
     if (statusFilter !== "all") {
       result = result.filter((o) => o.status === statusFilter);
     }
+    if (salesmanFilter !== "all") {
+      result = result.filter((o) => o.salesman_name === salesmanFilter);
+    }
     return result;
-  }, [orders, statusFilter]);
+  }, [orders, statusFilter, salesmanFilter]);
 
   const statusCounts = useMemo(() => {
     const guestOrders = orders.filter((o) => o.customer_group !== 'Dealer');
@@ -107,23 +119,43 @@ const OrdersManager = () => {
         <AddOrderDialog />
       </div>
 
-      <div className="flex flex-wrap gap-2 mb-6">
-        {["all", ...statuses].map((s) => (
-          <button
-            key={s}
-            onClick={() => setStatusFilter(s)}
-            className={`px-4 py-2 rounded-md font-body text-sm font-medium transition-colors ${
-              statusFilter === s
-                ? "bg-primary text-primary-foreground"
-                : "bg-card border border-border text-muted-foreground hover:text-foreground hover:border-primary/30"
-            }`}
-          >
-            {s === "all" ? "All" : s.charAt(0).toUpperCase() + s.slice(1)}
-            <span className="ml-1.5 text-xs opacity-70">
-              ({statusCounts[s] || 0})
-            </span>
-          </button>
-        ))}
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
+        <div className="flex flex-wrap gap-2">
+          {["all", ...statuses].map((s) => (
+            <button
+              key={s}
+              onClick={() => setStatusFilter(s)}
+              className={`px-4 py-2 rounded-md font-body text-sm font-medium transition-colors ${
+                statusFilter === s
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-card border border-border text-muted-foreground hover:text-foreground hover:border-primary/30"
+              }`}
+            >
+              {s === "all" ? "All" : s.charAt(0).toUpperCase() + s.slice(1)}
+              <span className="ml-1.5 text-xs opacity-70">
+                ({statusCounts[s] || 0})
+              </span>
+            </button>
+          ))}
+        </div>
+
+        {availableSalesmen.length > 0 && (
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-semibold text-muted-foreground">Sales Rep:</span>
+            <select
+              value={salesmanFilter}
+              onChange={(e) => setSalesmanFilter(e.target.value)}
+              className="px-3 py-1.5 border border-border bg-background rounded-md text-xs font-medium text-foreground focus:outline-none focus:border-primary"
+            >
+              <option value="all">All Sales Reps</option>
+              {availableSalesmen.map((rep) => (
+                <option key={rep} value={rep}>
+                  👤 {rep}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
       </div>
 
       <div className="space-y-4">
@@ -145,6 +177,17 @@ const OrdersManager = () => {
                     >
                       {order.status}
                     </span>
+                    {order.salesman_name && (
+                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 text-xs font-body font-semibold rounded-full bg-amber-50 text-amber-800 border border-amber-200">
+                        <UserCheck className="w-3 h-3 text-amber-600" />
+                        <span>Rep: {order.salesman_name}</span>
+                        {order.order_source === "field_marketing" && (
+                          <span className="ml-1 text-[10px] text-emerald-700 font-bold bg-emerald-100 px-1 rounded">
+                            Field
+                          </span>
+                        )}
+                      </span>
+                    )}
                   </div>
                   <p className="font-body text-sm text-muted-foreground mt-1">
                     {new Date(order.created_at).toLocaleDateString()}
