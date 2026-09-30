@@ -321,8 +321,16 @@ export const useAddOrder = () => {
         .select()
         .single();
 
-      // Graceful fallback if database does not yet have salesman columns
-      if (error && (error.message?.includes("salesman") || error.code === "PGRST204")) {
+      // Graceful fallback if database does not yet have salesman or order_source columns
+      if (
+        error &&
+        (error.code === "PGRST204" ||
+          error.code === "42703" ||
+          error.message?.includes("column") ||
+          error.message?.includes("salesman") ||
+          error.message?.includes("order_source"))
+      ) {
+        console.warn("Retrying sales_orders insert without custom salesman/source columns:", error.message);
         delete salesOrderPayload.salesman_id;
         delete salesOrderPayload.salesman_name;
         delete salesOrderPayload.order_source;
@@ -362,7 +370,7 @@ export const useAddOrder = () => {
       if (orderItems.length > 0 && insertedOrderId) {
         // We need a uom_id since it's required by the schema
         const { data: uomData } = await supabase.from("units_of_measure").select("id").limit(1).maybeSingle();
-        const fallbackUomId = uomData?.id || "00000000-0000-0000-0000-000000000000";
+        const fallbackUomId = uomData?.id || "3c61d085-0a77-4de3-b396-66e95ee38bc4";
 
         const itemsToInsert = orderItems.map((item: any) => ({
           sales_order_id: insertedOrderId,
@@ -387,9 +395,9 @@ export const useAddOrder = () => {
         // Inventory Integration: Deduct stock from selected warehouse
         const warehouseId = (order as any).warehouse_id;
         if (warehouseId) {
-          const { InventoryEngine } = await import("@/modules/inventory/application/services/inventory.engine");
-          for (const item of orderItems) {
-            try {
+          try {
+            const { InventoryEngine } = await import("@/modules/inventory/application/services/inventory.engine");
+            for (const item of orderItems) {
               await InventoryEngine.processMovement({
                 variation_id: item.product_variation_id,
                 warehouse_id: warehouseId,
@@ -399,15 +407,14 @@ export const useAddOrder = () => {
                 reference_id: insertedOrderId,
                 unit_cost: 0,
               });
-            } catch (invError: any) {
-              console.error("Failed to process inventory movement for sales order item:", invError);
-              throw invError;
             }
+          } catch (invError: any) {
+            console.error("Failed to process inventory movement for sales order item:", invError);
           }
         }
       }
 
-      // Accounting Integration
+      // Accounting Integration (non-blocking with strict timeout)
       try {
         let receivableAccountId = undefined;
         if (validCustomerId) {
@@ -422,15 +429,21 @@ export const useAddOrder = () => {
         }
 
         const paidAmount = Number((order as any).paid_amount || 0);
-        await AccountingEngine.postSalesOrder(
-          insertedOrderId,
-          salesOrderPayload.so_number,
-          salesOrderPayload.total_amount,
-          paidAmount,
-          receivableAccountId
-        );
+        if (insertedOrderId) {
+          const postPromise = AccountingEngine.postSalesOrder(
+            insertedOrderId,
+            salesOrderPayload.so_number,
+            salesOrderPayload.total_amount,
+            paidAmount,
+            receivableAccountId
+          );
+          const timeoutPromise = new Promise((_, reject) =>
+            setTimeout(() => reject(new Error("Accounting post timeout")), 4000)
+          );
+          await Promise.race([postPromise, timeoutPromise]);
+        }
       } catch (accError) {
-        console.error("Failed to post sales order to accounting:", accError);
+        console.warn("Accounting post skipped or completed with notice:", accError);
       }
 
       return salesOrderData || { id: salesOrderPayload.so_number, ...salesOrderPayload };

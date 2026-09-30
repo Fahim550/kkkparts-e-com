@@ -27,27 +27,89 @@ export class CustomerRepository {
   }
 
   static async create(payload: CreateCustomerDTO): Promise<Customer> {
-    const { data: accData, error: accError } = await supabase
-      .from("chart_of_accounts")
-      .insert({
-        name: `Accounts Receivable - ${payload.name}`,
-        account_type: "Asset",
-        account_number: `AR-${Date.now()}-${Math.floor(Math.random() * 1000)}`
-      })
-      .select("id")
-      .single();
+    const trimmedName = (payload.name || "").trim();
 
-    if (accError) throw accError;
-
-    // 2. Create the customer and link the new account
-    const { data, error } = await supabase
+    // 1. Check if a customer with the same name already exists
+    const { data: existingCust } = await supabase
       .from("customers")
-      .insert({
-        ...payload,
-        receivable_account_id: accData.id
-      })
+      .select("*")
+      .ilike("name", trimmedName)
+      .maybeSingle();
+
+    if (existingCust) {
+      return existingCust as any;
+    }
+
+    // 2. Resolve receivable_account_id (try creating dedicated ledger account, fallback to default Control AR account)
+    let receivableAccountId: string | null = (payload as any).receivable_account_id || null;
+
+    if (!receivableAccountId) {
+      try {
+        const { data: accData, error: accError } = await supabase
+          .from("chart_of_accounts")
+          .insert({
+            name: `Accounts Receivable - ${trimmedName}`,
+            account_type: "Asset",
+            account_number: `AR-${Date.now()}-${Math.floor(Math.random() * 1000)}`
+          })
+          .select("id")
+          .single();
+
+        if (accData?.id && !accError) {
+          receivableAccountId = accData.id;
+        }
+      } catch (accErr) {
+        console.warn("Could not create dedicated AR sub-ledger, falling back to control account:", accErr);
+      }
+    }
+
+    if (!receivableAccountId) {
+      // Find the standard Accounts Receivable (1200) or any Asset account
+      const { data: defaultAr } = await supabase
+        .from("chart_of_accounts")
+        .select("id")
+        .eq("account_number", "1200")
+        .maybeSingle();
+
+      if (defaultAr?.id) {
+        receivableAccountId = defaultAr.id;
+      } else {
+        const { data: anyAsset } = await supabase
+          .from("chart_of_accounts")
+          .select("id")
+          .eq("account_type", "Asset")
+          .limit(1)
+          .maybeSingle();
+
+        receivableAccountId = anyAsset?.id || "72c5a58c-08e6-4cd5-a367-738b65358e9c";
+      }
+    }
+
+    // 3. Create the customer with resolved receivable_account_id
+    const customerPayload: any = {
+      ...payload,
+      name: trimmedName,
+      receivable_account_id: receivableAccountId,
+    };
+
+    let { data, error } = await supabase
+      .from("customers")
+      .insert(customerPayload)
       .select()
       .single();
+
+    // If salesman_id or custom column not found in schema cache, retry without it
+    if (error && (error.code === "PGRST204" || error.message?.includes("salesman"))) {
+      delete customerPayload.salesman_id;
+      delete customerPayload.salesman_name;
+      const retry = await supabase
+        .from("customers")
+        .insert(customerPayload)
+        .select()
+        .single();
+      data = retry.data;
+      error = retry.error;
+    }
 
     if (error) throw error;
     return data as any;

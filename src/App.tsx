@@ -29,6 +29,7 @@ const WishlistPage = lazy(() => import("./pages/WishlistPage.tsx"));
 const AdminLayout = lazy(() => import("./pages/admin/AdminLayout.tsx"));
 const AdminLoginPage = lazy(() => import("./pages/admin/AdminLoginPage.tsx"));
 const Dashboard = lazy(() => import("./pages/admin/Dashboard.tsx"));
+const SalesmanDashboardPage = lazy(() => import("./pages/admin/SalesmanDashboardPage.tsx"));
 const ProductsPage = lazy(
   () => import("./modules/product/presentation/pages/ProductsPage.tsx"),
 );
@@ -256,6 +257,7 @@ const App = () => (
                       }
                     >
                       <Route index element={<Dashboard />} />
+                      <Route path="sales-dashboard" element={<SalesmanDashboardPage />} />
                       <Route path="receivable-parties" element={<ReceivablePartiesPage />} />
                       <Route path="payable-parties" element={<PayablePartiesPage />} />
                       <Route path="sales/new" element={<AddSalePage />} />

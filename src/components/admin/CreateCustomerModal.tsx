@@ -13,6 +13,7 @@ import { Customer } from "@/modules/customer/domain/types";
 import { supabase } from "@/integrations/supabase/client";
 import { createClient } from "@supabase/supabase-js";
 import { cn } from "@/lib/utils";
+import { useAdminAuth } from "@/hooks/useAdminAuth";
 
 interface CreateCustomerModalProps {
   open: boolean;
@@ -30,6 +31,7 @@ export function CreateCustomerModal({
   onSuccess,
 }: CreateCustomerModalProps) {
   const queryClient = useQueryClient();
+  const { user } = useAdminAuth();
   const [saving, setSaving] = useState(false);
   const [partyType, setPartyType] = useState<"customer" | "dealer">(
     initialGroup === "Dealer" ? "dealer" : "customer"
@@ -89,6 +91,8 @@ export function CreateCustomerModal({
     setSaving(true);
     try {
       const isDealer = partyType === "dealer" || form.customer_group === "Dealer";
+      const currentSalesmanId = user?.id || null;
+      const currentSalesmanName = user?.user_metadata?.full_name || user?.email?.split("@")[0] || null;
 
       if (isDealer) {
         // 1. Create customer ledger with customer_group: 'Dealer'
@@ -103,9 +107,11 @@ export function CreateCustomerModal({
           billing_address: fullAddress.trim() || null,
           shipping_address: form.shipping_address.trim() || null,
           is_active: true,
-        });
+          salesman_id: currentSalesmanId,
+          salesman_name: currentSalesmanName,
+        } as any);
 
-        // 2. Register dealer portal account if phone or email or password provided
+        // 2. Register dealer portal account if phone or email or password provided (non-blocking with timeout)
         if (form.password.trim() || form.contact_email.trim() || form.contact_phone.trim()) {
           try {
             const tempClient = getTempAuthClient();
@@ -122,7 +128,7 @@ export function CreateCustomerModal({
 
             const defaultPassword = form.password.trim() || "dealer123456";
 
-            const { data: authData } = await tempClient.auth.signUp({
+            const authPromise = tempClient.auth.signUp({
               email: authEmail,
               password: defaultPassword,
               options: {
@@ -138,6 +144,13 @@ export function CreateCustomerModal({
               },
             });
 
+            // Strict 5s timeout on auth signup so slow Supabase auth never blocks dealer creation
+            const timeoutPromise = new Promise<{ data: any; error: any }>((_, reject) =>
+              setTimeout(() => reject(new Error("Auth registration timed out")), 5000)
+            );
+
+            const { data: authData } = await Promise.race([authPromise, timeoutPromise]);
+
             if (authData?.user) {
               await supabase.from("dealers").upsert({
                 id: authData.user.id,
@@ -149,18 +162,9 @@ export function CreateCustomerModal({
                 is_approved: true,
                 plain_password: defaultPassword,
               });
-
-              try {
-                await supabase.from("users").upsert({
-                  id: authData.user.id,
-                  role: "dealer",
-                });
-              } catch (uErr) {
-                console.warn("Could not record dealer role in users table:", uErr);
-              }
             }
           } catch (dealerErr) {
-            console.warn("Could not register dealer portal login:", dealerErr);
+            console.warn("Could not register dealer portal login (ledger still created):", dealerErr);
           }
         }
 
@@ -169,7 +173,7 @@ export function CreateCustomerModal({
         await queryClient.invalidateQueries({ queryKey: ["users_list"] });
         await queryClient.invalidateQueries({ queryKey: ["trial-balance"] });
 
-        toast.success(`Dealer "${newCustomer.name}" created successfully!`);
+        toast.success(`Dealer "${newCustomer.name}" registered successfully!`);
         onOpenChange(false);
         if (onSuccess) {
           onSuccess(newCustomer);
@@ -186,7 +190,9 @@ export function CreateCustomerModal({
           billing_address: form.billing_address.trim() || null,
           shipping_address: form.shipping_address.trim() || null,
           is_active: true,
-        });
+          salesman_id: currentSalesmanId,
+          salesman_name: currentSalesmanName,
+        } as any);
 
         await queryClient.invalidateQueries({ queryKey: ["customers"] });
         await queryClient.invalidateQueries({ queryKey: ["trial-balance"] });

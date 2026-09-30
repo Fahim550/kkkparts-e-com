@@ -8,7 +8,7 @@ import {
   FileText,
 } from "lucide-react";
 import { useMemo } from "react";
-import { Link } from "react-router-dom";
+import { Link, Navigate } from "react-router-dom";
 import {
   Area,
   AreaChart,
@@ -26,8 +26,14 @@ import { useCustomers, useCustomerDues } from "@/modules/customer/presentation/h
 import { usePurchaseOrders } from "@/modules/purchase/presentation/hooks/usePurchaseOrders";
 import { useInvoices } from "@/modules/purchase/presentation/hooks/useInvoices";
 import { useSuppliers, useSupplierDues } from "@/modules/supplier/presentation/hooks/useSuppliers";
+import { useAdminAuth } from "@/hooks/useAdminAuth";
 
 const Dashboard = () => {
+  const { isSalesman, isAdmin } = useAdminAuth();
+  if (isSalesman && !isAdmin) {
+    return <Navigate to="/admin/sales-dashboard" replace />;
+  }
+
   const { data: allOrders = [], isLoading: loadingOrders } = useOrders();
   const { data: products = [] } = useProducts();
   const { orders: purchaseOrders = [] } = usePurchaseOrders();

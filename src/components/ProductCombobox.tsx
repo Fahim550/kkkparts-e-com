@@ -78,7 +78,7 @@ export function ProductCombobox({
 
   return (
     <>
-      <Popover open={open} onOpenChange={setOpen}>
+      <Popover open={open} onOpenChange={setOpen} modal={false}>
         <PopoverTrigger asChild>
           <Button
             variant="outline"
@@ -93,8 +93,10 @@ export function ProductCombobox({
           </Button>
         </PopoverTrigger>
         <PopoverContent
-          className="w-[800px] p-0 shadow-lg border rounded-lg"
+          className="w-[800px] max-w-[90vw] p-0 shadow-lg border rounded-lg z-[200] pointer-events-auto"
           align="start"
+          data-radix-scroll-lock-ignore="true"
+          onWheel={(e) => e.stopPropagation()}
           onOpenAutoFocus={(e) => {
             e.preventDefault()
             setTimeout(() => {
@@ -102,7 +104,7 @@ export function ProductCombobox({
             }, 0)
           }}
         >
-          <Command>
+          <Command className="w-full overflow-hidden">
             <CommandInput
               ref={inputRef}
               placeholder="Search items..."
@@ -130,7 +132,11 @@ export function ProductCombobox({
               </Button>
             </div>
 
-            <CommandList>
+            <CommandList
+              className="max-h-[280px] overflow-y-auto overflow-x-hidden pointer-events-auto overscroll-contain"
+              data-radix-scroll-lock-ignore="true"
+              onWheel={(e) => e.stopPropagation()}
+            >
               <CommandEmpty>No product found.</CommandEmpty>
               <CommandGroup>
                 <div className="flex items-center px-4 py-2 text-xs font-semibold text-muted-foreground uppercase border-b bg-muted/50">

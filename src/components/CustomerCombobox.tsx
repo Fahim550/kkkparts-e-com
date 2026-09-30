@@ -46,7 +46,7 @@ export function CustomerCombobox({ customers, value, onChange }: CustomerCombobo
 
   return (
     <>
-      <Popover open={open} onOpenChange={setOpen}>
+      <Popover open={open} onOpenChange={setOpen} modal={false}>
         <PopoverTrigger asChild>
           <Button
             variant="outline"
@@ -75,8 +75,10 @@ export function CustomerCombobox({ customers, value, onChange }: CustomerCombobo
           </Button>
         </PopoverTrigger>
         <PopoverContent
-          className="w-[340px] p-0 shadow-lg border rounded-lg"
+          className="w-[340px] max-w-[90vw] p-0 shadow-lg border rounded-lg z-[200] pointer-events-auto"
           align="start"
+          data-radix-scroll-lock-ignore="true"
+          onWheel={(e) => e.stopPropagation()}
           onOpenAutoFocus={(e) => {
             e.preventDefault()
             setTimeout(() => {
@@ -84,7 +86,7 @@ export function CustomerCombobox({ customers, value, onChange }: CustomerCombobo
             }, 0)
           }}
         >
-          <Command>
+          <Command className="w-full overflow-hidden">
             <CommandInput
               ref={inputRef}
               placeholder="Search customer, dealer, or phone..."
@@ -123,7 +125,11 @@ export function CustomerCombobox({ customers, value, onChange }: CustomerCombobo
               </Button>
             </div>
 
-            <CommandList>
+            <CommandList
+              className="max-h-[280px] overflow-y-auto overflow-x-hidden pointer-events-auto overscroll-contain"
+              data-radix-scroll-lock-ignore="true"
+              onWheel={(e) => e.stopPropagation()}
+            >
               <CommandEmpty>
                 <div className="p-2 text-center text-xs text-muted-foreground space-y-2">
                   <div>No customer or dealer found.</div>

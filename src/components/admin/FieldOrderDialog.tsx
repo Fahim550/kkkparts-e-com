@@ -213,7 +213,12 @@ export const FieldOrderDialog = ({
         })),
       };
 
-      const result = await addOrderMutation.mutateAsync(payload as any);
+      const mutationPromise = addOrderMutation.mutateAsync(payload as any);
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error("Request timed out. Please verify your connection.")), 15000)
+      );
+
+      const result = await Promise.race([mutationPromise, timeoutPromise]);
 
       queryClient.invalidateQueries({ queryKey: ["orders"] });
       queryClient.invalidateQueries({ queryKey: ["sales_orders"] });

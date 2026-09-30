@@ -132,6 +132,7 @@ interface NavItem {
   icon: any;
   exact?: boolean;
   allowedRoles?: string[];
+  excludedRoles?: string[];
 }
 
 interface NavCategory {
@@ -143,7 +144,8 @@ const navCategories: NavCategory[] = [
   {
     title: "Overview",
     items: [
-      { path: "/admin", label: "Dashboard", icon: LayoutDashboard, exact: true },
+      { path: "/admin", label: "Dashboard", icon: LayoutDashboard, exact: true, allowedRoles: ["Admin", "Cashier", "WarehouseManager", "Accountant", "Purchasing"], excludedRoles: ["Salesman"] },
+      { path: "/admin/sales-dashboard", label: "Dashboard", icon: LayoutDashboard, exact: true, allowedRoles: ["Sales", "Salesman"], excludedRoles: ["Admin"] },
       { path: "/admin/receivable-parties", label: "Receivables", icon: Users, exact: false, allowedRoles: ["Admin", "Sales", "Salesman", "Accountant"] },
       { path: "/admin/payable-parties", label: "Payables", icon: Truck, exact: false, allowedRoles: ["Admin", "Accountant", "Purchasing"] },
     ]
@@ -281,6 +283,16 @@ const AdminLayout = () => {
     .map(category => ({
       ...category,
       items: category.items.filter(item => {
+        if (item.excludedRoles && item.excludedRoles.length > 0) {
+          const isExcluded = item.excludedRoles.some(r => {
+            const lower = r.toLowerCase();
+            if (lower === "admin") return isAdmin;
+            if (lower === "sales" || lower === "salesman") return isSalesman && !isAdmin;
+            return hasRole(r);
+          });
+          if (isExcluded) return false;
+        }
+
         if (!item.allowedRoles || item.allowedRoles.length === 0) return true;
         if (isAdmin) return true;
         return item.allowedRoles.some(r => hasRole(r));
