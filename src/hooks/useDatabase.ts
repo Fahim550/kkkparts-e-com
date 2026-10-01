@@ -187,11 +187,17 @@ export const useOrders = () =>
             salesman_name: o.salesman_name || cached?.salesman_name || null,
             order_source: o.order_source || (isFld ? 'field_marketing' : 'admin'),
             items: o.sales_order_items?.map((i: any) => ({
+              id: i.id,
+              variation_id: i.variation_id,
+              product_variation_id: i.variation_id,
               productName: i.product_variations?.products?.name || "Item",
+              sku: i.product_variations?.sku || "",
               size: "",
               color: "",
-              quantity: i.quantity_ordered || i.quantity || 1,
-              price: i.unit_price
+              quantity: Number(i.quantity_ordered || i.quantity || 1),
+              price: Number(i.unit_price || 0),
+              unit_price: Number(i.unit_price || 0),
+              total_price: Number(i.total_price || (Number(i.unit_price || 0) * Number(i.quantity_ordered || i.quantity || 1))),
             })) || []
           };
         });
@@ -217,11 +223,17 @@ export const useOrders = () =>
           salesman_name: r.salesman_name || null,
           order_source: 'pos',
           items: r.pos_receipt_items?.map((i: any) => ({
+            id: i.id,
+            variation_id: i.variation_id,
+            product_variation_id: i.variation_id,
             productName: i.product_variations?.products?.name || "Item",
+            sku: i.product_variations?.sku || "",
             size: "",
             color: "",
-            quantity: i.quantity,
-            price: i.unit_price
+            quantity: Number(i.quantity || 1),
+            price: Number(i.unit_price || 0),
+            unit_price: Number(i.unit_price || 0),
+            total_price: Number(i.total_price || (Number(i.unit_price || 0) * Number(i.quantity || 1))),
           })) || []
         }));
         combined = [...combined, ...mappedPos];
@@ -584,6 +596,139 @@ export const useUpdateOrderStatus = () => {
       qc.invalidateQueries({ queryKey: ["customer-history"] });
       qc.invalidateQueries({ queryKey: ["customer-dues"] });
       qc.invalidateQueries({ queryKey: ["receivables"] });
+    },
+  });
+};
+
+export interface UpdateOrderItemInput {
+  id?: string;
+  variation_id?: string;
+  product_variation_id?: string;
+  product_name?: string;
+  productName?: string;
+  sku?: string;
+  quantity: number;
+  unit_price: number;
+  price?: number;
+  total_price?: number;
+  uom_id?: string;
+}
+
+export interface UpdateOrderInput {
+  id: string;
+  total: number;
+  customer_id?: string;
+  status?: string;
+  notes?: string;
+  items: UpdateOrderItemInput[];
+}
+
+export const useUpdateOrder = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      id,
+      total,
+      notes,
+      items,
+      customer_id,
+      status,
+    }: UpdateOrderInput) => {
+      // 1. Fetch current order to check ERP lifecycle status constraint
+      const { data: currentOrder, error: fetchErr } = await supabase
+        .from("sales_orders")
+        .select("id, so_number, status, total_amount, customer_id")
+        .eq("id", id)
+        .single();
+
+      if (fetchErr) throw fetchErr;
+
+      const currentStatus = (currentOrder.status || "").toLowerCase();
+      // Real-life ERP rule: only pending or confirmed orders can be modified
+      if (["shipped", "delivered", "paid", "cancelled", "void"].includes(currentStatus)) {
+        throw new Error(
+          `Cannot edit this order: Order status is "${currentOrder.status}". In ERP standards, once an order is shipped, delivered, or finalized, line items are locked to prevent stock and accounting discrepancies.`
+        );
+      }
+
+      // 2. Update sales_orders header
+      const updatePayload: any = {
+        total_amount: Number(total),
+      };
+      if (customer_id) updatePayload.customer_id = customer_id;
+      if (status) updatePayload.status = status;
+      if (notes !== undefined) updatePayload.notes = notes;
+
+      const { error: updateErr } = await supabase
+        .from("sales_orders")
+        .update(updatePayload)
+        .eq("id", id);
+
+      if (updateErr) throw updateErr;
+
+      // 3. Update order line items: delete old items and insert updated items
+      if (items && Array.isArray(items)) {
+        await supabase
+          .from("sales_order_items")
+          .delete()
+          .eq("sales_order_id", id);
+
+        const { data: uomData } = await supabase
+          .from("units_of_measure")
+          .select("id")
+          .limit(1)
+          .maybeSingle();
+        const fallbackUomId = uomData?.id || "3c61d085-0a77-4de3-b396-66e95ee38bc4";
+
+        const newItemsToInsert = items.map((item) => {
+          const varId = item.variation_id || item.product_variation_id;
+          const uPrice = Number(item.unit_price ?? item.price ?? 0);
+          const qty = Number(item.quantity || 1);
+          return {
+            sales_order_id: id,
+            variation_id: varId,
+            quantity_ordered: qty,
+            quantity_delivered: qty,
+            unit_price: uPrice,
+            total_price: Number(item.total_price ?? (uPrice * qty)),
+            discount_amount: 0,
+            uom_id: item.uom_id || fallbackUomId,
+          };
+        });
+
+        if (newItemsToInsert.length > 0) {
+          const { error: itemsErr } = await supabase
+            .from("sales_order_items")
+            .insert(newItemsToInsert);
+
+          if (itemsErr) {
+            console.error("Failed to update sales order items:", itemsErr);
+            throw itemsErr;
+          }
+        }
+      }
+
+      // 4. Update local cache if order is stored there
+      try {
+        const cache = JSON.parse(localStorage.getItem("salesman_orders_cache") || "{}");
+        if (cache[currentOrder.so_number]) {
+          cache[currentOrder.so_number].total = total;
+          if (customer_id) cache[currentOrder.so_number].customer_id = customer_id;
+          localStorage.setItem("salesman_orders_cache", JSON.stringify(cache));
+        }
+      } catch {}
+
+      return { id, so_number: currentOrder.so_number, total };
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["orders"] });
+      qc.invalidateQueries({ queryKey: ["sales_orders"] });
+      qc.invalidateQueries({ queryKey: ["customer-dues"] });
+      qc.invalidateQueries({ queryKey: ["customers"] });
+      qc.invalidateQueries({ queryKey: ["customer-history"] });
+      qc.invalidateQueries({ queryKey: ["trial-balance"] });
+      qc.invalidateQueries({ queryKey: ["receivables"] });
+      qc.invalidateQueries({ queryKey: ["products"] });
     },
   });
 };

@@ -11,6 +11,7 @@ import {
   printInvoice,
 } from "@/components/admin/InvoicePrint";
 import { FieldOrderDialog } from "@/components/admin/FieldOrderDialog";
+import { EditOrderDialog } from "@/components/admin/EditOrderDialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -461,6 +462,8 @@ export const SalesmanOrdersView: React.FC = () => {
                   </div>
 
                   <div className="flex items-center gap-1.5">
+                    <EditOrderDialog order={order} />
+
                     <Button
                       variant="outline"
                       size="sm"

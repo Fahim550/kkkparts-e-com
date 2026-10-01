@@ -1,29 +1,26 @@
-import React, { useMemo, useState } from "react";
-import { useCustomers, useCustomerDues } from "@/modules/customer/presentation/hooks/useCustomers";
-import { useTrialBalance } from "@/modules/accounting/presentation/hooks/useAccounting";
-import { useAdminAuth } from "@/hooks/useAdminAuth";
-import { FieldOrderDialog } from "@/components/admin/FieldOrderDialog";
 import { CreateCustomerModal } from "@/components/admin/CreateCustomerModal";
+import { FieldOrderDialog } from "@/components/admin/FieldOrderDialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import {
-  Store,
-  Building2,
-  Users,
-  Search,
-  Phone,
-  MapPin,
-  Plus,
-  BadgeDollarSign,
-  ArrowRight,
-  UserCheck,
-  CreditCard,
-  FileSpreadsheet,
-} from "lucide-react";
-import { Link, useNavigate } from "react-router-dom";
-import { toast } from "sonner";
 import { useAdminAuth } from "@/hooks/useAdminAuth";
 import { useOrders } from "@/hooks/useDatabase";
+import { useTrialBalance } from "@/modules/accounting/presentation/hooks/useAccounting";
+import { useCustomerDues, useCustomers } from "@/modules/customer/presentation/hooks/useCustomers";
+import {
+  ArrowRight,
+  BadgeDollarSign,
+  Building2,
+  FileSpreadsheet,
+  MapPin,
+  Phone,
+  Plus,
+  Search,
+  Store,
+  Users
+} from "lucide-react";
+import React, { useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { toast } from "sonner";
 
 export const SalesmanShopsView: React.FC = () => {
   const navigate = useNavigate();
@@ -59,7 +56,8 @@ export const SalesmanShopsView: React.FC = () => {
         o.salesman_name &&
         normalizedRepName &&
         o.salesman_name.toLowerCase().trim() === normalizedRepName;
-      if ((matchId || matchName) && o.customer_id) {
+      const isField = o.order_source === "field_marketing" || o.order_number?.startsWith("SO-FLD-");
+      if ((matchId || matchName || isField) && o.customer_id) {
         ids.add(o.customer_id);
       }
     });
@@ -88,16 +86,13 @@ export const SalesmanShopsView: React.FC = () => {
     });
   }, [customers, trialBalance, customerDueMap]);
 
-  // Base shops: strictly isolated to this salesman's territory unless Admin
+  // Base shops: default to salesman's territory, allow toggle to all
   const baseShops = useMemo(() => {
-    if (!isAdmin) {
-      return shopsWithBalance.filter((s: any) => myCustomerIds.has(s.id));
-    }
-    if (territoryFilter === "my" && currentUserId) {
+    if (territoryFilter === "my") {
       return shopsWithBalance.filter((s: any) => myCustomerIds.has(s.id));
     }
     return shopsWithBalance;
-  }, [shopsWithBalance, isAdmin, territoryFilter, currentUserId, myCustomerIds]);
+  }, [shopsWithBalance, territoryFilter, myCustomerIds]);
 
   // Filtered shops
   const filteredShops = useMemo(() => {
@@ -197,7 +192,7 @@ export const SalesmanShopsView: React.FC = () => {
             className="bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs h-9 gap-1.5 shadow-sm"
           >
             <Plus className="w-4 h-4" />
-            <span>+ Add New Shop / Dealer</span>
+            <span>Add New Shop / Dealer</span>
           </Button>
         </div>
       </div>
@@ -262,7 +257,6 @@ export const SalesmanShopsView: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-2 w-full md:w-auto overflow-x-auto pb-1 md:pb-0">
-          {isAdmin ? (
             <div className="flex bg-slate-100 p-0.5 rounded-lg shrink-0">
               <button
                 onClick={() => setTerritoryFilter("my")}
@@ -272,7 +266,7 @@ export const SalesmanShopsView: React.FC = () => {
                     : "text-slate-600 hover:text-slate-900"
                 }`}
               >
-                My Territory
+                My Portfolio ({myCustomerIds.size})
               </button>
               <button
                 onClick={() => setTerritoryFilter("all")}
@@ -285,12 +279,6 @@ export const SalesmanShopsView: React.FC = () => {
                 All Shops ({shopsWithBalance.length})
               </button>
             </div>
-          ) : (
-            <div className="px-3 py-1.5 bg-blue-50 text-blue-700 rounded-lg text-xs font-semibold shrink-0 border border-blue-100 flex items-center gap-1.5">
-              <Store className="w-3.5 h-3.5 text-blue-600" />
-              <span>My Territory ({baseShops.length} Shops)</span>
-            </div>
-          )}
 
           <div className="flex items-center gap-1.5 shrink-0">
             <button
@@ -472,7 +460,7 @@ export const SalesmanShopsView: React.FC = () => {
       <CreateCustomerModal
         open={createModalOpen}
         onOpenChange={setCreateModalOpen}
-        defaultGroup={createGroup}
+        initialGroup={createGroup}
         onSuccess={(created) => {
           toast.success(`Account for "${created.name}" created successfully!`);
           setCreateModalOpen(false);

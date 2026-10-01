@@ -18,9 +18,10 @@ import {
 import ProductFormModal from "@/modules/product/presentation/pages/ProductFormModal"
 
 interface ProductComboboxProps {
-  products: any[]
+  products?: any[]
   value: string
-  onChange: (value: string, variation?: any, product?: any) => void
+  onChange?: (value: string, variation?: any, product?: any) => void
+  onSelect?: (value: string, variation?: any, product?: any) => void
   warehouseId?: string
   quickSaleMode?: boolean
   className?: string
@@ -29,9 +30,10 @@ interface ProductComboboxProps {
 }
 
 export function ProductCombobox({
-  products,
+  products = [],
   value,
   onChange,
+  onSelect,
   warehouseId,
   quickSaleMode = true,
   className,
@@ -44,10 +46,15 @@ export function ProductCombobox({
   const [justCreatedItem, setJustCreatedItem] = React.useState<{ id: string; name: string } | null>(null)
   const inputRef = React.useRef<HTMLInputElement>(null)
 
+  const handleSelection = (val: string, variation?: any, product?: any) => {
+    if (onChange) onChange(val, variation, product)
+    if (onSelect) onSelect(val, variation, product)
+  }
+
   // Flatten products into variations
   const variations = React.useMemo(() => {
     const list: any[] = []
-    products.forEach(p => {
+    ;(products || []).forEach(p => {
       p.product_variations?.forEach((v: any) => {
         // Stock balances comes directly from v.stock_balances
         const variationStocks = v.stock_balances || []
@@ -162,7 +169,7 @@ export function ProductCombobox({
                     key={v.id}
                     value={v.name}
                     onSelect={() => {
-                      onChange(v.id, v.rawVariation, v.rawProduct)
+                      handleSelection(v.id, v.rawVariation, v.rawProduct)
                       setOpen(false)
                       setInputValue("")
                     }}
@@ -205,7 +212,7 @@ export function ProductCombobox({
               id: varId,
               name: `${savedProduct.name}${skuText ? ` (${skuText})` : ""}`,
             });
-            onChange(varId, createdVariation, savedProduct);
+            handleSelection(varId, createdVariation, savedProduct);
           }
           setInputValue("");
           setCreateModalOpen(false);

@@ -2,6 +2,7 @@ import {
   printCourierSlip,
   printInvoice,
 } from "@/components/admin/InvoicePrint";
+import { EditOrderDialog } from "@/components/admin/EditOrderDialog";
 import DirhamIcon from "@/components/DirhamIcon";
 import { Button } from "@/components/ui/button";
 import { useOrders, useUpdateOrderStatus } from "@/hooks/useDatabase";
@@ -112,6 +113,7 @@ const OrderDetailsPage = () => {
           </div>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
+          <EditOrderDialog order={order} />
           <Button
             variant="outline"
             size="sm"
