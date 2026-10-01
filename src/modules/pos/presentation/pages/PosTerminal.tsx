@@ -41,7 +41,7 @@ import {
   ChevronRight,
 } from "lucide-react";
 import React, { useState, useMemo } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useCustomers } from "../../../customer/presentation/hooks/useCustomers";
@@ -56,6 +56,9 @@ import { useToast } from "@/hooks/use-toast";
 
 export default function PosTerminal() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const isSalesmanRoute = location.pathname.startsWith("/salesman");
+  const posBackRoute = isSalesmanRoute ? "/salesman/dashboard" : "/admin/pos";
   const { toast } = useToast();
   const { currentShift, isLoadingShift, registers } = usePosSession();
   const { data: products = [], isLoading: isLoadingProducts } = useProductTemplates();
@@ -330,12 +333,12 @@ export default function PosTerminal() {
           {/* ── 1. Top Full Row: Shop / Register Header ── */}
           <div className="p-2.5 sm:p-3 border-b bg-white flex items-center justify-between gap-3 shrink-0">
             <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
-              <Link to="/admin/pos">
+              <Link to={posBackRoute}>
                 <Button
                   variant="ghost"
                   size="icon"
                   className="h-8 w-8 text-gray-600 hover:bg-slate-100 rounded-lg shrink-0"
-                  title="Return to POS Overview"
+                  title="Return"
                 >
                   <ArrowLeft className="w-4 h-4" />
                 </Button>

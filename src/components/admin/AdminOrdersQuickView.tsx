@@ -51,6 +51,7 @@ export interface DashboardOrder {
 interface AdminOrdersQuickViewProps {
   orders: DashboardOrder[];
   isLoading?: boolean;
+  portalType?: "admin" | "salesman";
 }
 
 const PAGE_SIZE = 5;
@@ -58,6 +59,7 @@ const PAGE_SIZE = 5;
 export const AdminOrdersQuickView = ({
   orders = [],
   isLoading = false,
+  portalType = "admin",
 }: AdminOrdersQuickViewProps) => {
   // Session start time recorded when dashboard is opened
   const [sessionStartTime] = useState<Date>(() => {
@@ -194,7 +196,12 @@ export const AdminOrdersQuickView = ({
     setCurrentPage(1);
   };
 
+  const isSalesmanPortal = portalType === "salesman";
+
   const getOrderLink = (order: DashboardOrder) => {
+    if (isSalesmanPortal) {
+      return `/salesman/orders`;
+    }
     if (order.type === "pos_receipt") {
       return `/admin/pos/receipt/${order.id}`;
     }
@@ -720,21 +727,32 @@ export const AdminOrdersQuickView = ({
         </div>
 
         {/* Direct Links to Full Managers */}
-        <div className="flex items-center gap-3">
-          <Link
-            to="/admin/orders"
-            className="text-blue-600 hover:text-blue-800 font-semibold flex items-center gap-1 hover:underline"
-          >
-            Customer Orders <ArrowRight className="w-3 h-3" />
-          </Link>
-          <span className="text-gray-300">|</span>
-          <Link
-            to="/admin/dealer-orders"
-            className="text-purple-600 hover:text-purple-800 font-semibold flex items-center gap-1 hover:underline"
-          >
-            Dealer Orders <ArrowRight className="w-3 h-3" />
-          </Link>
-        </div>
+        {isSalesmanPortal ? (
+          <div className="flex items-center gap-3">
+            <Link
+              to="/salesman/orders"
+              className="text-blue-600 hover:text-blue-800 font-semibold flex items-center gap-1 hover:underline"
+            >
+              Field Orders Log <ArrowRight className="w-3 h-3" />
+            </Link>
+          </div>
+        ) : (
+          <div className="flex items-center gap-3">
+            <Link
+              to="/admin/orders"
+              className="text-blue-600 hover:text-blue-800 font-semibold flex items-center gap-1 hover:underline"
+            >
+              Customer Orders <ArrowRight className="w-3 h-3" />
+            </Link>
+            <span className="text-gray-300">|</span>
+            <Link
+              to="/admin/dealer-orders"
+              className="text-purple-600 hover:text-purple-800 font-semibold flex items-center gap-1 hover:underline"
+            >
+              Dealer Orders <ArrowRight className="w-3 h-3" />
+            </Link>
+          </div>
+        )}
       </div>
     </div>
   );

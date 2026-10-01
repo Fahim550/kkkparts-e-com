@@ -31,7 +31,7 @@ import { useAdminAuth } from "@/hooks/useAdminAuth";
 const Dashboard = () => {
   const { isSalesman, isAdmin } = useAdminAuth();
   if (isSalesman && !isAdmin) {
-    return <Navigate to="/admin/sales-dashboard" replace />;
+    return <Navigate to="/salesman/dashboard" replace />;
   }
 
   const { data: allOrders = [], isLoading: loadingOrders } = useOrders();

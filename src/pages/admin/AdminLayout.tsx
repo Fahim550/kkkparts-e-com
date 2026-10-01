@@ -144,8 +144,7 @@ const navCategories: NavCategory[] = [
   {
     title: "Overview",
     items: [
-      { path: "/admin", label: "Dashboard", icon: LayoutDashboard, exact: true, allowedRoles: ["Admin", "Cashier", "WarehouseManager", "Accountant", "Purchasing"], excludedRoles: ["Salesman"] },
-      { path: "/admin/sales-dashboard", label: "Dashboard", icon: LayoutDashboard, exact: true, allowedRoles: ["Sales", "Salesman"], excludedRoles: ["Admin"] },
+      { path: "/admin", label: "Dashboard", icon: LayoutDashboard, exact: true },
       { path: "/admin/receivable-parties", label: "Receivables", icon: Users, exact: false, allowedRoles: ["Admin", "Sales", "Salesman", "Accountant"] },
       { path: "/admin/payable-parties", label: "Payables", icon: Truck, exact: false, allowedRoles: ["Admin", "Accountant", "Purchasing"] },
     ]

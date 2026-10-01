@@ -34,7 +34,7 @@ const AdminLoginPage = () => {
     if (user) {
       if (isAdmin || isStaff) {
         const isSalesmanOnly = userRoles.some((r) => ["sales", "salesman"].includes(r.toLowerCase())) && !isAdmin;
-        navigate(isSalesmanOnly ? "/admin/sales-dashboard" : "/admin", { replace: true });
+        navigate(isSalesmanOnly ? "/salesman/dashboard" : "/admin", { replace: true });
       } else if (!isSignUp && userRoles.length === 0) {
         toast.error("You do not have staff or admin privileges.");
         supabase.auth.signOut();
@@ -120,7 +120,7 @@ const AdminLoginPage = () => {
           toast.success("Welcome back!");
           const isSalesmanOnly = userRolesList.some((r) => ["sales", "salesman"].includes(r.toLowerCase())) &&
             !userRolesList.some((r) => r.toLowerCase() === "admin");
-          navigate(isSalesmanOnly ? "/admin/sales-dashboard" : "/admin", { replace: true });
+          navigate(isSalesmanOnly ? "/salesman/dashboard" : "/admin", { replace: true });
         } else {
           toast.error("You do not have staff or admin privileges.");
           await supabase.auth.signOut();

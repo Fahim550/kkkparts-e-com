@@ -223,7 +223,7 @@ export const SalesmanDashboard: React.FC<SalesmanDashboardProps> = ({
 
             <div className="mt-4 pt-2">
               <Link
-                to="/admin/receivable-parties"
+                to="/salesman/receivables"
                 className="text-xs font-semibold text-blue-600 hover:text-blue-700 flex items-center gap-1 group-hover:translate-x-0.5 transition-transform"
               >
                 View Shop Ledgers & Collect <ChevronRight className="w-3.5 h-3.5" />
@@ -359,14 +359,14 @@ export const SalesmanDashboard: React.FC<SalesmanDashboardProps> = ({
               <span>Register New Dealer</span>
             </Button>
 
-            <Link to="/admin/receivable-parties" className="w-full">
+            <Link to="/salesman/receivables" className="w-full">
               <Button variant="outline" className="w-full justify-start gap-2 h-10 text-xs font-semibold hover:border-emerald-400 hover:bg-emerald-50 text-gray-800">
                 <BadgeDollarSign className="w-4 h-4 text-emerald-600" />
                 <span>View My Receivables</span>
               </Button>
             </Link>
 
-            <Link to="/admin/orders" className="w-full">
+            <Link to="/salesman/orders" className="w-full">
               <Button variant="outline" className="w-full justify-start gap-2 h-10 text-xs font-semibold hover:border-amber-400 hover:bg-amber-50 text-gray-800">
                 <ShoppingCart className="w-4 h-4 text-amber-600" />
                 <span>All Orders Log</span>
@@ -377,7 +377,7 @@ export const SalesmanDashboard: React.FC<SalesmanDashboardProps> = ({
 
         {/* 4. ORDERS QUICK VIEW TABLE */}
         <div className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-xs">
-          <AdminOrdersQuickView orders={allOrders} isLoading={loadingOrders} />
+          <AdminOrdersQuickView orders={allOrders} isLoading={loadingOrders} portalType="salesman" />
         </div>
       </div>
 

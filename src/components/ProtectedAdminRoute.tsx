@@ -13,7 +13,7 @@ export const ProtectedAdminRoute: React.FC<ProtectedAdminRouteProps> = ({
   children,
   allowedRoles,
 }) => {
-  const { user, loading, isStaff, isAdmin, hasAnyRole } = useAdminAuth();
+  const { user, loading, isStaff, isAdmin, hasAnyRole, isSalesman } = useAdminAuth();
 
   if (loading) {
     return (
@@ -30,6 +30,11 @@ export const ProtectedAdminRoute: React.FC<ProtectedAdminRouteProps> = ({
 
   if (!user) {
     return <Navigate to="/admin/login" replace />;
+  }
+
+  // Salesmen have their own dedicated portal under /salesman/*
+  if (isSalesman && !isAdmin) {
+    return <Navigate to="/salesman/dashboard" replace />;
   }
 
   // If specific roles are required on top level

@@ -13,6 +13,7 @@ import FacebookPixelProvider from "@/components/FacebookPixelProvider";
 import LanguagePopup from "@/components/LanguagePopup";
 import PageTitleUpdater from "@/components/PageTitleUpdater";
 import ProtectedAdminRoute, { RequireRole } from "@/components/ProtectedAdminRoute";
+import ProtectedSalesmanRoute from "@/components/ProtectedSalesmanRoute";
 import ScrollToTop from "@/components/ScrollToTop";
 import VisitorTracker from "@/components/VisitorTracker";
 import { Loader2 } from "lucide-react";
@@ -29,7 +30,11 @@ const WishlistPage = lazy(() => import("./pages/WishlistPage.tsx"));
 const AdminLayout = lazy(() => import("./pages/admin/AdminLayout.tsx"));
 const AdminLoginPage = lazy(() => import("./pages/admin/AdminLoginPage.tsx"));
 const Dashboard = lazy(() => import("./pages/admin/Dashboard.tsx"));
-const SalesmanDashboardPage = lazy(() => import("./pages/admin/SalesmanDashboardPage.tsx"));
+const SalesmanDashboardPage = lazy(() => import("./pages/salesman/SalesmanDashboardPage.tsx"));
+const SalesmanReceivablesPage = lazy(() => import("./pages/salesman/SalesmanReceivablesPage.tsx"));
+const SalesmanOrdersPage = lazy(() => import("./pages/salesman/SalesmanOrdersPage.tsx"));
+const SalesmanShopsPage = lazy(() => import("./pages/salesman/SalesmanShopsPage.tsx"));
+const SalesmanPosPage = lazy(() => import("./pages/salesman/SalesmanPosPage.tsx"));
 const ProductsPage = lazy(
   () => import("./modules/product/presentation/pages/ProductsPage.tsx"),
 );
@@ -246,6 +251,51 @@ const App = () => (
                       element={<DealerProfilePage />}
                     />
 
+                    {/* Salesman Field Portal Routes */}
+                    <Route
+                      path="/salesman"
+                      element={<Navigate to="/salesman/dashboard" replace />}
+                    />
+                    <Route
+                      path="/salesman/dashboard"
+                      element={
+                        <ProtectedSalesmanRoute>
+                          <SalesmanDashboardPage />
+                        </ProtectedSalesmanRoute>
+                      }
+                    />
+                    <Route
+                      path="/salesman/receivables"
+                      element={
+                        <ProtectedSalesmanRoute>
+                          <SalesmanReceivablesPage />
+                        </ProtectedSalesmanRoute>
+                      }
+                    />
+                    <Route
+                      path="/salesman/orders"
+                      element={
+                        <ProtectedSalesmanRoute>
+                          <SalesmanOrdersPage />
+                        </ProtectedSalesmanRoute>
+                      }
+                    />
+                    <Route
+                      path="/salesman/shops"
+                      element={
+                        <ProtectedSalesmanRoute>
+                          <SalesmanShopsPage />
+                        </ProtectedSalesmanRoute>
+                      }
+                    />
+                    <Route
+                      path="/salesman/pos"
+                      element={
+                        <ProtectedSalesmanRoute>
+                          <SalesmanPosPage />
+                        </ProtectedSalesmanRoute>
+                      }
+                    />
 
                     <Route path="/admin/login" element={<AdminLoginPage />} />
                     <Route
@@ -257,7 +307,6 @@ const App = () => (
                       }
                     >
                       <Route index element={<Dashboard />} />
-                      <Route path="sales-dashboard" element={<SalesmanDashboardPage />} />
                       <Route path="receivable-parties" element={<ReceivablePartiesPage />} />
                       <Route path="payable-parties" element={<PayablePartiesPage />} />
                       <Route path="sales/new" element={<AddSalePage />} />
