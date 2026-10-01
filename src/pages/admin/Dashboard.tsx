@@ -6,6 +6,7 @@ import {
   ShoppingCart,
   Receipt,
   FileText,
+  Store,
 } from "lucide-react";
 import { useMemo } from "react";
 import { Link, Navigate } from "react-router-dom";
@@ -278,12 +279,23 @@ const Dashboard = () => {
                 </div>
                 <p className="text-xs text-gray-400 mt-1">This month revenue</p>
               </div>
-              <Link
-                to="/admin/orders"
-                className="flex items-center gap-1 text-xs bg-blue-50 text-blue-700 px-3 py-1.5 rounded-full font-medium hover:bg-blue-100 transition"
-              >
-                View Orders <ChevronRight className="w-3.5 h-3.5" />
-              </Link>
+              <div className="flex items-center gap-2">
+                <Link
+                  to="/admin/field-marketers"
+                  className="flex items-center gap-1.5 text-xs bg-emerald-50 text-emerald-700 px-3 py-1.5 rounded-full font-medium hover:bg-emerald-100 border border-emerald-200 transition"
+                  title="View Field Marketer Orders & Performance"
+                >
+                  <Store className="w-3.5 h-3.5 text-emerald-600" />
+                  <span>Field Marketer Orders</span>
+                  <ChevronRight className="w-3.5 h-3.5" />
+                </Link>
+                <Link
+                  to="/admin/orders"
+                  className="flex items-center gap-1 text-xs bg-blue-50 text-blue-700 px-3 py-1.5 rounded-full font-medium hover:bg-blue-100 transition"
+                >
+                  View Orders <ChevronRight className="w-3.5 h-3.5" />
+                </Link>
+              </div>
             </div>
             <div className="h-64 w-full">
               <ResponsiveContainer width="100%" height="100%">
@@ -513,6 +525,16 @@ const Dashboard = () => {
                 <span>New Purchase</span>
               </Link>
             </div>
+            <Link
+              to="/admin/field-marketers"
+              className="flex items-center justify-between p-2.5 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-lg text-xs font-semibold hover:bg-emerald-100 transition shadow-xs w-full"
+            >
+              <div className="flex items-center gap-1.5">
+                <Store className="w-4 h-4 text-emerald-600" />
+                <span>Field Marketer Orders & Reps</span>
+              </div>
+              <ChevronRight className="w-4 h-4 text-emerald-600" />
+            </Link>
             <Link
               to="/admin/pos/terminal"
               className="flex items-center justify-between p-2.5 bg-blue-600 text-white rounded-lg text-xs font-semibold hover:bg-blue-700 transition shadow-xs w-full"

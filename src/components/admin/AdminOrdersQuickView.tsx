@@ -312,6 +312,15 @@ export const AdminOrdersQuickView = ({
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
                 Live Session Active
               </span>
+              <Link
+                to="/admin/field-marketers"
+                className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 transition-all shadow-2xs"
+                title="View Field Marketer Orders & Performance"
+              >
+                <Store className="w-3 h-3 text-emerald-600" />
+                <span>Field Marketers</span>
+                <ChevronRight className="w-3 h-3 text-emerald-500" />
+              </Link>
             </div>
             <p className="text-xs text-gray-500 mt-1">
               Live activity of retail customer &amp; wholesale dealer orders
@@ -829,6 +838,15 @@ export const AdminOrdersQuickView = ({
               className="text-purple-600 hover:text-purple-800 font-semibold flex items-center gap-1 hover:underline"
             >
               Dealer Orders <ArrowRight className="w-3 h-3" />
+            </Link>
+            <span className="text-gray-300">|</span>
+            <Link
+              to="/admin/field-marketers"
+              className="text-emerald-700 hover:text-emerald-900 font-semibold flex items-center gap-1 hover:underline"
+              title="View Field Marketer Orders & Performance"
+            >
+              <Store className="w-3 h-3 text-emerald-600" />
+              Field Marketer Orders <ArrowRight className="w-3 h-3" />
             </Link>
           </div>
         )}
