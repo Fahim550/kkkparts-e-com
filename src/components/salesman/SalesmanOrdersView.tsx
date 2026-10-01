@@ -5,6 +5,7 @@ import {
   useDeleteOrder,
 } from "@/hooks/useDatabase";
 import { useAdminAuth } from "@/hooks/useAdminAuth";
+import { useCustomers } from "@/modules/customer/presentation/hooks/useCustomers";
 import {
   printCourierSlip,
   printInvoice,
@@ -51,8 +52,9 @@ const statuses = [
 
 export const SalesmanOrdersView: React.FC = () => {
   const { data: orders = [], isLoading } = useOrders();
+  const { customers = [] } = useCustomers();
   const updateStatus = useUpdateOrderStatus();
-  const { user } = useAdminAuth();
+  const { user, isAdmin } = useAdminAuth();
 
   const [statusFilter, setStatusFilter] = useState("all");
   const [scopeFilter, setScopeFilter] = useState<"my" | "all">("my");
@@ -64,24 +66,75 @@ export const SalesmanOrdersView: React.FC = () => {
     "";
   const repUserId = user?.id || "";
 
-  // Scoped orders
-  const scopedOrders = useMemo(() => {
-    let list = orders;
-    if (scopeFilter === "my") {
-      const myFiltered = list.filter(
-        (o) =>
-          o.salesman_id === repUserId ||
-          (o.salesman_name &&
-            repName &&
-            o.salesman_name.toLowerCase().includes(repName.toLowerCase())) ||
-          o.order_source === "field_marketing"
-      );
-      // Fallback if no specific filter matches yet
-      list = myFiltered.length > 0 ? myFiltered : list;
+  // Customers assigned to or touched by this salesman
+  const myCustomerIds = useMemo(() => {
+    const ids = new Set<string>();
+    const normalizedRep = repName.toLowerCase().trim();
+
+    (customers || []).forEach((c: any) => {
+      if (c.salesman_id && repUserId && c.salesman_id === repUserId) {
+        ids.add(c.id);
+      }
+    });
+
+    (orders || []).forEach((o: any) => {
+      const matchId = o.salesman_id && repUserId && o.salesman_id === repUserId;
+      const matchName =
+        o.salesman_name &&
+        normalizedRep &&
+        o.salesman_name.toLowerCase().trim() === normalizedRep;
+      if ((matchId || matchName) && o.customer_id) {
+        ids.add(o.customer_id);
+      }
+    });
+
+    try {
+      const cache = JSON.parse(localStorage.getItem("salesman_orders_cache") || "{}");
+      Object.values(cache).forEach((entry: any) => {
+        if (entry?.customer_id) ids.add(entry.customer_id);
+      });
+    } catch {}
+
+    return ids;
+  }, [customers, orders, repUserId, repName]);
+
+  // Helper to check if an order was booked by or assigned to this salesman or their client shops
+  const isMyOrder = (o: any) => {
+    // 1. Direct assignment via salesman_id or salesman_name
+    if (o.salesman_id && repUserId && o.salesman_id === repUserId) return true;
+    if (
+      o.salesman_name &&
+      repName &&
+      o.salesman_name.toLowerCase().trim() === repName.toLowerCase().trim()
+    ) {
+      return true;
     }
+    // 2. Orders belonging to this salesman's shops or field bookings
+    const isField = o.order_source === "field_marketing" || o.order_number?.startsWith("SO-FLD-");
+    const isMyCustomer = o.customer_id && myCustomerIds.has(o.customer_id);
+    if (isMyCustomer && isField) return true;
+    if (isMyCustomer && !o.salesman_id) return true;
+    return false;
+  };
+
+  // Base list: For field marketing officers / salesmen, strictly isolate to their own bookings.
+  // Admins can toggle between 'my' and 'all'.
+  const baseOrders = useMemo(() => {
+    if (!isAdmin) {
+      return orders.filter(isMyOrder);
+    }
+    if (scopeFilter === "my") {
+      return orders.filter(isMyOrder);
+    }
+    return orders;
+  }, [orders, isAdmin, scopeFilter, repUserId, repName, isMyOrder]);
+
+  // Scoped & filtered orders
+  const scopedOrders = useMemo(() => {
+    let list = baseOrders;
 
     if (statusFilter !== "all") {
-      list = list.filter((o) => o.status === statusFilter);
+      list = list.filter((o) => (o.status || "").toLowerCase() === statusFilter.toLowerCase());
     }
 
     if (searchTerm.trim()) {
@@ -96,20 +149,20 @@ export const SalesmanOrdersView: React.FC = () => {
     }
 
     return list;
-  }, [orders, scopeFilter, statusFilter, searchTerm, repUserId, repName]);
+  }, [baseOrders, statusFilter, searchTerm]);
 
-  // Aggregate metrics
+  // Aggregate metrics: strictly calculated from the representative's scoped base orders
   const stats = useMemo(() => {
-    const totalCount = orders.length;
-    const totalVolume = orders.reduce(
-      (sum, o) => sum + Number(o.total_amount || 0),
+    const totalCount = baseOrders.length;
+    const totalVolume = baseOrders.reduce(
+      (sum, o) => sum + Number(o.total || o.total_amount || 0),
       0
     );
-    const deliveredCount = orders.filter((o) => o.status === "delivered").length;
-    const pendingCount = orders.filter((o) => o.status === "pending").length;
+    const deliveredCount = baseOrders.filter((o) => (o.status || "").toLowerCase() === "delivered").length;
+    const pendingCount = baseOrders.filter((o) => (o.status || "").toLowerCase() === "pending").length;
 
     return { totalCount, totalVolume, deliveredCount, pendingCount };
-  }, [orders]);
+  }, [baseOrders]);
 
   const handleStatusChange = async (id: string, newStatus: string) => {
     try {
@@ -131,7 +184,7 @@ export const SalesmanOrdersView: React.FC = () => {
       new Date(o.created_at).toLocaleDateString("en-GB"),
       o.customer_name || "Walk-in Shop",
       ((o.items as any[]) || []).length,
-      Number(o.total_amount || 0).toFixed(3),
+      Number(o.total || o.total_amount || 0).toFixed(3),
       o.status,
       o.salesman_name || "Field Rep",
     ]);
@@ -245,28 +298,35 @@ export const SalesmanOrdersView: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-2 w-full md:w-auto overflow-x-auto pb-1 md:pb-0">
-          <div className="flex bg-slate-100 p-0.5 rounded-lg shrink-0">
-            <button
-              onClick={() => setScopeFilter("my")}
-              className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-all ${
-                scopeFilter === "my"
-                  ? "bg-white text-blue-700 shadow-xs"
-                  : "text-slate-600 hover:text-slate-900"
-              }`}
-            >
-              My Field Orders
-            </button>
-            <button
-              onClick={() => setScopeFilter("all")}
-              className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-all ${
-                scopeFilter === "all"
-                  ? "bg-white text-blue-700 shadow-xs"
-                  : "text-slate-600 hover:text-slate-900"
-              }`}
-            >
-              All Orders ({orders.length})
-            </button>
-          </div>
+          {isAdmin ? (
+            <div className="flex bg-slate-100 p-0.5 rounded-lg shrink-0">
+              <button
+                onClick={() => setScopeFilter("my")}
+                className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-all ${
+                  scopeFilter === "my"
+                    ? "bg-white text-blue-700 shadow-xs"
+                    : "text-slate-600 hover:text-slate-900"
+                }`}
+              >
+                My Orders
+              </button>
+              <button
+                onClick={() => setScopeFilter("all")}
+                className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-all ${
+                  scopeFilter === "all"
+                    ? "bg-white text-blue-700 shadow-xs"
+                    : "text-slate-600 hover:text-slate-900"
+                }`}
+              >
+                All Store Orders ({orders.length})
+              </button>
+            </div>
+          ) : (
+            <div className="px-3 py-1.5 bg-blue-50 text-blue-700 rounded-lg text-xs font-semibold shrink-0 border border-blue-100 flex items-center gap-1.5">
+              <UserCheck className="w-3.5 h-3.5 text-blue-600" />
+              <span>My Orders ({baseOrders.length})</span>
+            </div>
+          )}
 
           <div className="flex items-center gap-1.5 shrink-0">
             <button
@@ -396,7 +456,7 @@ export const SalesmanOrdersView: React.FC = () => {
                       Amount
                     </div>
                     <div className="text-lg font-black text-slate-900">
-                      OMR {Number(order.total_amount || 0).toFixed(3)}
+                      OMR {Number(order.total || order.total_amount || 0).toFixed(3)}
                     </div>
                   </div>
 

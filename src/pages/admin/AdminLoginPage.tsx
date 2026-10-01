@@ -34,7 +34,14 @@ const AdminLoginPage = () => {
     if (user) {
       if (isAdmin || isStaff) {
         const isSalesmanOnly = userRoles.some((r) => ["sales", "salesman"].includes(r.toLowerCase())) && !isAdmin;
-        navigate(isSalesmanOnly ? "/salesman/dashboard" : "/admin", { replace: true });
+        const isCashierOnly = userRoles.some((r) => r.toLowerCase() === "cashier") && !isAdmin && !isSalesmanOnly;
+        if (isSalesmanOnly) {
+          navigate("/salesman/dashboard", { replace: true });
+        } else if (isCashierOnly) {
+          navigate("/admin/pos", { replace: true });
+        } else {
+          navigate("/admin", { replace: true });
+        }
       } else if (!isSignUp && userRoles.length === 0) {
         toast.error("You do not have staff or admin privileges.");
         supabase.auth.signOut();
@@ -120,7 +127,16 @@ const AdminLoginPage = () => {
           toast.success("Welcome back!");
           const isSalesmanOnly = userRolesList.some((r) => ["sales", "salesman"].includes(r.toLowerCase())) &&
             !userRolesList.some((r) => r.toLowerCase() === "admin");
-          navigate(isSalesmanOnly ? "/salesman/dashboard" : "/admin", { replace: true });
+          const isCashierOnly = userRolesList.some((r) => r.toLowerCase() === "cashier") &&
+            !userRolesList.some((r) => ["admin", "sales", "salesman"].includes(r.toLowerCase()));
+
+          if (isSalesmanOnly) {
+            navigate("/salesman/dashboard", { replace: true });
+          } else if (isCashierOnly) {
+            navigate("/admin/pos", { replace: true });
+          } else {
+            navigate("/admin", { replace: true });
+          }
         } else {
           toast.error("You do not have staff or admin privileges.");
           await supabase.auth.signOut();

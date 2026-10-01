@@ -988,6 +988,7 @@ export default function AddSalePage() {
                       products={products}
                       value={item.variation_id}
                       warehouseId={warehouseId}
+                      borderless={true}
                       onChange={(v, directVar, directProd) => handleProductSelect(item.id, v, directVar, directProd)}
                     />
                   </TableCell>

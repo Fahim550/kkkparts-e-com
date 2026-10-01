@@ -144,7 +144,7 @@ const navCategories: NavCategory[] = [
   {
     title: "Overview",
     items: [
-      { path: "/admin", label: "Dashboard", icon: LayoutDashboard, exact: true },
+      { path: "/admin", label: "Dashboard", icon: LayoutDashboard, exact: true, excludedRoles: ["Cashier"] },
       { path: "/admin/receivable-parties", label: "Receivables", icon: Users, exact: false, allowedRoles: ["Admin", "Sales", "Salesman", "Accountant"] },
       { path: "/admin/payable-parties", label: "Payables", icon: Truck, exact: false, allowedRoles: ["Admin", "Accountant", "Purchasing"] },
     ]
@@ -283,13 +283,14 @@ const AdminLayout = () => {
       ...category,
       items: category.items.filter(item => {
         if (item.excludedRoles && item.excludedRoles.length > 0) {
-          const isExcluded = item.excludedRoles.some(r => {
-            const lower = r.toLowerCase();
-            if (lower === "admin") return isAdmin;
-            if (lower === "sales" || lower === "salesman") return isSalesman && !isAdmin;
-            return hasRole(r);
-          });
-          if (isExcluded) return false;
+          if (!isAdmin) {
+            const isExcluded = item.excludedRoles.some(r => {
+              const lower = r.toLowerCase();
+              if (lower === "sales" || lower === "salesman") return isSalesman;
+              return hasRole(r);
+            });
+            if (isExcluded) return false;
+          }
         }
 
         if (!item.allowedRoles || item.allowedRoles.length === 0) return true;

@@ -44,6 +44,7 @@ import { useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 import { useAdminAuth } from "@/hooks/useAdminAuth";
+import { useOrders } from "@/hooks/useDatabase";
 import { FieldOrderDialog } from "@/components/admin/FieldOrderDialog";
 
 export interface ReceivablePartiesViewProps {
@@ -61,6 +62,7 @@ export const ReceivablePartiesView = ({
   const queryClient = useQueryClient();
 
   const { customers = [], isLoading: loadingCustomers } = useCustomers();
+  const { data: allOrders = [] } = useOrders();
   const { data: trialBalance = [], isLoading: loadingTb } = useTrialBalance();
   const { data: customerDueMap = {}, isLoading: loadingDues } = useCustomerDues();
   const { user, isSalesman, isAdmin } = useAdminAuth();
@@ -69,8 +71,8 @@ export const ReceivablePartiesView = ({
 
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedPartyId, setSelectedPartyId] = useState<string | null>(urlSelected);
-  const [activeTab, setActiveTab] = useState<"customer" | "dealer">(
-    defaultType === "dealer" ? "dealer" : "customer"
+  const [activeTab, setActiveTab] = useState<"all" | "customer" | "dealer">(
+    defaultType === "dealer" ? "dealer" : defaultType === "customer" ? "customer" : "all"
   );
   const [balanceFilter, setBalanceFilter] = useState<"due" | "all">("due");
   const [territoryFilter, setTerritoryFilter] = useState<"my" | "all">(
@@ -99,6 +101,39 @@ export const ReceivablePartiesView = ({
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewData, setPreviewData] = useState<InvoiceData | null>(null);
 
+  // Compute customers under this salesman's territory or with booked orders
+  const myCustomerIds = useMemo(() => {
+    const ids = new Set<string>();
+    const repName = user?.user_metadata?.full_name || user?.email?.split("@")[0] || "";
+    const normalizedRepName = repName.toLowerCase().trim();
+
+    (customers || []).forEach((c: any) => {
+      if (c.salesman_id && currentUserId && c.salesman_id === currentUserId) {
+        ids.add(c.id);
+      }
+    });
+
+    (allOrders || []).forEach((o: any) => {
+      const matchId = o.salesman_id && currentUserId && o.salesman_id === currentUserId;
+      const matchName =
+        o.salesman_name &&
+        normalizedRepName &&
+        o.salesman_name.toLowerCase().trim() === normalizedRepName;
+      if ((matchId || matchName) && o.customer_id) {
+        ids.add(o.customer_id);
+      }
+    });
+
+    try {
+      const cache = JSON.parse(localStorage.getItem("salesman_orders_cache") || "{}");
+      Object.values(cache).forEach((entry: any) => {
+        if (entry?.customer_id) ids.add(entry.customer_id);
+      });
+    } catch {}
+
+    return ids;
+  }, [customers, allOrders, currentUserId, user]);
+
   // Compute parties with real balances
   const partiesWithBalance = useMemo(() => {
     if (!customers) return [];
@@ -110,11 +145,8 @@ export const ReceivablePartiesView = ({
       filtered = customers.filter((c: any) => c.customer_group === "Dealer");
     }
 
-    if (territoryFilter === "my" && currentUserId) {
-      const myFiltered = filtered.filter((c: any) => c.salesman_id === currentUserId);
-      if (myFiltered.length > 0) {
-        filtered = myFiltered;
-      }
+    if ((isSalesmanOnly || territoryFilter === "my") && currentUserId) {
+      filtered = filtered.filter((c: any) => myCustomerIds.has(c.id));
     }
 
     let parties = filtered.map((c: any) => {
@@ -459,6 +491,19 @@ export const ReceivablePartiesView = ({
             <div className="flex mt-3 border-b border-gray-200">
               <button
                 className={`flex-1 py-2 text-xs font-semibold text-center border-b-2 transition-colors ${
+                  activeTab === "all"
+                    ? "border-blue-600 text-blue-600 font-bold"
+                    : "border-transparent text-gray-500 hover:text-gray-700"
+                }`}
+                onClick={() => {
+                  setActiveTab("all");
+                  setSelectedPartyId(null);
+                }}
+              >
+                All Accounts
+              </button>
+              <button
+                className={`flex-1 py-2 text-xs font-semibold text-center border-b-2 transition-colors ${
                   activeTab === "customer"
                     ? "border-blue-600 text-blue-600 font-bold"
                     : "border-transparent text-gray-500 hover:text-gray-700"
@@ -507,7 +552,7 @@ export const ReceivablePartiesView = ({
               </div>
 
               <span className="text-gray-400 text-xs">
-                {partiesWithBalance.length} {activeTab === "customer" ? "Shops" : "Dealers"}
+                {partiesWithBalance.length} {activeTab === "all" ? "Accounts" : activeTab === "customer" ? "Shops" : "Dealers"}
               </span>
             </div>
 

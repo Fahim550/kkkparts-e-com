@@ -827,6 +827,7 @@ export default function AddPurchasePage() {
                     <ProductCombobox 
                       products={products}
                       value={item.variation_id}
+                      borderless={true}
                       onChange={(v, directVar, directProd) => handleProductSelect(item.id, v, directVar, directProd)}
                     />
                   </TableCell>

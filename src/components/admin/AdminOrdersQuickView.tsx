@@ -446,7 +446,7 @@ export const AdminOrdersQuickView = ({
 
           {/* Quick Search & Salesman Filter */}
           <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
-            {availableSalesmen.length > 0 && (
+            {availableSalesmen.length > 0 && !isSalesmanPortal && (
               <div className="relative sm:w-40 shrink-0">
                 <select
                   value={selectedSalesman}

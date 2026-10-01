@@ -103,7 +103,22 @@ export const FieldOrderDialog = ({
   // Handle adding product item
   const handleProductSelect = (variationId: string, variation?: any, product?: any) => {
     setSelectedVariationId("");
-    if (!variationId || !variation) return;
+    if (!variationId) return;
+
+    // Resolve product and variation if not directly passed or missing pricing
+    let resolvedProduct = product;
+    let resolvedVariation = variation;
+
+    if (!resolvedProduct || !resolvedVariation || (!resolvedProduct.price && !resolvedProduct.dealer_price)) {
+      for (const p of products) {
+        const foundVar = p.product_variations?.find((v: any) => v.id === variationId);
+        if (foundVar) {
+          resolvedProduct = p;
+          resolvedVariation = foundVar;
+          break;
+        }
+      }
+    }
 
     // Check if already in items
     const existingIndex = items.findIndex((i) => i.variationId === variationId);
@@ -116,22 +131,32 @@ export const FieldOrderDialog = ({
       return;
     }
 
-    const price = Number(
-      selectedCustomer?.customer_group === "Dealer"
-        ? variation.dealer_price || variation.price || 0
-        : variation.price || 0
-    );
+    const isDealer = selectedCustomer?.customer_group === "Dealer";
 
-    const totalStock = (variation.stock_balances || []).reduce(
+    // Auto-resolve price from product or variation
+    const dealerPrice = Number(resolvedProduct?.dealer_price || resolvedVariation?.dealer_price || 0);
+    const retailPrice = Number(resolvedProduct?.price || resolvedVariation?.sell_price || resolvedVariation?.price || 0);
+    const originalPrice = Number(resolvedProduct?.original_price || resolvedVariation?.cost_price || 0);
+
+    let price = 0;
+    if (isDealer) {
+      price = dealerPrice > 0 ? dealerPrice : (retailPrice > 0 ? retailPrice : originalPrice);
+    } else {
+      price = retailPrice > 0 ? retailPrice : (dealerPrice > 0 ? dealerPrice : originalPrice);
+    }
+
+    const totalStock = (resolvedVariation?.stock_balances || []).reduce(
       (s: number, b: any) => s + Number(b.quantity || 0),
       0
-    );
+    ) || Number(resolvedProduct?.stock || 0);
+
+    const partName = resolvedProduct?.name || resolvedVariation?.sku || "Auto Part";
 
     const newItem: FieldOrderItem = {
       id: `item-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-      variationId: variation.id,
-      productName: product?.name || variation.sku || "Auto Part",
-      sku: variation.sku || "",
+      variationId: variationId,
+      productName: partName,
+      sku: resolvedVariation?.sku || resolvedProduct?.item_code || "",
       price,
       quantity: 1,
       availableStock: totalStock,
@@ -220,9 +245,25 @@ export const FieldOrderDialog = ({
 
       const result = await Promise.race([mutationPromise, timeoutPromise]);
 
+      // Cache this field order locally so it links to the current salesman immediately
+      try {
+        const cache = JSON.parse(localStorage.getItem("salesman_orders_cache") || "{}");
+        cache[orderNumber] = {
+          salesman_id: currentSalesmanId,
+          salesman_name: currentSalesmanName,
+          customer_id: selectedCustomerId,
+          customer_name: selectedCustomer?.name,
+          total: totalAmount,
+          created_at: new Date().toISOString()
+        };
+        localStorage.setItem("salesman_orders_cache", JSON.stringify(cache));
+      } catch {}
+
       queryClient.invalidateQueries({ queryKey: ["orders"] });
       queryClient.invalidateQueries({ queryKey: ["sales_orders"] });
       queryClient.invalidateQueries({ queryKey: ["customer-dues"] });
+      queryClient.invalidateQueries({ queryKey: ["customers"] });
+      queryClient.invalidateQueries({ queryKey: ["customer-history"] });
 
       setSuccessOrder({
         orderNumber,
@@ -416,16 +457,23 @@ export const FieldOrderDialog = ({
             </div>
 
             {/* Step 2: Add Products */}
-            <div className="space-y-2 pt-2 border-t border-gray-100">
-              <Label className="text-xs font-semibold text-gray-700">
-                2. Search &amp; Add Auto Spare Parts
+            <div className="space-y-1.5 pt-2 border-t border-gray-100">
+              <Label className="text-xs font-semibold text-gray-700 flex items-center justify-between">
+                <span>2. Search &amp; Add Auto Spare Parts</span>
+                <span className="text-[11px] font-normal text-gray-400">
+                  Search by part name, SKU, or OEM number
+                </span>
               </Label>
-              <ProductCombobox
-                products={products}
-                value={selectedVariationId}
-                onChange={handleProductSelect}
-                quickSaleMode={true}
-              />
+              <div className="relative">
+                <ProductCombobox
+                  products={products}
+                  value={selectedVariationId}
+                  onChange={handleProductSelect}
+                  quickSaleMode={true}
+                  placeholder="Click here to search & select spare parts..."
+                  className="h-10 bg-white border border-gray-300 hover:border-blue-500 focus:border-blue-600 shadow-2xs font-medium text-xs text-gray-800 rounded-lg"
+                />
+              </div>
             </div>
 
             {/* Items List */}

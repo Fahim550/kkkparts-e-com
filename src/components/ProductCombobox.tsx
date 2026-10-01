@@ -23,6 +23,9 @@ interface ProductComboboxProps {
   onChange: (value: string, variation?: any, product?: any) => void
   warehouseId?: string
   quickSaleMode?: boolean
+  className?: string
+  borderless?: boolean
+  placeholder?: string
 }
 
 export function ProductCombobox({
@@ -31,6 +34,9 @@ export function ProductCombobox({
   onChange,
   warehouseId,
   quickSaleMode = true,
+  className,
+  borderless = false,
+  placeholder,
 }: ProductComboboxProps) {
   const [open, setOpen] = React.useState(false)
   const [createModalOpen, setCreateModalOpen] = React.useState(false)
@@ -84,10 +90,15 @@ export function ProductCombobox({
             variant="outline"
             role="combobox"
             aria-expanded={open}
-            className="w-full justify-between border-0 shadow-none focus:ring-1 h-9 rounded bg-transparent px-3 text-left font-normal"
+            className={cn(
+              borderless
+                ? "w-full justify-between border-0 shadow-none focus:ring-1 h-9 rounded bg-transparent px-3 text-left font-normal"
+                : "w-full justify-between h-10 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 text-left font-normal shadow-2xs hover:border-blue-500 focus:ring-2 focus:ring-blue-500/20 text-gray-800 dark:text-gray-100",
+              className
+            )}
           >
-            <span className="truncate">
-              {selected ? selected.name : "Select Item..."}
+            <span className={cn("truncate", !selected && "text-muted-foreground font-normal")}>
+              {selected ? selected.name : (placeholder || "Select Item...")}
             </span>
             <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
           </Button>

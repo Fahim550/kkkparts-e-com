@@ -36,7 +36,7 @@ export const SalesmanDashboard: React.FC<SalesmanDashboardProps> = ({
   salesmanId: propSalesmanId,
   salesmanName: propSalesmanName,
 }) => {
-  const { user, isSalesman } = useAdminAuth();
+  const { user, isSalesman, isAdmin } = useAdminAuth();
   const { data: allOrders = [], isLoading: loadingOrders } = useOrders();
   const { customers = [] } = useCustomers();
   const { data: customerDueMap = {} } = useCustomerDues();
@@ -52,14 +52,7 @@ export const SalesmanDashboard: React.FC<SalesmanDashboardProps> = ({
     user?.user_metadata?.full_name ||
     user?.email?.split("@")[0] ||
     "Sales Representative";
-  const normalizedRepName = currentSalesmanName.toLowerCase();
-
-  // Helper to check if an order belongs to this salesman
-  const isMyOrder = (o: any) => {
-    if (o.salesman_id && currentUserId && o.salesman_id === currentUserId) return true;
-    if (o.salesman_name && o.salesman_name.toLowerCase() === normalizedRepName) return true;
-    return false;
-  };
+  const normalizedRepName = currentSalesmanName.toLowerCase().trim();
 
   // Customers assigned to or touched by this salesman
   const myCustomerIds = useMemo(() => {
@@ -70,12 +63,41 @@ export const SalesmanDashboard: React.FC<SalesmanDashboardProps> = ({
       }
     });
     allOrders.forEach((o: any) => {
-      if (isMyOrder(o) && o.customer_id) {
+      const matchId = o.salesman_id && currentUserId && o.salesman_id === currentUserId;
+      const matchName =
+        o.salesman_name &&
+        normalizedRepName &&
+        o.salesman_name.toLowerCase().trim() === normalizedRepName;
+      if ((matchId || matchName) && o.customer_id) {
         ids.add(o.customer_id);
       }
     });
+
+    try {
+      const cache = JSON.parse(localStorage.getItem("salesman_orders_cache") || "{}");
+      Object.values(cache).forEach((entry: any) => {
+        if (entry?.customer_id) ids.add(entry.customer_id);
+      });
+    } catch {}
+
     return ids;
   }, [customers, allOrders, currentUserId, normalizedRepName]);
+
+  // Helper to check if an order belongs to this salesman or their assigned shops
+  const isMyOrder = (o: any) => {
+    if (o.salesman_id && currentUserId && o.salesman_id === currentUserId) return true;
+    if (o.salesman_name && o.salesman_name.toLowerCase().trim() === normalizedRepName) return true;
+    const isField = o.order_source === "field_marketing" || o.order_number?.startsWith("SO-FLD-");
+    const isMyCustomer = o.customer_id && myCustomerIds.has(o.customer_id);
+    if (isMyCustomer && isField) return true;
+    if (isMyCustomer && !o.salesman_id) return true;
+    return false;
+  };
+
+  // Strictly filter orders belonging to this representative
+  const myOrders = useMemo(() => {
+    return allOrders.filter(isMyOrder);
+  }, [allOrders, currentUserId, normalizedRepName, myCustomerIds]);
 
   // Receivables under this salesman's shops
   let regularReceivable = 0;
@@ -84,8 +106,8 @@ export const SalesmanDashboard: React.FC<SalesmanDashboardProps> = ({
   let dealerCount = 0;
 
   customers.forEach((c: any) => {
-    // If we have scoped customers, only include those; otherwise fallback to showing shop dues
-    const isUnderMe = myCustomerIds.size === 0 || myCustomerIds.has(c.id);
+    // If not Admin, strictly include only customers belonging to this salesman's accounts
+    const isUnderMe = isAdmin ? true : myCustomerIds.has(c.id);
     if (!isUnderMe) return;
 
     const tbAccount = (trialBalance || []).find((t: any) => t.account_id === c.receivable_account_id);
@@ -123,7 +145,7 @@ export const SalesmanDashboard: React.FC<SalesmanDashboardProps> = ({
   });
 
   const myTodayRevenue = myTodayOrders.reduce(
-    (sum: number, o: any) => sum + Number(o.total || 0),
+    (sum: number, o: any) => sum + Number(o.total || o.total_amount || 0),
     0
   );
 
@@ -135,11 +157,11 @@ export const SalesmanDashboard: React.FC<SalesmanDashboardProps> = ({
   });
 
   const myMonthRevenue = myMonthOrders.reduce(
-    (sum: number, o: any) => sum + Number(o.total || 0),
+    (sum: number, o: any) => sum + Number(o.total || o.total_amount || 0),
     0
   );
 
-  const myShopsCount = myCustomerIds.size > 0 ? myCustomerIds.size : customers.length;
+  const myShopsCount = isAdmin && myCustomerIds.size === 0 ? customers.length : myCustomerIds.size;
 
   return (
     <div className="flex flex-col min-h-screen bg-slate-50 font-body">
@@ -185,22 +207,25 @@ export const SalesmanDashboard: React.FC<SalesmanDashboardProps> = ({
       <div className="max-w-7xl mx-auto w-full p-4 sm:p-6 space-y-6">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {/* Card 1: My Under-Receivable (Receivable Portfolio) */}
-          <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-xs relative overflow-hidden group hover:border-blue-300 transition-all">
+          <Link
+            to="/salesman/receivables"
+            className="bg-white rounded-xl border border-gray-200 p-5 shadow-xs relative overflow-hidden group hover:border-blue-400 hover:shadow-md transition-all cursor-pointer block"
+          >
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
-                <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider group-hover:text-blue-600 transition-colors">
                   My Under-Receivable
                 </span>
                 <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800">
                   My Portfolio
                 </span>
               </div>
-              <div className="p-2 rounded-lg bg-emerald-50 text-emerald-600">
+              <div className="p-2 rounded-lg bg-emerald-50 text-emerald-600 group-hover:bg-blue-50 group-hover:text-blue-600 transition-colors">
                 <ArrowDown className="w-4 h-4" />
               </div>
             </div>
 
-            <div className="text-2xl sm:text-3xl font-extrabold text-gray-900 tracking-tight">
+            <div className="text-2xl sm:text-3xl font-extrabold text-gray-900 tracking-tight group-hover:text-blue-600 transition-colors">
               OMR {totalReceivable.toFixed(3)}
             </div>
 
@@ -222,14 +247,11 @@ export const SalesmanDashboard: React.FC<SalesmanDashboardProps> = ({
             </div>
 
             <div className="mt-4 pt-2">
-              <Link
-                to="/salesman/receivables"
-                className="text-xs font-semibold text-blue-600 hover:text-blue-700 flex items-center gap-1 group-hover:translate-x-0.5 transition-transform"
-              >
+              <span className="text-xs font-semibold text-blue-600 group-hover:text-blue-700 flex items-center gap-1 group-hover:translate-x-0.5 transition-transform">
                 View Shop Ledgers & Collect <ChevronRight className="w-3.5 h-3.5" />
-              </Link>
+              </span>
             </div>
-          </div>
+          </Link>
 
           {/* Card 2: Today's Orders Booked (Field Marketing) */}
           <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-xs relative overflow-hidden group hover:border-blue-300 transition-all">
@@ -369,7 +391,7 @@ export const SalesmanDashboard: React.FC<SalesmanDashboardProps> = ({
             <Link to="/salesman/orders" className="w-full">
               <Button variant="outline" className="w-full justify-start gap-2 h-10 text-xs font-semibold hover:border-amber-400 hover:bg-amber-50 text-gray-800">
                 <ShoppingCart className="w-4 h-4 text-amber-600" />
-                <span>All Orders Log</span>
+                <span>Field Orders Log</span>
               </Button>
             </Link>
           </div>
@@ -377,7 +399,7 @@ export const SalesmanDashboard: React.FC<SalesmanDashboardProps> = ({
 
         {/* 4. ORDERS QUICK VIEW TABLE */}
         <div className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-xs">
-          <AdminOrdersQuickView orders={allOrders} isLoading={loadingOrders} portalType="salesman" />
+          <AdminOrdersQuickView orders={isAdmin ? allOrders : myOrders} isLoading={loadingOrders} portalType="salesman" />
         </div>
       </div>
 

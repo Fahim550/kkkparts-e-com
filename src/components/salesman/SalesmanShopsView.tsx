@@ -22,21 +22,57 @@ import {
 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
+import { useAdminAuth } from "@/hooks/useAdminAuth";
+import { useOrders } from "@/hooks/useDatabase";
 
 export const SalesmanShopsView: React.FC = () => {
   const navigate = useNavigate();
   const { customers = [], isLoading: loadingCustomers } = useCustomers();
+  const { data: allOrders = [] } = useOrders();
   const { data: customerDueMap = {} } = useCustomerDues();
   const { data: trialBalance = [] } = useTrialBalance();
-  const { user } = useAdminAuth();
+  const { user, isAdmin } = useAdminAuth();
 
   const [searchTerm, setSearchTerm] = useState("");
   const [groupFilter, setGroupFilter] = useState<"all" | "dealer" | "retail">("all");
-  const [territoryFilter, setTerritoryFilter] = useState<"my" | "all">("all");
+  const [territoryFilter, setTerritoryFilter] = useState<"my" | "all">("my");
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [createGroup, setCreateGroup] = useState<"Customer" | "Dealer">("Dealer");
 
   const currentUserId = user?.id;
+
+  // Compute customers under this salesman's territory or with booked orders
+  const myCustomerIds = useMemo(() => {
+    const ids = new Set<string>();
+    const repName = user?.user_metadata?.full_name || user?.email?.split("@")[0] || "";
+    const normalizedRepName = repName.toLowerCase().trim();
+
+    (customers || []).forEach((c: any) => {
+      if (c.salesman_id && currentUserId && c.salesman_id === currentUserId) {
+        ids.add(c.id);
+      }
+    });
+
+    (allOrders || []).forEach((o: any) => {
+      const matchId = o.salesman_id && currentUserId && o.salesman_id === currentUserId;
+      const matchName =
+        o.salesman_name &&
+        normalizedRepName &&
+        o.salesman_name.toLowerCase().trim() === normalizedRepName;
+      if ((matchId || matchName) && o.customer_id) {
+        ids.add(o.customer_id);
+      }
+    });
+
+    try {
+      const cache = JSON.parse(localStorage.getItem("salesman_orders_cache") || "{}");
+      Object.values(cache).forEach((entry: any) => {
+        if (entry?.customer_id) ids.add(entry.customer_id);
+      });
+    } catch {}
+
+    return ids;
+  }, [customers, allOrders, currentUserId, user]);
 
   // Compute customers with balance
   const shopsWithBalance = useMemo(() => {
@@ -52,21 +88,25 @@ export const SalesmanShopsView: React.FC = () => {
     });
   }, [customers, trialBalance, customerDueMap]);
 
+  // Base shops: strictly isolated to this salesman's territory unless Admin
+  const baseShops = useMemo(() => {
+    if (!isAdmin) {
+      return shopsWithBalance.filter((s: any) => myCustomerIds.has(s.id));
+    }
+    if (territoryFilter === "my" && currentUserId) {
+      return shopsWithBalance.filter((s: any) => myCustomerIds.has(s.id));
+    }
+    return shopsWithBalance;
+  }, [shopsWithBalance, isAdmin, territoryFilter, currentUserId, myCustomerIds]);
+
   // Filtered shops
   const filteredShops = useMemo(() => {
-    let list = shopsWithBalance;
+    let list = baseShops;
 
     if (groupFilter === "dealer") {
       list = list.filter((s: any) => s.customer_group === "Dealer");
     } else if (groupFilter === "retail") {
       list = list.filter((s: any) => s.customer_group !== "Dealer");
-    }
-
-    if (territoryFilter === "my" && currentUserId) {
-      const myFiltered = list.filter((s: any) => s.salesman_id === currentUserId);
-      if (myFiltered.length > 0) {
-        list = myFiltered;
-      }
     }
 
     if (searchTerm.trim()) {
@@ -82,17 +122,17 @@ export const SalesmanShopsView: React.FC = () => {
     }
 
     return list;
-  }, [shopsWithBalance, groupFilter, territoryFilter, searchTerm, currentUserId]);
+  }, [baseShops, groupFilter, searchTerm]);
 
-  // Aggregate metrics
+  // Aggregate metrics: strictly based on the representative's territory
   const metrics = useMemo(() => {
-    const totalShops = shopsWithBalance.length;
-    const totalDealers = shopsWithBalance.filter((s: any) => s.customer_group === "Dealer").length;
-    const totalRetail = shopsWithBalance.filter((s: any) => s.customer_group !== "Dealer").length;
-    const totalReceivables = shopsWithBalance.reduce((sum, s) => sum + Number(s.due || 0), 0);
+    const totalShops = baseShops.length;
+    const totalDealers = baseShops.filter((s: any) => s.customer_group === "Dealer").length;
+    const totalRetail = baseShops.filter((s: any) => s.customer_group !== "Dealer").length;
+    const totalReceivables = baseShops.reduce((sum, s) => sum + Number(s.due || 0), 0);
 
     return { totalShops, totalDealers, totalRetail, totalReceivables };
-  }, [shopsWithBalance]);
+  }, [baseShops]);
 
   const handleExportCSV = () => {
     if (filteredShops.length === 0) {
@@ -222,28 +262,35 @@ export const SalesmanShopsView: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-2 w-full md:w-auto overflow-x-auto pb-1 md:pb-0">
-          <div className="flex bg-slate-100 p-0.5 rounded-lg shrink-0">
-            <button
-              onClick={() => setTerritoryFilter("my")}
-              className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-all ${
-                territoryFilter === "my"
-                  ? "bg-white text-blue-700 shadow-xs"
-                  : "text-slate-600 hover:text-slate-900"
-              }`}
-            >
-              My Territory
-            </button>
-            <button
-              onClick={() => setTerritoryFilter("all")}
-              className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-all ${
-                territoryFilter === "all"
-                  ? "bg-white text-blue-700 shadow-xs"
-                  : "text-slate-600 hover:text-slate-900"
-              }`}
-            >
-              All Shops ({shopsWithBalance.length})
-            </button>
-          </div>
+          {isAdmin ? (
+            <div className="flex bg-slate-100 p-0.5 rounded-lg shrink-0">
+              <button
+                onClick={() => setTerritoryFilter("my")}
+                className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-all ${
+                  territoryFilter === "my"
+                    ? "bg-white text-blue-700 shadow-xs"
+                    : "text-slate-600 hover:text-slate-900"
+                }`}
+              >
+                My Territory
+              </button>
+              <button
+                onClick={() => setTerritoryFilter("all")}
+                className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-all ${
+                  territoryFilter === "all"
+                    ? "bg-white text-blue-700 shadow-xs"
+                    : "text-slate-600 hover:text-slate-900"
+                }`}
+              >
+                All Shops ({shopsWithBalance.length})
+              </button>
+            </div>
+          ) : (
+            <div className="px-3 py-1.5 bg-blue-50 text-blue-700 rounded-lg text-xs font-semibold shrink-0 border border-blue-100 flex items-center gap-1.5">
+              <Store className="w-3.5 h-3.5 text-blue-600" />
+              <span>My Territory ({baseShops.length} Shops)</span>
+            </div>
+          )}
 
           <div className="flex items-center gap-1.5 shrink-0">
             <button

@@ -29,9 +29,12 @@ import { useSuppliers, useSupplierDues } from "@/modules/supplier/presentation/h
 import { useAdminAuth } from "@/hooks/useAdminAuth";
 
 const Dashboard = () => {
-  const { isSalesman, isAdmin } = useAdminAuth();
+  const { isSalesman, isAdmin, hasRole } = useAdminAuth();
   if (isSalesman && !isAdmin) {
     return <Navigate to="/salesman/dashboard" replace />;
+  }
+  if (hasRole("Cashier") && !isAdmin) {
+    return <Navigate to="/admin/pos" replace />;
   }
 
   const { data: allOrders = [], isLoading: loadingOrders } = useOrders();

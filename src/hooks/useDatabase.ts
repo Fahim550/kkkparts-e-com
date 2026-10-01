@@ -159,30 +159,42 @@ export const useOrders = () =>
       let combined: any[] = [];
       
       if (!salesError && salesData) {
-        const mappedSales = salesData.map((o: any) => ({
-          id: o.id,
-          order_number: o.so_number,
-          status: o.status.toLowerCase(),
-          created_at: o.order_date || o.created_at,
-          customer_name: o.customers?.name || "Customer",
-          customer_email: o.customers?.contact_email || "",
-          customer_phone: o.customers?.contact_phone || "",
-          customer_group: o.customers?.customer_group || "Customer",
-          shipping_address: "",
-          total: o.total_amount,
-          is_hidden: false,
-          type: 'sales_order',
-          salesman_id: o.salesman_id || null,
-          salesman_name: o.salesman_name || null,
-          order_source: o.order_source || 'admin',
-          items: o.sales_order_items?.map((i: any) => ({
-            productName: i.product_variations?.products?.name || "Item",
-            size: "",
-            color: "",
-            quantity: i.quantity_ordered || i.quantity || 1,
-            price: i.unit_price
-          })) || []
-        }));
+        let localCache: Record<string, any> = {};
+        try {
+          localCache = JSON.parse(localStorage.getItem("salesman_orders_cache") || "{}");
+        } catch {}
+
+        const mappedSales = salesData.map((o: any) => {
+          const cached = localCache[o.so_number];
+          const isFld = o.so_number?.startsWith("SO-FLD-");
+
+          return {
+            id: o.id,
+            order_number: o.so_number,
+            customer_id: o.customer_id || cached?.customer_id || null,
+            status: o.status.toLowerCase(),
+            created_at: o.order_date || o.created_at,
+            customer_name: o.customers?.name || cached?.customer_name || "Customer",
+            customer_email: o.customers?.contact_email || "",
+            customer_phone: o.customers?.contact_phone || "",
+            customer_group: o.customers?.customer_group || "Customer",
+            shipping_address: "",
+            total: o.total_amount,
+            total_amount: o.total_amount,
+            is_hidden: false,
+            type: 'sales_order',
+            salesman_id: o.salesman_id || cached?.salesman_id || null,
+            salesman_name: o.salesman_name || cached?.salesman_name || null,
+            order_source: o.order_source || (isFld ? 'field_marketing' : 'admin'),
+            items: o.sales_order_items?.map((i: any) => ({
+              productName: i.product_variations?.products?.name || "Item",
+              size: "",
+              color: "",
+              quantity: i.quantity_ordered || i.quantity || 1,
+              price: i.unit_price
+            })) || []
+          };
+        });
         combined = [...mappedSales];
       }
 
@@ -190,6 +202,7 @@ export const useOrders = () =>
         const mappedPos = posData.map((r: any) => ({
           id: r.id,
           order_number: r.receipt_number,
+          customer_id: r.customer_id || null,
           status: r.status.toLowerCase(), // "paid", "partial", "unpaid"
           created_at: r.transaction_date,
           customer_name: r.walk_in_customer_name || r.customers?.name || "Walk-in Customer",
@@ -197,6 +210,7 @@ export const useOrders = () =>
           customer_phone: r.walk_in_customer_phone || r.customers?.contact_phone || "",
           shipping_address: "POS In-store",
           total: r.total_amount,
+          total_amount: r.total_amount,
           is_hidden: false,
           type: 'pos_receipt',
           salesman_id: r.salesman_id || null,
