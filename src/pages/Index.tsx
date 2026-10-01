@@ -122,41 +122,61 @@ const Index = () => {
     Autoplay({ delay: 3000, stopOnInteraction: false }),
   ]);
 
-  // Auto-scroll logic for categories
+  // Auto-scroll logic for categories (Continuous Smooth Slide)
   useEffect(() => {
     if (dbCategories.length === 0) return;
+
+    let animationFrameId1: number;
+    let animationFrameId2: number;
+    let lastTime1 = 0;
+    let lastTime2 = 0;
 
     const scrollCategory = (
       ref: React.RefObject<HTMLDivElement>,
       direction: 1 | -1,
+      timestamp: number,
+      lastTimeRef: { current: number }
     ) => {
       if (!ref.current) return;
-      const { scrollLeft, scrollWidth, clientWidth } = ref.current;
+      
+      if (!lastTimeRef.current) lastTimeRef.current = timestamp;
+      const deltaTime = timestamp - lastTimeRef.current;
 
-      // Auto-scroll logic
-      let newScrollLeft = scrollLeft + direction * 150; // Scroll by approximately one item width
+      // Scroll 1 pixel every 25ms (approx 40 pixels per second)
+      if (deltaTime > 25) {
+        const { scrollLeft, scrollWidth, clientWidth } = ref.current;
+        let newScrollLeft = scrollLeft + direction;
 
-      if (direction === 1 && scrollLeft >= scrollWidth - clientWidth - 10) {
-        newScrollLeft = 0; // Reset to start
-      } else if (direction === -1 && scrollLeft <= 10) {
-        newScrollLeft = scrollWidth - clientWidth; // Reset to end
+        if (direction === 1 && scrollLeft >= scrollWidth - clientWidth - 1) {
+          newScrollLeft = 0;
+        } else if (direction === -1 && scrollLeft <= 1) {
+          newScrollLeft = scrollWidth - clientWidth;
+        }
+
+        ref.current.scrollLeft = newScrollLeft;
+        lastTimeRef.current = timestamp;
       }
-
-      ref.current.scrollTo({ left: newScrollLeft, behavior: "smooth" });
     };
 
-    const intervalId1 = setInterval(
-      () => scrollCategory(categoryScrollRef1, 1),
-      3000,
-    );
-    const intervalId2 = setInterval(
-      () => scrollCategory(categoryScrollRef2, -1),
-      3500,
-    );
+    const lastTimeRef1 = { current: 0 };
+    const lastTimeRef2 = { current: 0 };
+
+    const loop1 = (timestamp: number) => {
+      scrollCategory(categoryScrollRef1, 1, timestamp, lastTimeRef1);
+      animationFrameId1 = requestAnimationFrame(loop1);
+    };
+
+    const loop2 = (timestamp: number) => {
+      scrollCategory(categoryScrollRef2, -1, timestamp, lastTimeRef2);
+      animationFrameId2 = requestAnimationFrame(loop2);
+    };
+
+    animationFrameId1 = requestAnimationFrame(loop1);
+    animationFrameId2 = requestAnimationFrame(loop2);
 
     return () => {
-      clearInterval(intervalId1);
-      clearInterval(intervalId2);
+      cancelAnimationFrame(animationFrameId1);
+      cancelAnimationFrame(animationFrameId2);
     };
   }, [dbCategories.length]);
 
@@ -202,9 +222,17 @@ const Index = () => {
   }, [heroBanners.length]);
 
   const slideVariants = {
-    initial: { opacity: 0 },
-    animate: { opacity: 1, transition: { duration: 0.8 } },
-    exit: { opacity: 0, transition: { duration: 0.8 } },
+    initial: (dir: number) => ({
+      x: dir > 0 ? "100%" : "-100%",
+    }),
+    animate: {
+      x: 0,
+      transition: { duration: 0.8, ease: "easeInOut" },
+    },
+    exit: (dir: number) => ({
+      x: dir > 0 ? "-100%" : "100%",
+      transition: { duration: 0.8, ease: "easeInOut" },
+    }),
   };
 
   useEffect(() => {
@@ -232,7 +260,7 @@ const Index = () => {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:h-[550px] xl:h-[750px]">
             {/* Main Slider (Left) */}
             <div
-              className={`relative w-full h-[400px] lg:h-full overflow-hidden  ${promoBanners.length > 0 ? "lg:col-span-2" : "lg:col-span-3"}`}
+              className={`group relative w-full h-[400px] lg:h-full overflow-hidden ${promoBanners.length > 0 ? "lg:col-span-2" : "lg:col-span-3"}`}
             >
               {/* Unconditionally render the preloaded fallback image to ensure instant LCP */}
               {/* <div className="absolute inset-0">
@@ -242,9 +270,10 @@ const Index = () => {
 
               {heroBanners.length > 0 ? (
                 <>
-                  <AnimatePresence>
+                  <AnimatePresence initial={false} custom={direction}>
                     <motion.div
                       key={currentBanner}
+                      custom={direction}
                       variants={slideVariants}
                       initial="initial"
                       animate="animate"
@@ -258,7 +287,7 @@ const Index = () => {
                         decoding="async"
                         className="w-full h-full object-cover"
                       />
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent md:bg-gradient-to-r md:from-black/80 md:via-black/40 md:to-transparent" />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent md:bg-gradient-to-r md:from-black/90 md:via-black/40 md:to-transparent" />
                     </motion.div>
                   </AnimatePresence>
 
@@ -269,19 +298,21 @@ const Index = () => {
                       transition={{ duration: 0.8 }}
                       className="container mx-auto px-2 lg:px-12 pointer-events-auto"
                     >
-                      <div className=" p-6 md:p-10 rounded-2xl border border-white/10 max-w-xl inline-block shadow-2xl">
-                        <h1 className="heading-display text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold leading-tight mb-3 text-white drop-shadow-xl">
-                          {heroBanners[currentBanner].title}
-                        </h1>
+                      <div className="p-6 md:p-10 max-w-2xl inline-block">
+                        {heroBanners[currentBanner].title && (
+                          <h1 className="heading-display text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-black leading-tight mb-4 text-white drop-shadow-[0_4px_20px_rgba(0,0,0,0.8)]">
+                            {heroBanners[currentBanner].title}
+                          </h1>
+                        )}
                         {heroBanners[currentBanner].subtitle && (
-                          <p className="text-gray-200 font-body text-base sm:text-lg mb-8 drop-shadow-md">
+                          <p className="text-gray-100 font-body text-base sm:text-xl mb-8 drop-shadow-[0_2px_10px_rgba(0,0,0,0.8)] font-medium">
                             {heroBanners[currentBanner].subtitle}
                           </p>
                         )}
                         {heroBanners[currentBanner].link_url && (
                           <Link
                             to={heroBanners[currentBanner].link_url!}
-                            className="inline-flex items-center gap-2 bg-neon text-accent-foreground px-8 py-4 font-body text-sm font-bold tracking-widest uppercase hover:bg-neon-glow transition-all duration-300 rounded-md shadow-[0_0_15px_rgba(var(--neon),0.4)]"
+                            className="inline-flex items-center gap-3 bg-neon text-accent-foreground px-8 py-4 font-body text-[15px] font-bold tracking-widest uppercase hover:bg-white hover:text-black hover:scale-105 transition-all duration-300 rounded-full shadow-[0_10px_30px_rgba(var(--neon-rgb),0.5)]"
                           >
                             {t("hero.shop_now")}{" "}
                             <ArrowRight className="w-5 h-5" />
@@ -296,16 +327,16 @@ const Index = () => {
                       <button
                         onClick={prevBanner}
                         aria-label="Previous banner"
-                        className="absolute left-4 top-1/2 -translate-y-1/2 z-20 w-12 h-12 bg-black/40 backdrop-blur-md rounded-full flex items-center justify-center hover:bg-black/70 transition-colors border border-white/20"
+                        className="absolute left-4 top-1/2 -translate-y-1/2 z-20 w-14 h-14 bg-white/10 backdrop-blur-xl rounded-full flex items-center justify-center text-white hover:bg-neon hover:text-black transition-all duration-300 border border-white/20 opacity-0 group-hover:opacity-100 -translate-x-4 group-hover:translate-x-0 shadow-xl"
                       >
-                        <ChevronLeft className="w-6 h-6 text-white" />
+                        <ChevronLeft className="w-7 h-7 transition-colors" />
                       </button>
                       <button
                         onClick={nextBanner}
                         aria-label="Next banner"
-                        className="absolute right-4 top-1/2 -translate-y-1/2 z-20 w-12 h-12 bg-black/40 backdrop-blur-md rounded-full flex items-center justify-center hover:bg-black/70 transition-colors border border-white/20"
+                        className="absolute right-4 top-1/2 -translate-y-1/2 z-20 w-14 h-14 bg-white/10 backdrop-blur-xl rounded-full flex items-center justify-center text-white hover:bg-neon hover:text-black transition-all duration-300 border border-white/20 opacity-0 group-hover:opacity-100 translate-x-4 group-hover:translate-x-0 shadow-xl"
                       >
-                        <ChevronRight className="w-6 h-6 text-white" />
+                        <ChevronRight className="w-7 h-7 transition-colors" />
                       </button>
                       <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-20 flex gap-3">
                         {heroBanners.map((_, i) => (
@@ -392,117 +423,120 @@ const Index = () => {
       </section>
 
       {/* Vehicle Finder Overlapping Widget */}
-      <section className="relative z-30 -mt-10 mb-8 px-4 sm:px-6">
-        <div className="container mx-auto max-w-5xl">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.3 }}
-            className="bg-card rounded-2xl shadow-xl border border-border p-3 sm:p-5 md:p-6 flex flex-col lg:flex-row items-center gap-3 sm:gap-4 lg:gap-6"
-          >
-            <div className="flex-shrink-0 flex items-center justify-between w-full lg:w-auto">
-              <div className="flex items-center gap-2.5 sm:gap-3">
-                <div className="w-10 h-10 md:w-12 md:h-12 bg-neon/10 rounded-full flex items-center justify-center shrink-0">
-                  <Search className="w-5 h-5 md:w-6 md:h-6 text-neon" />
-                </div>
-                <div>
-                  <h3 className="font-heading font-bold text-sm sm:text-base md:text-lg text-foreground uppercase tracking-wide">
-                    Find Your Parts
-                  </h3>
-                  <p className="font-body text-[11px] sm:text-xs text-muted-foreground">
-                    Search for exact fitment
-                  </p>
-                </div>
-              </div>
+      <section className="relative z-30 -mt-10 mb-2 px-4 sm:px-6 flex justify-center">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.3 }}
+          className="bg-card rounded-[2rem] shadow-[0_20px_40px_rgba(0,0,0,0.1)] border border-border p-2 md:p-3 flex flex-col md:flex-row items-center gap-3 w-full max-w-4xl mx-auto"
+        >
+          <div className="hidden md:flex flex-shrink-0 items-center pl-4 pr-2">
+            <div className="w-12 h-12 bg-neon/10 rounded-full flex items-center justify-center shrink-0">
+              <Search className="w-5 h-5 text-neon" />
             </div>
+            <div className="ml-4">
+              <h3 className="font-heading font-bold text-base text-foreground uppercase tracking-wide">
+                Find Your Parts
+              </h3>
+              <p className="font-body text-[11px] text-muted-foreground uppercase tracking-wider">
+                Search for exact fitment
+              </p>
+            </div>
+          </div>
 
-            <div className="w-full flex-1">
-              <form
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  if (searchQuery.trim()) {
-                    navigate(
-                      `/parts?search=${encodeURIComponent(searchQuery.trim())}`,
-                    );
-                  } else {
-                    navigate(`/parts`);
-                  }
-                }}
-                className="flex items-center w-full bg-background border-2 border-neon rounded-full overflow-hidden shadow-sm hover:shadow-md focus-within:ring-2 focus-within:ring-neon/30 transition-all"
-              >
-                <input
-                  type="text"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Search for parts by name, brand, or OEM number..."
-                  className="w-full h-11 sm:h-12 md:h-14 pl-4 sm:pl-6 pr-2 bg-transparent text-foreground placeholder:text-muted-foreground/60 focus:outline-none text-xs sm:text-sm md:text-base font-body"
-                />
-                {searchQuery && (
-                  <button
-                    type="button"
-                    onClick={() => setSearchQuery("")}
-                    className="p-2 mr-1 text-muted-foreground hover:text-foreground transition-colors shrink-0"
-                  >
-                    <X className="w-4 h-4 sm:w-5 sm:h-5" />
-                  </button>
-                )}
+          <div className="w-full flex-1">
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (searchQuery.trim()) {
+                  navigate(
+                    `/parts?search=${encodeURIComponent(searchQuery.trim())}`,
+                  );
+                } else {
+                  navigate(`/parts`);
+                }
+              }}
+              className="flex items-center w-full bg-background border-2 border-neon/30 rounded-full overflow-hidden shadow-sm hover:shadow-md focus-within:border-neon focus-within:ring-4 focus-within:ring-neon/10 transition-all"
+            >
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search for parts by name, brand, or OEM number..."
+                className="w-full h-12 md:h-14 pl-5 md:pl-6 pr-4 bg-transparent text-foreground placeholder:text-muted-foreground/60 focus:outline-none text-sm md:text-base font-body"
+              />
+              {searchQuery && (
                 <button
-                  type="submit"
-                  aria-label="Search"
-                  className="flex items-center justify-center w-11 h-11 sm:w-12 sm:h-12 md:w-14 md:h-14 bg-neon hover:bg-neon-glow text-white transition-colors shrink-0 cursor-pointer"
+                  type="button"
+                  onClick={() => setSearchQuery("")}
+                  className="p-2 mr-1 text-muted-foreground hover:text-foreground transition-colors shrink-0"
                 >
-                  <Search className="w-5 h-5 md:w-6 md:h-6 text-white" />
+                  <X className="w-4 h-4 sm:w-5 sm:h-5" />
                 </button>
-              </form>
-            </div>
-          </motion.div>
-        </div>
+              )}
+              <button
+                type="submit"
+                aria-label="Search"
+                className="flex items-center justify-center px-6 md:px-8 h-10 md:h-12 bg-neon hover:bg-neon-glow text-white transition-all shrink-0 cursor-pointer font-bold tracking-widest uppercase mr-1 rounded-full shadow-md hover:-translate-y-0.5"
+              >
+                Search
+              </button>
+            </form>
+          </div>
+        </motion.div>
       </section>
 
       {/* Categories Grid */}
-      <section className="py-12 lg:py-16 bg-pink-50/30">
+      <section className="py-8 bg-gray-50/50">
         <div className="container mx-auto px-4 lg:px-8">
-          <div className="flex items-end justify-between mb-6">
+          <div className="flex flex-row items-end justify-between mb-8 gap-2">
             <div>
-              <h2 className="heading-display text-xl md:text-2xl font-bold text-foreground">
-                {t("categories.title")}
+              <span className="text-neon font-body text-[10px] sm:text-xs font-bold tracking-[0.1em] sm:tracking-[0.2em] mb-1 sm:mb-2 flex items-center gap-1.5 sm:gap-2">
+                <div className="w-1.5 h-1.5 rounded-full bg-neon animate-pulse"></div>
+                Top Categories
+              </span>
+              <h2 className="heading-display text-[16px] sm:text-2xl md:text-3xl font-semibold text-gray-900 tracking-tight capitalize">
+                {String(t("categories.title")).toLowerCase()}
               </h2>
             </div>
             <Link
               to="/parts"
-              className="flex items-center gap-1 font-body text-sm font-medium text-foreground hover-neon transition-colors"
+              className="flex items-center gap-1.5 sm:gap-2 font-body text-[10px] sm:text-xs font-bold tracking-wider sm:tracking-[0.1em] text-gray-900 hover:text-neon transition-all group shrink-0 pb-0.5 sm:pb-0"
             >
-              {t("categories.all")} <ChevronRight className="w-4 h-4" />
+              {t("categories.all")}{" "}
+              <span className="w-6 h-6 sm:w-8 sm:h-8 rounded-full bg-white border border-gray-200 flex items-center justify-center group-hover:bg-neon group-hover:border-neon group-hover:text-white transition-all shadow-sm">
+                <ChevronRight className="w-3 h-3 sm:w-4 sm:h-4" />
+              </span>
             </Link>
           </div>
-          <div className="flex flex-col gap-3 md:gap-4 lg:gap-2">
+
+          <div className="flex flex-col gap-2 md:gap-3">
+            {/* First Row */}
             <div
               ref={categoryScrollRef1}
-              className="overflow-x-auto hide-scrollbar pb-2 lg:pb-3 w-full scroll-smooth"
-              style={{ scrollSnapType: "x mandatory" }}
+              className="overflow-x-auto hide-scrollbar pb-1 w-full"
             >
-              <div className="flex gap-3 md:gap-4 w-max px-1 lg:px-0">
+              <div className="flex gap-3 md:gap-5 w-max px-2 pt-2">
                 {categoryRow1.map((cat, i) => (
                   <div
                     key={cat.id}
-                    className="w-[85px] sm:w-[100px] md:w-[120px] lg:w-[140px] shrink-0"
-                    style={{ scrollSnapAlign: "start" }}
+                    className="w-[110px] sm:w-[130px] md:w-[160px] lg:w-[180px] shrink-0 group cursor-pointer"
                   >
-                    <Link
-                      to={`/parts?category=${cat.slug}`}
-                      className="flex flex-col items-center group text-center w-full"
-                    >
-                      <div className="w-full aspect-square overflow-hidden rounded-xl bg-white transition-all duration-300 mb-2 relative shadow-[0_4px_15px_rgba(0,0,0,0.1)] md:group-hover:shadow-[0_8px_25px_rgba(0,0,0,0.15)] md:group-hover:-translate-y-1">
+                      <Link
+                        to={`/parts?category=${cat.slug}`}
+                        className="flex flex-col items-center w-full bg-white p-2.5 md:p-3 rounded-xl md:rounded-2xl border border-gray-100 shadow-[0_4px_15px_rgba(0,0,0,0.03)] hover:shadow-[0_15px_30px_rgba(0,0,0,0.08)] hover:-translate-y-1.5 hover:border-neon/30 transition-all duration-500"
+                      >
+                        <div className="w-full aspect-square flex items-center justify-center mb-3 relative overflow-hidden rounded-lg md:rounded-xl bg-gray-50 group-hover:bg-gray-100/50 transition-colors">
                         <img
                           src={getCategoryImage(cat.slug, cat.image_url)}
                           alt={cat.name}
-                          width="200"
-                          height="200"
-                          className="w-full h-full object-cover md:group-hover:scale-110 transition-transform duration-500"
+                          width="250"
+                          height="250"
+                          className="w-[85%] h-[85%] object-contain relative z-10 group-hover:scale-110 transition-transform duration-700 ease-out mix-blend-multiply"
                           loading="lazy"
                         />
                       </div>
-                      <h3 className="font-body text-[11px] sm:text-[12px] md:text-[14px] font-medium text-foreground group-hover:text-primary transition-colors truncate w-full text-center leading-tight px-1">
+                      <h3 className="font-heading font-extrabold text-[11px] sm:text-[13px] md:text-[15px] text-gray-800 group-hover:text-neon transition-colors text-center tracking-wider px-1 leading-tight line-clamp-2 h-[2.5em] flex items-center justify-center">
                         {cat.name}
                       </h3>
                     </Link>
@@ -511,34 +545,33 @@ const Index = () => {
               </div>
             </div>
 
+            {/* Second Row */}
             {categoryRow2.length > 0 && (
               <div
                 ref={categoryScrollRef2}
-                className="overflow-x-auto hide-scrollbar pb-2 lg:pb-0 w-full scroll-smooth"
-                style={{ scrollSnapType: "x mandatory" }}
+                className="overflow-x-auto hide-scrollbar pb-4 w-full"
               >
-                <div className="flex gap-3 md:gap-4 w-max px-1 lg:px-0">
+                <div className="flex gap-3 md:gap-5 w-max px-2 pt-2">
                   {categoryRow2.map((cat, i) => (
                     <div
                       key={cat.id}
-                      className="w-[85px] sm:w-[100px] md:w-[120px] lg:w-[140px] shrink-0"
-                      style={{ scrollSnapAlign: "start" }}
+                      className="w-[110px] sm:w-[130px] md:w-[160px] lg:w-[180px] shrink-0 group cursor-pointer"
                     >
                       <Link
                         to={`/parts?category=${cat.slug}`}
-                        className="flex flex-col items-center group text-center w-full"
+                        className="flex flex-col items-center w-full bg-white p-2.5 md:p-3 rounded-xl md:rounded-2xl border border-gray-100 shadow-[0_4px_15px_rgba(0,0,0,0.03)] hover:shadow-[0_15px_30px_rgba(0,0,0,0.08)] hover:-translate-y-1.5 hover:border-neon/30 transition-all duration-500"
                       >
-                        <div className="w-full aspect-square overflow-hidden rounded-xl bg-white transition-all duration-300 mb-2 relative shadow-[0_4px_15px_rgba(0,0,0,0.1)] md:group-hover:shadow-[0_8px_25px_rgba(0,0,0,0.15)] md:group-hover:-translate-y-1">
+                        <div className="w-full aspect-square flex items-center justify-center mb-3 relative overflow-hidden rounded-lg md:rounded-xl bg-gray-50 group-hover:bg-gray-100/50 transition-colors">
                           <img
                             src={getCategoryImage(cat.slug, cat.image_url)}
                             alt={cat.name}
-                            width="200"
-                            height="200"
-                            className="w-full h-full object-cover md:group-hover:scale-110 transition-transform duration-500"
+                            width="250"
+                            height="250"
+                            className="w-[85%] h-[85%] object-contain relative z-10 group-hover:scale-110 transition-transform duration-700 ease-out mix-blend-multiply"
                             loading="lazy"
                           />
                         </div>
-                        <h3 className="font-body text-[11px] sm:text-[12px] md:text-[14px] font-medium text-foreground group-hover:text-primary transition-colors truncate w-full text-center leading-tight px-1">
+                        <h3 className="font-heading font-extrabold text-[11px] sm:text-[13px] md:text-[15px] text-gray-800 group-hover:text-neon transition-colors text-center tracking-wider px-1 leading-tight line-clamp-2 h-[2.5em] flex items-center justify-center">
                           {cat.name}
                         </h3>
                       </Link>
@@ -551,7 +584,7 @@ const Index = () => {
         </div>
       </section>
 
-      {/* Offer Products */}
+      {/* Offer Products
       {offerProducts.length > 0 && (
         <section className="py-16 bg-background">
           <div className="container mx-auto px-4 lg:px-8">
@@ -592,24 +625,28 @@ const Index = () => {
           </div>
         </section>
       )}
+      */}
 
       {/* Trending Products */}
       <section className="py-8 bg-card">
         <div className="container mx-auto px-4 lg:px-8">
           <div className="flex items-end justify-between mb-8">
             <div>
-              <span className="text-neon font-body text-sm font-bold tracking-[0.1em] uppercase">
+              <span className="text-neon font-body text-sm font-bold tracking-[0.1em]">
                 {t("trending.label")}
               </span>
-              <h2 className="heading-display text-xl md:text-2xl font-bold mt-1 text-foreground">
-                {t("trending.title")}
+              <h2 className="heading-display text-xl md:text-2xl font-semibold mt-1 text-foreground capitalize">
+                {String(t("trending.title")).toLowerCase()}
               </h2>
             </div>
             <Link
               to="/parts"
-              className="flex items-center gap-2 font-body text-sm font-semibold tracking-widers text-foreground hover-neon transition-colors"
+              className="flex items-center gap-1.5 sm:gap-2 font-body text-[10px] sm:text-xs font-bold tracking-wider sm:tracking-[0.1em] text-gray-900 hover:text-neon transition-all group shrink-0 pb-0.5 sm:pb-0"
             >
-              {t("trending.view_all")} <ChevronRight className="w-4 h-4" />
+              {t("trending.view_all")}{" "}
+              <span className="w-6 h-6 sm:w-8 sm:h-8 rounded-full bg-white border border-gray-200 flex items-center justify-center group-hover:bg-neon group-hover:border-neon group-hover:text-white transition-all shadow-sm">
+                <ChevronRight className="w-3 h-3 sm:w-4 sm:h-4" />
+              </span>
             </Link>
           </div>
           <div className="grid grid-cols-2 lg:grid-cols-5 gap-2.5 lg:gap-4">
@@ -630,22 +667,25 @@ const Index = () => {
       </section>
 
       {/* New Arrivals */}
-      <section className="py-14 lg:py-14">
+      <section className="py-8">
         <div className="container mx-auto px-4 lg:px-8">
           <div className="flex items-end justify-between mb-8">
             <div>
-              <span className="text-neon font-body text-sm font-bold tracking-[0.1em] uppercase">
+              <span className="text-neon font-body text-sm font-bold tracking-[0.1em]">
                 {t("new.label")}
               </span>
-              <h2 className="heading-display text-xl md:text-2xl font-bold mt-1 text-foreground">
-                {t("new.title")}
+              <h2 className="heading-display text-xl md:text-2xl font-semibold mt-1 text-foreground capitalize">
+                {String(t("new.title")).toLowerCase()}
               </h2>
             </div>
             <Link
               to="/parts"
-              className="flex items-center gap-2 font-body text-sm font-semibold tracking-widers text-foreground hover-neon transition-colors"
+              className="flex items-center gap-1.5 sm:gap-2 font-body text-[10px] sm:text-xs font-bold tracking-wider sm:tracking-[0.1em] text-gray-900 hover:text-neon transition-all group shrink-0 pb-0.5 sm:pb-0"
             >
-              {t("trending.view_all")} <ChevronRight className="w-4 h-4" />
+              {t("trending.view_all")}{" "}
+              <span className="w-6 h-6 sm:w-8 sm:h-8 rounded-full bg-white border border-gray-200 flex items-center justify-center group-hover:bg-neon group-hover:border-neon group-hover:text-white transition-all shadow-sm">
+                <ChevronRight className="w-3 h-3 sm:w-4 sm:h-4" />
+              </span>
             </Link>
           </div>
           <div className="grid grid-cols-2 lg:grid-cols-5 gap-2.5 lg:gap-4">

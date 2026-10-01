@@ -120,7 +120,7 @@ const CartPage = () => {
           <motion.h1
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="heading-display text-4xl md:text-5xl font-bold mb-10 text-foreground"
+            className="heading-display text-2xl md:text-3xl font-bold mb-10 text-foreground"
           >
             {t("cart.title")}
           </motion.h1>

@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect, useRef } from "react";
-import { useSearchParams } from "react-router-dom";
-import { Search, SlidersHorizontal, Loader2 } from "lucide-react";
+import { useSearchParams, Link } from "react-router-dom";
+import { Search, SlidersHorizontal, Loader2, Menu, LayoutGrid, ShieldCheck, ArrowRightLeft } from "lucide-react";
 import { useActiveProducts } from "@/hooks/useDatabase";
 import { useActiveCategories } from "@/hooks/useCategories";
 import { useLanguage } from "@/context/LanguageContext";
@@ -24,6 +24,8 @@ const ShopPage = () => {
 
   const [priceRange, setPriceRange] = useState<[number, number]>([0, 0]);
   const [showFilters, setShowFilters] = useState(false);
+  const [filterType, setFilterType] = useState<string>("all");
+  const [sortBy, setSortBy] = useState<string>("newest");
 
   const products = useMemo(() => {
     return (
@@ -57,8 +59,11 @@ const ShopPage = () => {
   }, [dbProducts]);
 
   const filtered = useMemo(() => {
-    return products.filter((p) => {
+    let result = products.filter((p) => {
       if (categoryFilter && p.category !== categoryFilter) return false;
+      
+      if (filterType === 'new' && !p.isNew) return false;
+      if (filterType === 'featured' && !p.isTrending) return false;
 
       if (search) {
         const searchTerms = search.toLowerCase().split(/\s+/).filter(Boolean);
@@ -72,7 +77,14 @@ const ShopPage = () => {
       if (p.price < priceRange[0] || p.price > maxPrice) return false;
       return true;
     });
-  }, [products, categoryFilter, search, priceRange]);
+
+    return result.sort((a, b) => {
+      if (sortBy === 'price_asc') return a.price - b.price;
+      if (sortBy === 'price_desc') return b.price - a.price;
+      // Default to newest (can sort by id descending)
+      return b.id - a.id;
+    });
+  }, [products, categoryFilter, search, priceRange, filterType, sortBy]);
 
   const setCategory = (cat: string) => {
     if (cat) setSearchParams({ category: cat });
@@ -112,54 +124,50 @@ const ShopPage = () => {
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
-      <div className="pt-16 lg:pt-18">
-        <div className="bg-[#111] relative overflow-hidden py-16 lg:py-20">
-          <div className="absolute inset-0">
-            <img
-              src="https://images.unsplash.com/photo-1492144534655-ae79c964c9d7?auto=format&fit=crop&q=80"
-              alt="Background"
-              className="w-full h-full object-cover opacity-90"
-            />
-            <div className="absolute inset-0 bg-gradient-to-r from-[#111] via-[#111]/60 to-transparent"></div>
-          </div>
-          <div className="container mx-auto px-4 mt-2 lg:px-8 relative z-10">
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-            >
-              <span className="text-neon font-body text-sm font-bold tracking-[0.3em] uppercase">
-                {t("shop.collection")}
-              </span>
-              <h1 className="heading-display text-3xl md:text-4xl lg:text-3xl font-extrabold mt-3 text-white tracking-tight">
-                {activeCategoryName ||
-                  (categoryFilter
-                    ? categoryFilter.charAt(0).toUpperCase() +
-                      categoryFilter.slice(1)
-                    : t("shop.all_products"))}
-              </h1>
-            </motion.div>
+      <div className="pt-24 lg:pt-28">
+        <div className="pt-6 pb-6 bg-gray-50/50 border-b border-gray-100">
+          <div className="container mx-auto px-4 lg:px-8">
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+              <div>
+                <div className="flex items-center gap-2 text-sm text-gray-500 mb-4 font-body">
+                  <Link to="/" className="flex items-center gap-1 hover:text-[#5D3A5D] transition-colors">
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" /></svg>
+                    Home
+                  </Link>
+                  <span>&gt;</span>
+                  <span className="text-gray-900 font-medium">Shop</span>
+                </div>
+                <h1 className="heading-display text-xl md:text-2xl font-black text-[#111827] uppercase tracking-tight mb-2">
+                  {activeCategoryName ||
+                    (categoryFilter
+                      ? categoryFilter.charAt(0).toUpperCase() + categoryFilter.slice(1)
+                      : "ALL PARTS")}
+                </h1>
+                <p className="font-body text-gray-500 text-sm md:text-base">
+                  Explore our full catalog of premium merchandise and apparel.
+                </p>
+                <div className="flex flex-wrap gap-2 mt-6">
+                  <button onClick={() => setFilterType('all')} className={`px-5 py-2 rounded-full font-body text-sm font-medium transition-colors ${filterType === 'all' ? 'bg-[#5D3A5D] text-white hover:bg-[#4a2e4a]' : 'bg-white border border-gray-200 text-gray-500 hover:border-gray-300 hover:text-gray-700'}`}>All Parts</button>
+                  <button onClick={() => setFilterType('new')} className={`px-5 py-2 rounded-full font-body text-sm font-medium transition-colors ${filterType === 'new' ? 'bg-[#5D3A5D] text-white hover:bg-[#4a2e4a]' : 'bg-white border border-gray-200 text-gray-500 hover:border-gray-300 hover:text-gray-700'}`}>New Arrivals</button>
+                  <button onClick={() => setFilterType('featured')} className={`px-5 py-2 rounded-full font-body text-sm font-medium transition-colors ${filterType === 'featured' ? 'bg-[#5D3A5D] text-white border border-[#5D3A5D] hover:bg-[#4a2e4a]' : 'bg-white border border-gray-900 text-gray-900 hover:bg-gray-50'}`}>Featured</button>
+                </div>
+              </div>
+              
+              <div className="flex items-center gap-4">
+                <div className="flex items-center gap-2 px-4 py-2 bg-white rounded-full border border-gray-200 shadow-sm text-sm font-medium text-gray-700">
+                  <ShieldCheck className="w-4 h-4 text-green-500" />
+                  100% Authentic
+                </div>
+                <div className="flex items-center gap-2 px-4 py-2 bg-white rounded-full border border-gray-200 shadow-sm text-sm font-medium text-gray-700">
+                  <ArrowRightLeft className="w-4 h-4 text-[#5D3A5D]" />
+                  Fast Shipping BD
+                </div>
+              </div>
+            </div>
           </div>
         </div>
 
         <div className="container mx-auto px-4 lg:px-8 py-10">
-          <div className="flex flex-col md:flex-row gap-4 mb-8">
-            <div className="relative flex-1 group">
-              <Search className="absolute start-5 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 group-focus-within:text-neon transition-colors" />
-              <input
-                type="text"
-                placeholder={t("shop.search")}
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="w-full ps-14 pe-6 py-4 bg-white border border-gray-100 font-body text-base text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-neon/30 focus:border-neon transition-all rounded-xl shadow-[0_2px_10px_rgba(0,0,0,0.02)] hover:shadow-[0_4px_20px_rgba(0,0,0,0.06)]"
-              />
-            </div>
-            <button
-              onClick={() => setShowFilters(!showFilters)}
-              className="flex items-center gap-2 px-6 py-4 border border-gray-200 bg-white font-bold text-sm text-gray-900 hover:border-neon hover:text-neon transition-colors md:hidden rounded-lg shadow-sm"
-            >
-              <SlidersHorizontal className="w-5 h-5" /> {t("shop.filters")}
-            </button>
-          </div>
 
           <div className="flex gap-8">
             <aside
@@ -228,7 +236,40 @@ const ShopPage = () => {
             </aside>
 
             <div className="flex-1">
-              <p className="font-body text-sm text-muted-foreground mb-6">
+              <div className="flex flex-col lg:flex-row gap-4 mb-6 items-center justify-between">
+                <div className="relative flex-1 group w-full">
+                  <Search className="absolute start-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 group-focus-within:text-gray-700 transition-colors" />
+                  <input
+                    type="text"
+                    placeholder="Search by product name, description, SKU..."
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    className="w-full ps-11 pe-4 py-2.5 bg-white border border-gray-200 font-body text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-gray-300 focus:border-gray-300 transition-all rounded-lg"
+                  />
+                </div>
+                <div className="flex items-center gap-3 shrink-0 w-full lg:w-auto">
+                  <div className="flex items-center gap-1 border border-gray-200 p-1 rounded-lg bg-white">
+                    <button className="p-1.5 rounded-md text-gray-600 hover:bg-gray-100 transition-colors"><Menu className="w-4 h-4"/></button>
+                    <button className="p-1.5 rounded-md text-[#5D3A5D] bg-[#5D3A5D]/10"><LayoutGrid className="w-4 h-4"/></button>
+                  </div>
+                  <div className="relative">
+                    <select value={sortBy} onChange={(e) => setSortBy(e.target.value)} className="appearance-none bg-white border border-gray-200 text-gray-700 text-sm font-medium py-2.5 pl-10 pr-10 rounded-lg focus:outline-none focus:ring-1 focus:ring-gray-300 cursor-pointer">
+                      <option value="newest">Newest First</option>
+                      <option value="price_asc">Price: Low to High</option>
+                      <option value="price_desc">Price: High to Low</option>
+                    </select>
+                    <svg className="w-4 h-4 absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 4h13M3 8h9m-9 4h6m4 0l4-4m0 0l4 4m-4-4v12" /></svg>
+                    <svg className="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" /></svg>
+                  </div>
+                  <button
+                    onClick={() => setShowFilters(!showFilters)}
+                    className="flex items-center gap-2 px-4 py-2.5 border border-gray-200 bg-white font-medium text-sm text-gray-700 hover:bg-gray-50 transition-colors md:hidden rounded-lg shadow-sm"
+                  >
+                    <SlidersHorizontal className="w-4 h-4" /> Filters
+                  </button>
+                </div>
+              </div>
+              <p className="font-body text-sm text-gray-500 mb-6">
                 {filtered.length} {t("shop.products_found")}
               </p>
               {isLoading ? (
