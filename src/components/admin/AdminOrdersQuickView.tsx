@@ -1,28 +1,23 @@
-import { useState, useMemo } from "react";
-import { Link } from "react-router-dom";
+import { EditOrderDialog } from "@/components/admin/EditOrderDialog";
 import {
   Activity,
   ArrowRight,
-  ArrowUpRight,
   CheckCircle2,
   ChevronLeft,
   ChevronRight,
   Clock,
-  Eye,
   Edit,
-  Layers,
-  Package,
-  Plus,
-  Receipt,
+  Eye,
   Search,
   ShoppingCart,
   Store,
   Truck,
   User,
   UserCheck,
-  XCircle,
+  XCircle
 } from "lucide-react";
-import { EditOrderDialog } from "@/components/admin/EditOrderDialog";
+import { useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 
 export interface OrderItem {
   productName: string;
@@ -76,7 +71,7 @@ export const AdminOrdersQuickView = ({
     }
   });
 
-  const [activeTab, setActiveTab] = useState<"today" | "customer" | "dealer" | "session" | "all">("today");
+  const [activeTab, setActiveTab] = useState<"today" | "field" | "customer" | "dealer" | "session" | "all">("today");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedSalesman, setSelectedSalesman] = useState<string>("all");
   const [currentPage, setCurrentPage] = useState(1);
@@ -109,14 +104,21 @@ export const AdminOrdersQuickView = ({
     return d.getTime() >= sessionStartTime.getTime() - 60000;
   };
 
-  // Metrics for Today
+  // Metrics for Today & Channels
   const todayMetrics = useMemo(() => {
     let count = 0;
     let customerCount = 0;
     let dealerCount = 0;
+    let fieldCount = 0;
     let totalRevenue = 0;
 
     orders.forEach((o) => {
+      const isField =
+        o.order_source === "field_marketing" ||
+        o.order_number?.startsWith("SO-FLD-") ||
+        Boolean(o.salesman_name);
+      if (isField) fieldCount++;
+
       if (isToday(o.created_at)) {
         count++;
         const amt = Number(o.total || 0);
@@ -133,6 +135,7 @@ export const AdminOrdersQuickView = ({
       count,
       customerCount,
       dealerCount,
+      fieldCount,
       totalRevenue,
     };
   }, [orders]);
@@ -148,6 +151,12 @@ export const AdminOrdersQuickView = ({
       // 1. Tab filter
       if (activeTab === "today") {
         if (!isToday(o.created_at)) return false;
+      } else if (activeTab === "field") {
+        const isField =
+          o.order_source === "field_marketing" ||
+          o.order_number?.startsWith("SO-FLD-") ||
+          Boolean(o.salesman_name);
+        if (!isField) return false;
       } else if (activeTab === "customer") {
         if (!isToday(o.created_at) || o.customer_group === "Dealer") return false;
       } else if (activeTab === "dealer") {
@@ -189,7 +198,7 @@ export const AdminOrdersQuickView = ({
   }, [filteredOrders, validCurrentPage, pageSize]);
 
   // When tab or search changes, reset page to 1
-  const handleTabChange = (tab: "today" | "customer" | "dealer" | "session" | "all") => {
+  const handleTabChange = (tab: "today" | "field" | "customer" | "dealer" | "session" | "all") => {
     setActiveTab(tab);
     setCurrentPage(1);
   };
@@ -289,7 +298,7 @@ export const AdminOrdersQuickView = ({
     <div className="w-full max-w-full min-w-0 bg-white border-b border-gray-200 overflow-hidden">
       {/* Top Header & Metrics Section */}
       <div className="p-4 sm:p-5 border-b border-gray-100">
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+        <div className="flex flex-col 2xl:flex-row 2xl:items-center justify-between gap-3">
           {/* Title & Live Status */}
           <div>
             <div className="flex items-center gap-2 flex-wrap">
@@ -310,13 +319,21 @@ export const AdminOrdersQuickView = ({
           </div>
 
           {/* Quick Metrics Chips */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 shrink-0">
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 shrink-0">
             <div className="p-2 px-3 bg-slate-50 border border-gray-200/80 rounded-lg min-w-[90px]">
               <span className="text-[10px] uppercase font-bold text-gray-400 block truncate">
                 Today&apos;s Orders
               </span>
               <span className="text-sm font-bold text-gray-900">
                 {todayMetrics.count}
+              </span>
+            </div>
+            <div className="p-2 px-3 bg-emerald-50/60 border border-emerald-200/80 rounded-lg min-w-[90px]">
+              <span className="text-[10px] uppercase font-bold text-emerald-600 block truncate">
+                Field Orders
+              </span>
+              <span className="text-sm font-bold text-emerald-800">
+                {todayMetrics.fieldCount}
               </span>
             </div>
             <div className="p-2 px-3 bg-blue-50/60 border border-blue-100 rounded-lg min-w-[90px]">
@@ -367,6 +384,26 @@ export const AdminOrdersQuickView = ({
                 }`}
               >
                 {todayMetrics.count}
+              </span>
+            </button>
+            <button
+              onClick={() => handleTabChange("field")}
+              className={`px-2.5 py-1 text-xs rounded-md transition-all flex items-center gap-1 ${
+                activeTab === "field"
+                  ? "bg-emerald-600 text-white shadow-2xs font-semibold"
+                  : "text-emerald-700 hover:text-emerald-900 font-medium"
+              }`}
+            >
+              <Store className="w-3.5 h-3.5" />
+              <span>Field Salesman</span>
+              <span
+                className={`ml-1 px-1.5 py-0.2 rounded-full text-[10px] ${
+                  activeTab === "field"
+                    ? "bg-white/20 text-white font-bold"
+                    : "bg-emerald-100 text-emerald-800"
+                }`}
+              >
+                {todayMetrics.fieldCount}
               </span>
             </button>
             <button
@@ -575,21 +612,22 @@ export const AdminOrdersQuickView = ({
                       <div className="text-[10px] text-gray-400 truncate">
                         {order.customer_phone || order.customer_email || "No contact"}
                       </div>
-                      {order.salesman_name && (
-                        <div className="flex items-center gap-1 mt-0.5">
+                      {(order.salesman_name || order.order_source === "field_marketing" || order.order_number?.startsWith("SO-FLD-")) && (
+                        <div className="flex items-center gap-1 mt-0.5 flex-wrap">
                           <span
-                            title="Salesman / Booked By"
-                            className="inline-flex items-center gap-0.5 px-1.5 py-0.2 rounded text-[10px] font-medium bg-amber-50 text-amber-800 border border-amber-200"
+                            title="Field Marketing / Sales Rep Order"
+                            className="inline-flex items-center gap-1 px-1.5 py-0.2 rounded text-[10px] font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200"
                           >
-                            <UserCheck className="w-2.5 h-2.5 text-amber-600" />
-                            <span className="truncate max-w-[100px]">{order.salesman_name}</span>
+                            <Store className="w-2.5 h-2.5 text-emerald-600" />
+                            <span>Field Marketing</span>
                           </span>
-                          {order.order_source === "field_marketing" && (
+                          {order.salesman_name && (
                             <span
-                              title="Field Marketing Order"
-                              className="inline-flex items-center px-1 py-0.2 rounded text-[9px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 shrink-0"
+                              title="Sales Rep"
+                              className="inline-flex items-center gap-0.5 px-1.5 py-0.2 rounded text-[10px] font-medium bg-amber-50 text-amber-800 border border-amber-200"
                             >
-                              Field
+                              <UserCheck className="w-2.5 h-2.5 text-amber-600" />
+                              <span className="truncate max-w-[100px]">{order.salesman_name}</span>
                             </span>
                           )}
                         </div>
@@ -598,7 +636,14 @@ export const AdminOrdersQuickView = ({
 
                     {/* Type Badge */}
                     <td className="py-3 px-3 whitespace-nowrap">
-                      {isDealer ? (
+                      {(order.order_source === "field_marketing" ||
+                        order.order_number?.startsWith("SO-FLD-") ||
+                        Boolean(order.salesman_name)) ? (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                          <Store className="w-2.5 h-2.5 text-emerald-600" />
+                          Field
+                        </span>
+                      ) : isDealer ? (
                         <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-purple-50 text-purple-700 border border-purple-200">
                           <Store className="w-2.5 h-2.5 text-purple-600" />
                           Dealer

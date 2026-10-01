@@ -117,7 +117,9 @@ const AUTO_COLLAPSE_ROUTES = [
   "/admin/sales/new",
   "/admin/purchases/new",
   "/admin/purchase/new",
-  "/admin/pos/terminal"
+  "/admin/pos/terminal",
+  "/admin/receivable-parties",
+  "/admin/payable-parties"
 ];
 
 const isAutoCollapseRoute = (pathname: string) => {

@@ -890,6 +890,7 @@ export const ReceivablePartiesView = ({
                   </div>
 
                   <div className="flex items-center gap-2">
+                    <div className="flex flex-col gap-2">
                     <FieldOrderDialog
                       defaultCustomerId={selectedParty.id}
                       trigger={
@@ -913,6 +914,8 @@ export const ReceivablePartiesView = ({
                         <span>Collect Payment</span>
                       </Button>
                     )}
+                    </div>
+                    <div className="flex flex-col gap-2">
                     {selectedParty.contact_phone ? (
                       <a
                         href={`tel:${selectedParty.contact_phone}`}
@@ -946,6 +949,7 @@ export const ReceivablePartiesView = ({
                         <Info className="w-4 h-4" />
                       </Link>
                     )}
+                    </div>
                   </div>
                 </div>
               </div>
