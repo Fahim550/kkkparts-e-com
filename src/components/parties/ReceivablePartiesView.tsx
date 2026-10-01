@@ -1,3 +1,4 @@
+import { FieldOrderDialog } from "@/components/admin/FieldOrderDialog";
 import { InvoiceData, InvoiceItem, InvoicePreviewModal } from "@/components/admin/InvoicePreviewModal";
 import { PartyTopActionBar } from "@/components/admin/PartyTopActionBar";
 import { Button } from "@/components/ui/button";
@@ -18,13 +19,19 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useAdminAuth } from "@/hooks/useAdminAuth";
+import { useOrders } from "@/hooks/useDatabase";
 import { supabase } from "@/integrations/supabase/client";
+import { AccountingEngine } from "@/modules/accounting/application/services/accounting.engine";
 import { useTrialBalance } from "@/modules/accounting/presentation/hooks/useAccounting";
 import { CustomerService } from "@/modules/customer/application/services/customer.service";
+import { CustomerHistoryItem } from "@/modules/customer/domain/types";
 import { useCustomerDues, useCustomerHistory, useCustomers } from "@/modules/customer/presentation/hooks/useCustomers";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   ArrowUpDown,
+  BadgeDollarSign,
+  Building2,
   Edit,
   Eye,
   FileSpreadsheet,
@@ -34,19 +41,15 @@ import {
   Phone,
   Printer,
   Search,
-  Trash2,
-  X,
-  XCircle,
   Store,
+  Trash2,
   UserCheck,
-  Building2,
+  X,
+  XCircle
 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
-import { useAdminAuth } from "@/hooks/useAdminAuth";
-import { useOrders } from "@/hooks/useDatabase";
-import { FieldOrderDialog } from "@/components/admin/FieldOrderDialog";
 
 export interface ReceivablePartiesViewProps {
   portalType?: "admin" | "salesman";
@@ -101,6 +104,16 @@ export const ReceivablePartiesView = ({
   // Invoice Preview Modal state
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewData, setPreviewData] = useState<InvoiceData | null>(null);
+
+  // Collect Payment Modal state
+  const [collectModalOpen, setCollectModalOpen] = useState(false);
+  const [collectTargetItem, setCollectTargetItem] = useState<CustomerHistoryItem | null>(null);
+  const [collectAmount, setCollectAmount] = useState<string>("");
+  const [collectMethod, setCollectMethod] = useState<"Cash" | "Bank Transfer" | "Cheque" | "Card">("Cash");
+  const [collectDate, setCollectDate] = useState<string>(new Date().toISOString().split("T")[0]);
+  const [collectRef, setCollectRef] = useState<string>("");
+  const [collectNotes, setCollectNotes] = useState<string>("");
+  const [isSubmittingPayment, setIsSubmittingPayment] = useState(false);
 
   // Filter transactions by source channel: All, Field Marketing, Office / Admin
   const [channelFilter, setChannelFilter] = useState<"all" | "field" | "office">("all");
@@ -288,6 +301,148 @@ export const ReceivablePartiesView = ({
       toast.error("Failed to update customer: " + err.message);
     } finally {
       setSavingEdit(false);
+    }
+  };
+
+  // Open Collect Payment Modal
+  const handleOpenCollectModal = (item?: CustomerHistoryItem | null) => {
+    if (!selectedParty) return;
+    setCollectTargetItem(item || null);
+    if (item) {
+      setCollectAmount(item.balance > 0 ? item.balance.toFixed(3) : "");
+    } else {
+      const maxDue = Math.max(Number(selectedParty?.balance || 0), historySummary.totalDue);
+      setCollectAmount(maxDue > 0 ? maxDue.toFixed(3) : "");
+    }
+    setCollectMethod("Cash");
+    setCollectDate(new Date().toISOString().split("T")[0]);
+    setCollectRef(`REC-${Date.now().toString().slice(-6)}`);
+    setCollectNotes("");
+    setCollectModalOpen(true);
+  };
+
+  // Submit Collect Payment
+  const handleConfirmCollectPayment = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedParty) return;
+    const amountNum = parseFloat(collectAmount);
+    if (isNaN(amountNum) || amountNum <= 0) {
+      toast.error("Please enter a valid payment amount greater than 0");
+      return;
+    }
+
+    setIsSubmittingPayment(true);
+    try {
+      const repName =
+        user?.user_metadata?.full_name ||
+        user?.email?.split("@")[0] ||
+        (isSalesman ? "Sales Representative" : "Admin");
+
+      if (collectTargetItem) {
+        // Collect for specific order/invoice
+        await AccountingEngine.postCustomerPayment({
+          orderId: collectTargetItem.id,
+          orderNumber: collectTargetItem.reference_number,
+          customerId: selectedParty.id,
+          customerAccountId: selectedParty.receivable_account_id,
+          amount: amountNum,
+          paymentMethod: collectMethod,
+          notes: collectNotes || `Payment ref: ${collectRef}`,
+          receivedBy: repName,
+          paymentDate: collectDate,
+        });
+
+        // If paying an order, check if fully paid and update sales_orders
+        if (collectTargetItem.type === "Sales Order") {
+          const remaining = Math.max(0, collectTargetItem.balance - amountNum);
+          const updatePayload: any = {
+            updated_at: new Date().toISOString(),
+          };
+          if (remaining <= 0.001) {
+            updatePayload.status = "paid";
+          }
+          await supabase
+            .from("sales_orders")
+            .update(updatePayload)
+            .eq("id", collectTargetItem.id);
+        } else if (collectTargetItem.type === "Sales Invoice") {
+          const remaining = Math.max(0, collectTargetItem.balance - amountNum);
+          if (remaining <= 0.001) {
+            await supabase
+              .from("sales_invoices")
+              .update({ status: "Paid" })
+              .eq("id", collectTargetItem.id);
+          }
+        }
+      } else {
+        // General customer collection - allocate against customer's unpaid orders (oldest first)
+        const unpaidOrders = [...history]
+          .filter((h) => h.balance > 0 && h.status?.toLowerCase() !== "cancelled")
+          .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
+        let remainingToAllocate = amountNum;
+
+        if (unpaidOrders.length > 0) {
+          for (const orderItem of unpaidOrders) {
+            if (remainingToAllocate <= 0) break;
+            const alloc = Math.min(orderItem.balance, remainingToAllocate);
+            remainingToAllocate -= alloc;
+
+            await AccountingEngine.postCustomerPayment({
+              orderId: orderItem.id,
+              orderNumber: orderItem.reference_number,
+              customerId: selectedParty.id,
+              customerAccountId: selectedParty.receivable_account_id,
+              amount: alloc,
+              paymentMethod: collectMethod,
+              notes: collectNotes || `Payment ref: ${collectRef}`,
+              receivedBy: repName,
+              paymentDate: collectDate,
+            });
+
+            if (orderItem.type === "Sales Order" && orderItem.balance - alloc <= 0.001) {
+              await supabase
+                .from("sales_orders")
+                .update({ status: "paid", updated_at: new Date().toISOString() })
+                .eq("id", orderItem.id);
+            } else if (orderItem.type === "Sales Invoice" && orderItem.balance - alloc <= 0.001) {
+              await supabase
+                .from("sales_invoices")
+                .update({ status: "Paid" })
+                .eq("id", orderItem.id);
+            }
+          }
+        }
+
+        // If there's any remaining balance after all specific unpaid orders or if no orders found:
+        if (remainingToAllocate > 0 || unpaidOrders.length === 0) {
+          await AccountingEngine.postCustomerPayment({
+            customerId: selectedParty.id,
+            customerAccountId: selectedParty.receivable_account_id,
+            amount: remainingToAllocate > 0 ? remainingToAllocate : amountNum,
+            paymentMethod: collectMethod,
+            notes: collectNotes || `Payment ref: ${collectRef}`,
+            receivedBy: repName,
+            paymentDate: collectDate,
+          });
+        }
+      }
+
+      toast.success(`Payment of OMR ${amountNum.toFixed(3)} recorded successfully!`);
+      setCollectModalOpen(false);
+
+      // Invalidate queries to refresh UI immediately
+      queryClient.invalidateQueries({ queryKey: ["customer-history"] });
+      queryClient.invalidateQueries({ queryKey: ["customer-dues"] });
+      queryClient.invalidateQueries({ queryKey: ["customers"] });
+      queryClient.invalidateQueries({ queryKey: ["trial-balance"] });
+      queryClient.invalidateQueries({ queryKey: ["orders"] });
+      queryClient.invalidateQueries({ queryKey: ["sales_orders"] });
+    } catch (err: any) {
+      console.error("Error recording payment:", err);
+      toast.error("Failed to record payment: " + (err.message || "Unknown error"));
+    } finally {
+      setIsSubmittingPayment(false);
     }
   };
 
@@ -697,7 +852,7 @@ export const ReceivablePartiesView = ({
                     </button>
                   </div>
                   <div className="text-xs text-gray-500">Contact & Address</div>
-                  <div className="text-xs text-gray-800 font-medium flex items-center gap-2 mt-0.5">
+                  <div className="text-xs text-gray-800 font-medium flex items-center gap-2 mt-0.5 max-w-[400px] truncate">
                     <span>{selectedParty.contact_phone || "No Phone"}</span>
                     {selectedParty.contact_email && (
                       <span className="text-gray-400 font-normal">| {selectedParty.contact_email}</span>
@@ -747,6 +902,17 @@ export const ReceivablePartiesView = ({
                         </Button>
                       }
                     />
+                    {Math.max(Number(selectedParty?.balance || 0), historySummary.totalDue) > 0 && (
+                      <Button
+                        size="sm"
+                        onClick={() => handleOpenCollectModal(null)}
+                        className="bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs gap-1.5 h-8 shadow-xs transition-all hover:scale-105"
+                        title="Collect Outstanding Payment for this Shop"
+                      >
+                        <BadgeDollarSign className="w-3.5 h-3.5" />
+                        <span>Collect Payment</span>
+                      </Button>
+                    )}
                     {selectedParty.contact_phone ? (
                       <a
                         href={`tel:${selectedParty.contact_phone}`}
@@ -984,20 +1150,41 @@ export const ReceivablePartiesView = ({
                                 </span>
                               </td>
                               <td className="px-5 py-3 text-right">
-                                <DropdownMenu>
-                                  <DropdownMenuTrigger asChild>
-                                    <button className="p-1 hover:bg-gray-200 rounded-full outline-none transition-colors">
-                                      <MoreVertical className="w-3.5 h-3.5 text-gray-600" />
-                                    </button>
-                                  </DropdownMenuTrigger>
-                                  <DropdownMenuContent align="end" className="w-48 bg-white border border-gray-200 shadow-md">
-                                    <DropdownMenuItem
-                                      onClick={() => handlePreviewInvoice(item)}
-                                      className="cursor-pointer flex items-center gap-2 text-gray-700 text-xs"
+                                <div className="flex items-center justify-end gap-1.5">
+                                  {balance > 0 && !isCancelled && (
+                                    <Button
+                                      size="sm"
+                                      onClick={() => handleOpenCollectModal(item)}
+                                      className="h-7 px-2 text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 text-white gap-1 shadow-xs rounded-md transition-all hover:scale-105"
+                                      title={`Collect payment for ${item.reference_number}`}
                                     >
-                                      <Eye className="w-3.5 h-3.5 text-blue-500" />
-                                      Preview & Print
-                                    </DropdownMenuItem>
+                                      <BadgeDollarSign className="w-3.5 h-3.5" />
+                                      <span>Collect</span>
+                                    </Button>
+                                  )}
+                                  <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                      <button className="p-1 hover:bg-gray-200 rounded-full outline-none transition-colors">
+                                        <MoreVertical className="w-3.5 h-3.5 text-gray-600" />
+                                      </button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="end" className="w-48 bg-white border border-gray-200 shadow-md">
+                                      {balance > 0 && !isCancelled && (
+                                        <DropdownMenuItem
+                                          onClick={() => handleOpenCollectModal(item)}
+                                          className="cursor-pointer flex items-center gap-2 text-emerald-700 font-semibold text-xs bg-emerald-50/50 hover:bg-emerald-100/50"
+                                        >
+                                          <BadgeDollarSign className="w-3.5 h-3.5 text-emerald-600" />
+                                          Collect Payment
+                                        </DropdownMenuItem>
+                                      )}
+                                      <DropdownMenuItem
+                                        onClick={() => handlePreviewInvoice(item)}
+                                        className="cursor-pointer flex items-center gap-2 text-gray-700 text-xs"
+                                      >
+                                        <Eye className="w-3.5 h-3.5 text-blue-500" />
+                                        Preview & Print
+                                      </DropdownMenuItem>
 
                                     <DropdownMenuItem
                                       onClick={() => handlePreviewInvoice(item)}
@@ -1042,7 +1229,8 @@ export const ReceivablePartiesView = ({
                                     )}
                                   </DropdownMenuContent>
                                 </DropdownMenu>
-                              </td>
+                              </div>
+                            </td>
                             </tr>
                           );
                         })
@@ -1125,6 +1313,198 @@ export const ReceivablePartiesView = ({
           data={previewData}
         />
       )}
+
+      {/* ── Collect Payment Modal ── */}
+      <Dialog open={collectModalOpen} onOpenChange={setCollectModalOpen}>
+        <DialogContent className="sm:max-w-[480px] max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <div className="flex items-center gap-2.5">
+              <div className="w-9 h-9 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-700">
+                <BadgeDollarSign className="w-5 h-5" />
+              </div>
+              <div>
+                <DialogTitle className="text-base font-bold text-slate-900">
+                  {collectTargetItem ? "Collect Order Payment" : "Receive Customer Payment"}
+                </DialogTitle>
+                <DialogDescription className="text-xs text-slate-500">
+                  {collectTargetItem
+                    ? `Record payment against ${collectTargetItem.type} ${collectTargetItem.reference_number}`
+                    : `Record incoming payment for ${selectedParty?.name || "Customer"}`}
+                </DialogDescription>
+              </div>
+            </div>
+          </DialogHeader>
+
+          <form onSubmit={handleConfirmCollectPayment} className="space-y-4 pt-2">
+            {/* Context Card */}
+            <div className="bg-slate-50 border border-slate-200/80 rounded-lg p-3 text-xs space-y-2">
+              <div className="flex justify-between items-center">
+                <span className="text-slate-500">Customer / Shop:</span>
+                <span className="font-semibold text-slate-900">{selectedParty?.name}</span>
+              </div>
+              {collectTargetItem ? (
+                <>
+                  <div className="flex justify-between items-center">
+                    <span className="text-slate-500">Transaction:</span>
+                    <span className="font-mono font-medium text-slate-800">{collectTargetItem.reference_number}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-slate-500">Original Amount:</span>
+                    <span className="font-semibold text-slate-700">OMR {collectTargetItem.amount.toFixed(3)}</span>
+                  </div>
+                  <div className="flex justify-between items-center border-t border-slate-200 pt-1.5">
+                    <span className="font-semibold text-slate-700">Outstanding Due:</span>
+                    <span className="font-bold text-rose-600 text-sm">OMR {collectTargetItem.balance.toFixed(3)}</span>
+                  </div>
+                </>
+              ) : (
+                <div className="flex justify-between items-center border-t border-slate-200 pt-1.5">
+                  <span className="font-semibold text-slate-700">Total Customer Due:</span>
+                  <span className="font-bold text-rose-600 text-sm">
+                    OMR {Math.max(Number(selectedParty?.balance || 0), historySummary.totalDue).toFixed(3)}
+                  </span>
+                </div>
+              )}
+            </div>
+
+            {/* Quick Fill Buttons & Amount Input */}
+            {(() => {
+              const maxDue = collectTargetItem
+                ? collectTargetItem.balance
+                : Math.max(Number(selectedParty?.balance || 0), historySummary.totalDue);
+              return (
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between text-xs">
+                    <Label className="text-xs font-semibold text-slate-700">Payment Amount (OMR) *</Label>
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => setCollectAmount(maxDue.toFixed(3))}
+                        className="text-[11px] font-semibold text-emerald-600 hover:text-emerald-700 bg-emerald-50 hover:bg-emerald-100 px-2 py-0.5 rounded transition-colors"
+                      >
+                        Full Due (OMR {maxDue.toFixed(3)})
+                      </button>
+                      {maxDue > 5 && (
+                        <button
+                          type="button"
+                          onClick={() => setCollectAmount((maxDue / 2).toFixed(3))}
+                          className="text-[11px] font-semibold text-blue-600 hover:text-blue-700 bg-blue-50 hover:bg-blue-100 px-2 py-0.5 rounded transition-colors"
+                        >
+                          50%
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                  <div className="relative">
+                    <span className="absolute left-3 top-2.5 text-xs font-bold text-slate-400">OMR</span>
+                    <Input
+                      type="number"
+                      step="0.001"
+                      min="0.001"
+                      required
+                      placeholder="0.000"
+                      className="pl-12 font-bold text-sm text-slate-900"
+                      value={collectAmount}
+                      onChange={(e) => setCollectAmount(e.target.value)}
+                    />
+                  </div>
+                </div>
+              );
+            })()}
+
+            {/* Payment Method */}
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold text-slate-700">Payment Method</Label>
+              <div className="grid grid-cols-4 gap-1.5">
+                {(["Cash", "Bank Transfer", "Cheque", "Card"] as const).map((method) => {
+                  const isSelected = collectMethod === method;
+                  return (
+                    <button
+                      key={method}
+                      type="button"
+                      onClick={() => setCollectMethod(method)}
+                      className={`py-2 px-1 text-xs font-semibold rounded-md border text-center transition-all ${
+                        isSelected
+                          ? "bg-emerald-600 text-white border-emerald-600 shadow-xs"
+                          : "bg-white text-slate-700 border-slate-200 hover:bg-slate-50"
+                      }`}
+                    >
+                      {method}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Date & Reference */}
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <Label className="text-xs font-semibold text-slate-700">Payment Date</Label>
+                <Input
+                  type="date"
+                  value={collectDate}
+                  onChange={(e) => setCollectDate(e.target.value)}
+                  className="text-xs"
+                />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs font-semibold text-slate-700">Receipt / Ref #</Label>
+                <Input
+                  placeholder="e.g. REC-12345"
+                  value={collectRef}
+                  onChange={(e) => setCollectRef(e.target.value)}
+                  className="text-xs font-mono"
+                />
+              </div>
+            </div>
+
+            {/* Notes */}
+            <div className="space-y-1">
+              <Label className="text-xs font-semibold text-slate-700">Remarks / Collection Notes</Label>
+              <Input
+                placeholder="Optional notes (e.g. collected during shop visit)"
+                value={collectNotes}
+                onChange={(e) => setCollectNotes(e.target.value)}
+                className="text-xs"
+              />
+            </div>
+
+            {/* Summary preview */}
+            {(() => {
+              const maxDue = collectTargetItem
+                ? collectTargetItem.balance
+                : Math.max(Number(selectedParty?.balance || 0), historySummary.totalDue);
+              const paying = parseFloat(collectAmount) || 0;
+              const remaining = Math.max(0, maxDue - paying);
+              return (
+                <div className="bg-emerald-50/60 border border-emerald-200/80 rounded-lg p-2.5 text-xs flex justify-between items-center text-emerald-900">
+                  <span>Balance After Payment:</span>
+                  <div className="text-right">
+                    <span className="font-bold text-sm">OMR {remaining.toFixed(3)}</span>
+                    <span className="text-[10px] block text-emerald-700 font-medium">
+                      {remaining === 0 ? "✓ Full Settlement" : "Partially Paid"}
+                    </span>
+                  </div>
+                </div>
+              );
+            })()}
+
+            <DialogFooter className="pt-2">
+              <Button type="button" variant="outline" onClick={() => setCollectModalOpen(false)}>
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                disabled={isSubmittingPayment || !collectAmount || parseFloat(collectAmount) <= 0}
+                className="bg-emerald-600 hover:bg-emerald-500 text-white font-semibold gap-1.5 shadow-xs"
+              >
+                <BadgeDollarSign className="w-4 h-4" />
+                <span>{isSubmittingPayment ? "Recording Payment..." : "Confirm Payment"}</span>
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

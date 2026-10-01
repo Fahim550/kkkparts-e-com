@@ -81,16 +81,18 @@ export class CustomerHistoryRepository {
 
       if (jeData) {
         history.forEach(h => {
-          const entry = jeData.find((je: any) => je.reference_id === h.id);
+          const matchingEntries = jeData.filter((je: any) => je.reference_id === h.id);
           let paid = 0;
-          if (entry && entry.journal_entry_lines) {
-             entry.journal_entry_lines.forEach((l: any) => {
-               if (l.narration?.includes("- Paid")) {
-                 paid += Number(l.debit_amount || 0);
-               }
-             });
-          }
-          h.balance = Math.max(0, h.amount - paid);
+          matchingEntries.forEach((entry: any) => {
+            if (entry && entry.journal_entry_lines) {
+              entry.journal_entry_lines.forEach((l: any) => {
+                if (l.narration?.includes("- Paid")) {
+                  paid += Number(l.debit_amount || 0);
+                }
+              });
+            }
+          });
+          h.balance = (h.status?.toLowerCase() === "paid" && paid === 0) ? 0 : Math.max(0, h.amount - paid);
         });
       }
     }
@@ -181,14 +183,16 @@ export class CustomerHistoryRepository {
     allTx.forEach((t) => {
       let paid = 0;
       if (jeData) {
-        const entry = jeData.find((j: any) => j.reference_id === t.id);
-        if (entry && entry.journal_entry_lines) {
-          entry.journal_entry_lines.forEach((l: any) => {
-            if (l.narration?.includes("- Paid")) {
-              paid += Number(l.debit_amount || l.credit_amount || 0);
-            }
-          });
-        }
+        const matchingEntries = jeData.filter((j: any) => j.reference_id === t.id);
+        matchingEntries.forEach((entry: any) => {
+          if (entry && entry.journal_entry_lines) {
+            entry.journal_entry_lines.forEach((l: any) => {
+              if (l.narration?.includes("- Paid")) {
+                paid += Number(l.debit_amount || l.credit_amount || 0);
+              }
+            });
+          }
+        });
       }
       const balance = (t.status?.toLowerCase() === "paid" && paid === 0) ? 0 : Math.max(0, t.amount - paid);
       dueMap[t.customer_id] = (dueMap[t.customer_id] || 0) + balance;

@@ -109,6 +109,72 @@ export class AccountingEngine {
       lines: lines
     });
   }
+
+  static async postCustomerPayment({
+    orderId,
+    orderNumber,
+    customerId,
+    customerAccountId,
+    amount,
+    paymentMethod = "Cash",
+    notes,
+    receivedBy,
+    paymentDate,
+  }: {
+    orderId?: string;
+    orderNumber?: string;
+    customerId: string;
+    customerAccountId?: string;
+    amount: number;
+    paymentMethod?: string;
+    notes?: string;
+    receivedBy?: string;
+    paymentDate?: string;
+  }) {
+    const cashAcc = await CoaRepository.getAccountByNumber(SYSTEM_ACCOUNTS.CASH);
+    let arAccountId = customerAccountId;
+    if (!arAccountId) {
+      const arAcc = await CoaRepository.getAccountByNumber(SYSTEM_ACCOUNTS.ACCOUNTS_RECEIVABLE);
+      arAccountId = arAcc.id;
+    }
+
+    const narrationTag = orderNumber 
+      ? `Sales Order ${orderNumber} - Paid` 
+      : `Customer Payment - Paid`;
+
+    const descriptionParts = [
+      `Payment Received: OMR ${amount.toFixed(3)} (${paymentMethod})`,
+      orderNumber ? `for ${orderNumber}` : null,
+      receivedBy ? `collected by ${receivedBy}` : null,
+      notes ? `[${notes}]` : null,
+    ].filter(Boolean);
+
+    const fullNarration = descriptionParts.join(" ");
+
+    const lines = [
+      {
+        account_id: cashAcc.id,
+        debit_amount: amount,
+        credit_amount: 0,
+        narration: narrationTag,
+      },
+      {
+        account_id: arAccountId,
+        debit_amount: 0,
+        credit_amount: amount,
+        narration: `AR Settlement - ${paymentMethod}`,
+      },
+    ];
+
+    return JournalRepository.createJournalEntry({
+      posting_date: paymentDate || new Date().toISOString().split("T")[0],
+      reference_type: orderId ? "sales_order" : "customer_payment",
+      reference_id: orderId || customerId,
+      narration: fullNarration,
+      lines: lines,
+    });
+  }
+
   static async reverseSalesOrder(orderId: string) {
     const { data: existingJes } = await supabase
       .from("journal_entries")
