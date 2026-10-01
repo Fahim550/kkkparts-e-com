@@ -24,16 +24,30 @@ export class CustomerHistoryRepository {
     // Merge and sort
     const history: CustomerHistoryItem[] = [];
 
+    let localCache: Record<string, any> = {};
+    try {
+      localCache = JSON.parse(localStorage.getItem("salesman_orders_cache") || "{}");
+    } catch {}
+
     if (orders) {
-      orders.forEach(o => history.push({
-        id: o.id,
-        type: "Sales Order",
-        reference_number: o.so_number,
-        date: o.order_date,
-        status: o.status,
-        amount: Number(o.total_amount),
-        balance: Number(o.total_amount)
-      }));
+      orders.forEach(o => {
+        const cached = localCache[o.so_number];
+        const isFld = o.so_number?.startsWith("SO-FLD-") || (o as any).order_source === "field_marketing";
+        const orderSource = isFld ? "field_marketing" : ((o as any).order_source || "admin");
+        const salesmanName = (o as any).salesman_name || cached?.salesman_name || null;
+
+        history.push({
+          id: o.id,
+          type: "Sales Order",
+          reference_number: o.so_number,
+          date: o.order_date,
+          status: o.status,
+          amount: Number(o.total_amount),
+          balance: Number(o.total_amount),
+          order_source: orderSource,
+          salesman_name: salesmanName,
+        });
+      });
     }
 
     if (invoices) {
@@ -44,7 +58,9 @@ export class CustomerHistoryRepository {
         date: i.invoice_date,
         status: i.status,
         amount: Number(i.total_amount),
-        balance: Number(i.total_amount)
+        balance: Number(i.total_amount),
+        order_source: (i as any).order_source || "admin",
+        salesman_name: (i as any).salesman_name || null,
       }));
     }
 

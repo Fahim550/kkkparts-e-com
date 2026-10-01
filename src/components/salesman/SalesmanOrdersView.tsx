@@ -84,8 +84,21 @@ export const SalesmanOrdersView: React.FC = () => {
         o.salesman_name &&
         normalizedRep &&
         o.salesman_name.toLowerCase().trim() === normalizedRep;
-      if ((matchId || matchName) && o.customer_id) {
+      const isField = o.order_source === "field_marketing" || o.order_number?.startsWith("SO-FLD-");
+      if ((matchId || matchName || isField) && o.customer_id) {
         ids.add(o.customer_id);
+      }
+    });
+
+    // Always include Dealer shops with field marketing orders
+    (customers || []).forEach((c: any) => {
+      if (c.customer_group === "Dealer") {
+        const hasFieldOrder = (orders || []).some(
+          (o: any) => o.customer_id === c.id && (o.order_source === "field_marketing" || o.order_number?.startsWith("SO-FLD-"))
+        );
+        if (hasFieldOrder && (!c.salesman_id || c.salesman_id === repUserId)) {
+          ids.add(c.id);
+        }
       }
     });
 
@@ -101,6 +114,10 @@ export const SalesmanOrdersView: React.FC = () => {
 
   // Helper to check if an order was booked by or assigned to this salesman or their client shops
   const isMyOrder = (o: any) => {
+    // Strictly Field Marketing orders only
+    const isField = o.order_source === "field_marketing" || o.order_number?.startsWith("SO-FLD-");
+    if (!isField) return false;
+
     // 1. Direct assignment via salesman_id or salesman_name
     if (o.salesman_id && repUserId && o.salesman_id === repUserId) return true;
     if (
@@ -110,24 +127,26 @@ export const SalesmanOrdersView: React.FC = () => {
     ) {
       return true;
     }
-    // 2. Orders belonging to this salesman's shops or field bookings
-    const isField = o.order_source === "field_marketing" || o.order_number?.startsWith("SO-FLD-");
+    // 2. Field orders belonging to this salesman's shops or unassigned field bookings
     const isMyCustomer = o.customer_id && myCustomerIds.has(o.customer_id);
-    if (isMyCustomer && isField) return true;
-    if (isMyCustomer && !o.salesman_id) return true;
+    if (isMyCustomer) return true;
+    if (!o.salesman_id || o.salesman_id === repUserId) return true;
     return false;
   };
 
-  // Base list: For field marketing officers / salesmen, strictly isolate to their own bookings.
-  // Admins can toggle between 'my' and 'all'.
+  // Base list: For field marketing officers / salesmen, strictly isolate to field marketing orders.
+  // Admins can toggle between 'my' and 'all' (all field marketing orders).
   const baseOrders = useMemo(() => {
+    const fieldOnlyOrders = orders.filter(
+      (o: any) => o.order_source === "field_marketing" || o.order_number?.startsWith("SO-FLD-")
+    );
     if (!isAdmin) {
-      return orders.filter(isMyOrder);
+      return fieldOnlyOrders.filter(isMyOrder);
     }
     if (scopeFilter === "my") {
-      return orders.filter(isMyOrder);
+      return fieldOnlyOrders.filter(isMyOrder);
     }
-    return orders;
+    return fieldOnlyOrders;
   }, [orders, isAdmin, scopeFilter, repUserId, repName, isMyOrder]);
 
   // Scoped & filtered orders

@@ -56,7 +56,7 @@ interface AdminOrdersQuickViewProps {
   portalType?: "admin" | "salesman";
 }
 
-const PAGE_SIZE = 5;
+const DEFAULT_PAGE_SIZE = 10;
 
 export const AdminOrdersQuickView = ({
   orders = [],
@@ -80,6 +80,7 @@ export const AdminOrdersQuickView = ({
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedSalesman, setSelectedSalesman] = useState<string>("all");
   const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState<number>(DEFAULT_PAGE_SIZE);
 
   // Available unique salesmen in current orders list
   const availableSalesmen = useMemo(() => {
@@ -179,13 +180,13 @@ export const AdminOrdersQuickView = ({
   }, [orders, activeTab, searchQuery, selectedSalesman, sessionStartTime]);
 
   // Pagination calculation
-  const totalPages = Math.max(1, Math.ceil(filteredOrders.length / PAGE_SIZE));
+  const totalPages = Math.max(1, Math.ceil(filteredOrders.length / pageSize));
   const validCurrentPage = Math.min(currentPage, totalPages);
 
   const paginatedOrders = useMemo(() => {
-    const start = (validCurrentPage - 1) * PAGE_SIZE;
-    return filteredOrders.slice(start, start + PAGE_SIZE);
-  }, [filteredOrders, validCurrentPage]);
+    const start = (validCurrentPage - 1) * pageSize;
+    return filteredOrders.slice(start, start + pageSize);
+  }, [filteredOrders, validCurrentPage, pageSize]);
 
   // When tab or search changes, reset page to 1
   const handleTabChange = (tab: "today" | "customer" | "dealer" | "session" | "all") => {
@@ -702,13 +703,13 @@ export const AdminOrdersQuickView = ({
       {/* Footer Bar: Pagination + Manager Links */}
       <div className="p-3 px-4 sm:px-5 bg-slate-50/60 border-t border-gray-100 flex flex-col sm:flex-row items-center justify-between gap-2.5 text-xs">
         {/* Count & Pagination Controls */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 flex-wrap">
           <span className="text-gray-500">
             Showing{" "}
             <span className="font-semibold text-gray-800">
-              {filteredOrders.length > 0 ? (validCurrentPage - 1) * PAGE_SIZE + 1 : 0}
+              {filteredOrders.length > 0 ? (validCurrentPage - 1) * pageSize + 1 : 0}
               -
-              {Math.min(validCurrentPage * PAGE_SIZE, filteredOrders.length)}
+              {Math.min(validCurrentPage * pageSize, filteredOrders.length)}
             </span>{" "}
             of{" "}
             <span className="font-semibold text-gray-800">
@@ -716,6 +717,23 @@ export const AdminOrdersQuickView = ({
             </span>{" "}
             orders
           </span>
+
+          {/* Page size dropdown */}
+          <div className="flex items-center gap-1.5 text-[11px] text-gray-500">
+            <span>Show:</span>
+            <select
+              value={pageSize}
+              onChange={(e) => {
+                setPageSize(Number(e.target.value));
+                setCurrentPage(1);
+              }}
+              className="bg-white border border-gray-200 rounded px-1.5 py-0.5 text-xs text-gray-700 outline-none focus:border-blue-400 font-medium"
+            >
+              <option value={10}>10</option>
+              <option value={20}>20</option>
+              <option value={50}>50</option>
+            </select>
+          </div>
 
           {totalPages > 1 && (
             <div className="flex items-center gap-1">

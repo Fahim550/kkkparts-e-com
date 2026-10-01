@@ -68,8 +68,21 @@ export const SalesmanDashboard: React.FC<SalesmanDashboardProps> = ({
         o.salesman_name &&
         normalizedRepName &&
         o.salesman_name.toLowerCase().trim() === normalizedRepName;
-      if ((matchId || matchName) && o.customer_id) {
+      const isField = o.order_source === "field_marketing" || o.order_number?.startsWith("SO-FLD-");
+      if ((matchId || matchName || isField) && o.customer_id) {
         ids.add(o.customer_id);
+      }
+    });
+
+    // Always include Dealer shops with field orders
+    (customers || []).forEach((c: any) => {
+      if (c.customer_group === "Dealer") {
+        const hasFieldOrder = (allOrders || []).some(
+          (o: any) => o.customer_id === c.id && (o.order_source === "field_marketing" || o.order_number?.startsWith("SO-FLD-"))
+        );
+        if (hasFieldOrder && (!c.salesman_id || c.salesman_id === currentUserId)) {
+          ids.add(c.id);
+        }
       }
     });
 
@@ -83,18 +96,20 @@ export const SalesmanDashboard: React.FC<SalesmanDashboardProps> = ({
     return ids;
   }, [customers, allOrders, currentUserId, normalizedRepName]);
 
-  // Helper to check if an order belongs to this salesman or their assigned shops
+  // Helper to check if an order belongs to this salesman (strictly field marketing)
   const isMyOrder = (o: any) => {
+    const isField = o.order_source === "field_marketing" || o.order_number?.startsWith("SO-FLD-");
+    if (!isField) return false;
+
     if (o.salesman_id && currentUserId && o.salesman_id === currentUserId) return true;
     if (o.salesman_name && o.salesman_name.toLowerCase().trim() === normalizedRepName) return true;
-    const isField = o.order_source === "field_marketing" || o.order_number?.startsWith("SO-FLD-");
     const isMyCustomer = o.customer_id && myCustomerIds.has(o.customer_id);
-    if (isMyCustomer && isField) return true;
-    if (isMyCustomer && !o.salesman_id) return true;
+    if (isMyCustomer) return true;
+    if (!o.salesman_id || o.salesman_id === currentUserId) return true;
     return false;
   };
 
-  // Strictly filter orders belonging to this representative
+  // Strictly filter field marketing orders belonging to this representative
   const myOrders = useMemo(() => {
     return allOrders.filter(isMyOrder);
   }, [allOrders, currentUserId, normalizedRepName, myCustomerIds]);

@@ -168,6 +168,7 @@ const ShippingMethodsManager = lazy(
 const ReviewsManager = lazy(() => import("./pages/admin/ReviewsManager.tsx"));
 const CustomersPage = lazy(() => import("./pages/admin/CustomersPage.tsx"));
 const UsersManager = lazy(() => import("./pages/admin/UsersManager.tsx"));
+const FieldMarketersPage = lazy(() => import("./pages/admin/FieldMarketersPage.tsx"));
 const SettingsPage = lazy(() => import("./pages/admin/SettingsPage.tsx"));
 const MarketingTrackingPage = lazy(
   () => import("./pages/admin/MarketingTrackingPage.tsx"),
@@ -561,6 +562,14 @@ const App = () => (
                         element={
                           <RequireRole allowedRoles={["Admin"]}>
                             <UsersManager />
+                          </RequireRole>
+                        }
+                      />
+                      <Route
+                        path="field-marketers"
+                        element={
+                          <RequireRole allowedRoles={["Admin"]}>
+                            <FieldMarketersPage />
                           </RequireRole>
                         }
                       />

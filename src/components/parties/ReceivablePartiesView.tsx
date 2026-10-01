@@ -39,6 +39,7 @@ import {
   XCircle,
   Store,
   UserCheck,
+  Building2,
 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
@@ -101,6 +102,9 @@ export const ReceivablePartiesView = ({
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewData, setPreviewData] = useState<InvoiceData | null>(null);
 
+  // Filter transactions by source channel: All, Field Marketing, Office / Admin
+  const [channelFilter, setChannelFilter] = useState<"all" | "field" | "office">("all");
+
   // Compute customers under this salesman's territory or with booked orders
   const myCustomerIds = useMemo(() => {
     const ids = new Set<string>();
@@ -119,8 +123,21 @@ export const ReceivablePartiesView = ({
         o.salesman_name &&
         normalizedRepName &&
         o.salesman_name.toLowerCase().trim() === normalizedRepName;
-      if ((matchId || matchName) && o.customer_id) {
+      const isField = o.order_source === "field_marketing" || o.order_number?.startsWith("SO-FLD-");
+      if ((matchId || matchName || isField) && o.customer_id) {
         ids.add(o.customer_id);
+      }
+    });
+
+    // Always include Dealer shops with field orders
+    (customers || []).forEach((c: any) => {
+      if (c.customer_group === "Dealer") {
+        const hasFieldOrder = (allOrders || []).some(
+          (o: any) => o.customer_id === c.id && (o.order_source === "field_marketing" || o.order_number?.startsWith("SO-FLD-"))
+        );
+        if (hasFieldOrder && (!c.salesman_id || c.salesman_id === currentUserId)) {
+          ids.add(c.id);
+        }
       }
     });
 
@@ -193,18 +210,52 @@ export const ReceivablePartiesView = ({
 
   const { history = [], isLoadingHistory } = useCustomerHistory(selectedParty?.id || "");
 
+  // Channel and dues breakdown for selected customer
+  const historySummary = useMemo(() => {
+    let fieldDue = 0;
+    let officeDue = 0;
+    let fieldCount = 0;
+    let officeCount = 0;
+    let totalDue = 0;
+
+    (history || []).forEach((item: any) => {
+      const isCancelled = (item.status || "").toLowerCase() === "cancelled";
+      const b = isCancelled ? 0 : Number(item.balance || 0);
+      const isField = item.order_source === "field_marketing" || item.reference_number?.startsWith("SO-FLD-");
+      if (isField) {
+        fieldDue += b;
+        fieldCount++;
+      } else {
+        officeDue += b;
+        officeCount++;
+      }
+      totalDue += b;
+    });
+
+    return { fieldDue, officeDue, fieldCount, officeCount, totalDue };
+  }, [history]);
+
   // Filtered transactions
   const filteredHistory = useMemo(() => {
-    if (!txSearchTerm.trim()) return history;
+    let list = history;
+
+    if (channelFilter === "field") {
+      list = list.filter((h: any) => h.order_source === "field_marketing" || h.reference_number?.startsWith("SO-FLD-"));
+    } else if (channelFilter === "office") {
+      list = list.filter((h: any) => !(h.order_source === "field_marketing" || h.reference_number?.startsWith("SO-FLD-")));
+    }
+
+    if (!txSearchTerm.trim()) return list;
     const q = txSearchTerm.toLowerCase();
-    return history.filter(
+    return list.filter(
       (h: any) =>
         h.type?.toLowerCase().includes(q) ||
         h.reference_number?.toLowerCase().includes(q) ||
         h.date?.includes(q) ||
-        h.status?.toLowerCase().includes(q)
+        h.status?.toLowerCase().includes(q) ||
+        h.salesman_name?.toLowerCase().includes(q)
     );
-  }, [history, txSearchTerm]);
+  }, [history, channelFilter, txSearchTerm]);
 
   // Open Edit Modal
   const handleOpenEdit = () => {
@@ -661,14 +712,26 @@ export const ReceivablePartiesView = ({
 
                 <div className="flex items-center gap-4">
                   <div className="text-right">
-                    <div className="text-xs text-gray-500">Total Due Balance</div>
+                    <div className="text-xs text-gray-500 font-semibold uppercase tracking-wider">Total Due Balance</div>
                     <div
                       className={`text-xl font-black ${
-                        selectedParty.balance > 0 ? "text-rose-600" : "text-emerald-600"
+                        (selectedParty?.balance || 0) > 0 || historySummary.totalDue > 0 ? "text-rose-600" : "text-emerald-600"
                       }`}
                     >
-                      OMR {selectedParty.balance.toFixed(3)}
+                      OMR {Math.max(Number(selectedParty?.balance || 0), historySummary.totalDue).toFixed(3)}
                     </div>
+                    {(historySummary.fieldDue > 0 || historySummary.officeDue > 0) && (
+                      <div className="flex items-center justify-end gap-1.5 text-[10px] font-semibold mt-1 flex-wrap">
+                        <span className="text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200 flex items-center gap-1">
+                          <Store className="w-2.5 h-2.5" />
+                          <span>Field: OMR {historySummary.fieldDue.toFixed(3)}</span>
+                        </span>
+                        <span className="text-slate-600 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200 flex items-center gap-1">
+                          <Building2 className="w-2.5 h-2.5 text-slate-500" />
+                          <span>Office: OMR {historySummary.officeDue.toFixed(3)}</span>
+                        </span>
+                      </div>
+                    )}
                   </div>
 
                   <div className="flex items-center gap-2">
@@ -723,10 +786,48 @@ export const ReceivablePartiesView = ({
 
               {/* Transactions Table Section */}
               <div className="flex-1 flex flex-col overflow-hidden">
-                <div className="p-3.5 flex justify-between items-center border-b border-gray-100 bg-gray-50">
-                  <div className="flex items-center gap-2">
-                    <h3 className="font-bold text-xs uppercase tracking-wider text-gray-700">Order & Ledger Entries</h3>
-                    <span className="text-xs text-gray-400">({filteredHistory.length})</span>
+                <div className="p-3.5 flex flex-wrap justify-between items-center gap-2 border-b border-gray-100 bg-gray-50">
+                  <div className="flex items-center gap-3 flex-wrap">
+                    <div className="flex items-center gap-1.5">
+                      <h3 className="font-bold text-xs uppercase tracking-wider text-gray-700">Order & Ledger Entries</h3>
+                      <span className="text-xs text-gray-400">({filteredHistory.length})</span>
+                    </div>
+
+                    {/* Filter tabs: All, Field Marketing, Office / Admin */}
+                    <div className="flex items-center bg-gray-200/80 p-0.5 rounded-lg text-[11px]">
+                      <button
+                        onClick={() => setChannelFilter("all")}
+                        className={`px-2.5 py-0.5 rounded-md font-semibold transition-all ${
+                          channelFilter === "all"
+                            ? "bg-white text-gray-900 shadow-xs"
+                            : "text-gray-600 hover:text-gray-900"
+                        }`}
+                      >
+                        All ({history.length})
+                      </button>
+                      <button
+                        onClick={() => setChannelFilter("field")}
+                        className={`px-2.5 py-0.5 rounded-md font-semibold transition-all flex items-center gap-1 ${
+                          channelFilter === "field"
+                            ? "bg-emerald-600 text-white shadow-xs"
+                            : "text-emerald-700 hover:text-emerald-900"
+                        }`}
+                      >
+                        <Store className="w-3 h-3" />
+                        <span>Field ({historySummary.fieldCount})</span>
+                      </button>
+                      <button
+                        onClick={() => setChannelFilter("office")}
+                        className={`px-2.5 py-0.5 rounded-md font-semibold transition-all flex items-center gap-1 ${
+                          channelFilter === "office"
+                            ? "bg-slate-700 text-white shadow-xs"
+                            : "text-slate-700 hover:text-slate-900"
+                        }`}
+                      >
+                        <Building2 className="w-3 h-3" />
+                        <span>Office ({historySummary.officeCount})</span>
+                      </button>
+                    </div>
                   </div>
 
                   <div className="flex items-center gap-2 text-gray-500">
@@ -814,6 +915,9 @@ export const ReceivablePartiesView = ({
                             : "-";
 
                           const isCancelled = (item.status || "").toLowerCase() === "cancelled";
+                          const isField =
+                            item.order_source === "field_marketing" ||
+                            item.reference_number?.startsWith("SO-FLD-");
 
                           return (
                             <tr
@@ -823,18 +927,37 @@ export const ReceivablePartiesView = ({
                               }`}
                             >
                               <td className="px-5 py-3 text-gray-800 font-medium">
-                                <span
-                                  className={`inline-block px-2 py-0.5 rounded text-[11px] font-semibold ${
-                                    item.type === "Sales Invoice"
-                                      ? "bg-purple-50 text-purple-700"
-                                      : "bg-blue-50 text-blue-700"
-                                  }`}
-                                >
-                                  {item.type}
-                                </span>
+                                <div className="flex items-center gap-1.5 flex-wrap">
+                                  <span
+                                    className={`inline-block px-2 py-0.5 rounded text-[11px] font-semibold ${
+                                      item.type === "Sales Invoice"
+                                        ? "bg-purple-50 text-purple-700 border border-purple-200"
+                                        : "bg-blue-50 text-blue-700 border border-blue-200"
+                                    }`}
+                                  >
+                                    {item.type}
+                                  </span>
+                                  {isField ? (
+                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                      <Store className="w-2.5 h-2.5" />
+                                      <span>Field Marketing</span>
+                                    </span>
+                                  ) : (
+                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-700 border border-slate-200">
+                                      <Building2 className="w-2.5 h-2.5 text-slate-500" />
+                                      <span>Office / Admin</span>
+                                    </span>
+                                  )}
+                                </div>
                               </td>
                               <td className="px-5 py-3 text-gray-700 font-mono text-[11px]">
-                                {item.reference_number || "-"}
+                                <div className="font-semibold text-slate-900">{item.reference_number || "-"}</div>
+                                {item.salesman_name && (
+                                  <div className="text-[10px] text-slate-500 font-sans flex items-center gap-1 mt-0.5">
+                                    <UserCheck className="w-3 h-3 text-blue-600" />
+                                    <span>Rep: {item.salesman_name}</span>
+                                  </div>
+                                )}
                               </td>
                               <td className="px-5 py-3 text-gray-600">{formattedDate}</td>
                               <td className="px-5 py-3 text-right text-gray-800 font-semibold">

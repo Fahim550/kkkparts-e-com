@@ -179,6 +179,7 @@ export const useOrders = () =>
             customer_phone: o.customers?.contact_phone || "",
             customer_group: o.customers?.customer_group || "Customer",
             shipping_address: "",
+            notes: (o as any).notes || cached?.notes || "",
             total: o.total_amount,
             total_amount: o.total_amount,
             is_hidden: false,
@@ -337,6 +338,7 @@ export const useAddOrder = () => {
         customer_id: validCustomerId || "00000000-0000-0000-0000-000000000000",
       };
 
+      if ((order as any).notes !== undefined) salesOrderPayload.notes = (order as any).notes;
       if (salesmanId) salesOrderPayload.salesman_id = salesmanId;
       if (salesmanName) salesOrderPayload.salesman_name = salesmanName;
       if (orderSource) salesOrderPayload.order_source = orderSource;
@@ -347,16 +349,18 @@ export const useAddOrder = () => {
         .select()
         .single();
 
-      // Graceful fallback if database does not yet have salesman or order_source columns
+      // Graceful fallback if database does not yet have salesman, order_source, or notes columns
       if (
         error &&
         (error.code === "PGRST204" ||
           error.code === "42703" ||
           error.message?.includes("column") ||
           error.message?.includes("salesman") ||
-          error.message?.includes("order_source"))
+          error.message?.includes("order_source") ||
+          error.message?.includes("notes"))
       ) {
-        console.warn("Retrying sales_orders insert without custom salesman/source columns:", error.message);
+        console.warn("Retrying sales_orders insert without optional columns:", error.message);
+        delete salesOrderPayload.notes;
         delete salesOrderPayload.salesman_id;
         delete salesOrderPayload.salesman_name;
         delete salesOrderPayload.order_source;
@@ -659,10 +663,27 @@ export const useUpdateOrder = () => {
       if (status) updatePayload.status = status;
       if (notes !== undefined) updatePayload.notes = notes;
 
-      const { error: updateErr } = await supabase
+      let { error: updateErr } = await supabase
         .from("sales_orders")
         .update(updatePayload)
         .eq("id", id);
+
+      // Graceful fallback if database schema cache does not yet have 'notes' column
+      if (
+        updateErr &&
+        (updateErr.code === "PGRST204" ||
+          updateErr.code === "42703" ||
+          updateErr.message?.includes("column") ||
+          updateErr.message?.includes("notes"))
+      ) {
+        console.warn("Retrying sales_orders update without 'notes' column:", updateErr.message);
+        delete updatePayload.notes;
+        const retry = await supabase
+          .from("sales_orders")
+          .update(updatePayload)
+          .eq("id", id);
+        updateErr = retry.error;
+      }
 
       if (updateErr) throw updateErr;
 
@@ -711,14 +732,15 @@ export const useUpdateOrder = () => {
       // 4. Update local cache if order is stored there
       try {
         const cache = JSON.parse(localStorage.getItem("salesman_orders_cache") || "{}");
-        if (cache[currentOrder.so_number]) {
-          cache[currentOrder.so_number].total = total;
-          if (customer_id) cache[currentOrder.so_number].customer_id = customer_id;
-          localStorage.setItem("salesman_orders_cache", JSON.stringify(cache));
-        }
+        const existing = cache[currentOrder.so_number] || {};
+        existing.total = total;
+        if (customer_id) existing.customer_id = customer_id;
+        if (notes !== undefined) existing.notes = notes;
+        cache[currentOrder.so_number] = existing;
+        localStorage.setItem("salesman_orders_cache", JSON.stringify(cache));
       } catch {}
 
-      return { id, so_number: currentOrder.so_number, total };
+      return { id, so_number: currentOrder.so_number, total, notes };
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["orders"] });

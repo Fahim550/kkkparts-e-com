@@ -1209,6 +1209,7 @@ CREATE TABLE sales_orders (
     delivery_date DATE,
     status VARCHAR NOT NULL DEFAULT 'Draft',
     total_amount NUMERIC(15,6) NOT NULL DEFAULT 0,
+    notes TEXT DEFAULT '',
     created_at TIMESTAMPTZ DEFAULT now(),
     updated_at TIMESTAMPTZ DEFAULT now()
 );

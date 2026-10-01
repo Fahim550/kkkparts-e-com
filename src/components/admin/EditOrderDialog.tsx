@@ -250,7 +250,7 @@ export const EditOrderDialog: React.FC<EditOrderDialogProps> = ({
       toast.success(`Order ${order.order_number} updated successfully!`);
       setOpen(false);
       if (onOrderUpdated) {
-        onOrderUpdated({ ...order, total: newTotalAmount, total_amount: newTotalAmount });
+        onOrderUpdated({ ...order, total: newTotalAmount, total_amount: newTotalAmount, notes: orderNotes });
       }
     } catch (err: any) {
       console.error("Failed to update order:", err);

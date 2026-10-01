@@ -1865,6 +1865,7 @@ export type Database = {
           so_number: string;
           status: string;
           total_amount: number;
+          notes?: string | null;
           salesman_id: string | null;
           salesman_name: string | null;
           order_source: string | null;
@@ -1879,6 +1880,7 @@ export type Database = {
           so_number: string;
           status?: string;
           total_amount?: number;
+          notes?: string | null;
           salesman_id?: string | null;
           salesman_name?: string | null;
           order_source?: string | null;
@@ -1893,6 +1895,7 @@ export type Database = {
           so_number?: string;
           status?: string;
           total_amount?: number;
+          notes?: string | null;
           salesman_id?: string | null;
           salesman_name?: string | null;
           order_source?: string | null;

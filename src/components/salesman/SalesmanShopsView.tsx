@@ -62,6 +62,18 @@ export const SalesmanShopsView: React.FC = () => {
       }
     });
 
+    // Always include Dealer shops with field orders
+    (customers || []).forEach((c: any) => {
+      if (c.customer_group === "Dealer") {
+        const hasFieldOrder = (allOrders || []).some(
+          (o: any) => o.customer_id === c.id && (o.order_source === "field_marketing" || o.order_number?.startsWith("SO-FLD-"))
+        );
+        if (hasFieldOrder && (!c.salesman_id || c.salesman_id === currentUserId)) {
+          ids.add(c.id);
+        }
+      }
+    });
+
     try {
       const cache = JSON.parse(localStorage.getItem("salesman_orders_cache") || "{}");
       Object.values(cache).forEach((entry: any) => {

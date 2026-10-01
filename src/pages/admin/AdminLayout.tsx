@@ -211,6 +211,7 @@ const navCategories: NavCategory[] = [
     items: [
       { path: "/admin/customers", label: "Customers", icon: Users, allowedRoles: ["Admin", "Sales", "Salesman"] },
       { path: "/admin/suppliers", label: "Suppliers", icon: Users, allowedRoles: ["Admin", "Purchasing", "Accountant"] },
+      { path: "/admin/field-marketers", label: "Field Marketers", icon: Store, allowedRoles: ["Admin"] },
       { path: "/admin/users", label: "Staff & Dealers", icon: UserCog, allowedRoles: ["Admin"] },
     ]
   },

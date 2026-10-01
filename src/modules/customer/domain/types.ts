@@ -17,6 +17,8 @@ export type CustomerHistoryItem = {
   status: string;
   amount: number;
   balance: number;
+  order_source?: "field_marketing" | "admin" | "pos" | string;
+  salesman_name?: string | null;
 };
 
 export type CustomerDueStats = {
