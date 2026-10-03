@@ -329,46 +329,85 @@ export const AdminOrdersQuickView = ({
 
           {/* Quick Metrics Chips */}
           <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 shrink-0">
-            <div className="p-2 px-3 bg-slate-50 border border-gray-200/80 rounded-lg min-w-[90px]">
-              <span className="text-[10px] uppercase font-bold text-gray-400 block truncate">
-                Today&apos;s Orders
-              </span>
-              <span className="text-sm font-bold text-gray-900">
+            <Link
+              to={isSalesmanPortal ? "/salesman/orders" : "/admin/orders"}
+              className="p-2 px-3 bg-slate-50 border border-gray-200/80 rounded-lg min-w-[90px] block hover:border-slate-400 hover:bg-slate-100/80 hover:shadow-xs transition-all group cursor-pointer"
+              title="View Customer Orders"
+            >
+              <div className="flex items-center justify-between gap-1">
+                <span className="text-[10px] uppercase font-bold text-gray-400 group-hover:text-gray-600 transition-colors block truncate">
+                  Today&apos;s Orders
+                </span>
+                <ChevronRight className="w-3 h-3 text-gray-300 group-hover:text-gray-600 group-hover:translate-x-0.5 transition-all shrink-0" />
+              </div>
+              <span className="text-sm font-bold text-gray-900 group-hover:text-blue-600 transition-colors">
                 {todayMetrics.count}
               </span>
-            </div>
-            <div className="p-2 px-3 bg-emerald-50/60 border border-emerald-200/80 rounded-lg min-w-[90px]">
-              <span className="text-[10px] uppercase font-bold text-emerald-600 block truncate">
-                Field Orders
-              </span>
+            </Link>
+
+            <Link
+              to={isSalesmanPortal ? "/salesman/orders" : "/admin/field-marketers"}
+              className="p-2 px-3 bg-emerald-50/60 border border-emerald-200/80 rounded-lg min-w-[90px] block hover:border-emerald-400 hover:bg-emerald-100/70 hover:shadow-xs transition-all group cursor-pointer"
+              title="View Field Marketer Orders & Reps"
+            >
+              <div className="flex items-center justify-between gap-1">
+                <span className="text-[10px] uppercase font-bold text-emerald-600 group-hover:text-emerald-700 transition-colors block truncate">
+                  Field Orders
+                </span>
+                <ChevronRight className="w-3 h-3 text-emerald-400 group-hover:text-emerald-700 group-hover:translate-x-0.5 transition-all shrink-0" />
+              </div>
               <span className="text-sm font-bold text-emerald-800">
                 {todayMetrics.fieldCount}
               </span>
-            </div>
-            <div className="p-2 px-3 bg-blue-50/60 border border-blue-100 rounded-lg min-w-[90px]">
-              <span className="text-[10px] uppercase font-bold text-blue-500 block truncate">
-                Customers
-              </span>
+            </Link>
+
+            <Link
+              to={isSalesmanPortal ? "/salesman/shops" : "/admin/orders"}
+              className="p-2 px-3 bg-blue-50/60 border border-blue-100 rounded-lg min-w-[90px] block hover:border-blue-300 hover:bg-blue-100/70 hover:shadow-xs transition-all group cursor-pointer"
+              title="View Customers Directory"
+            >
+              <div className="flex items-center justify-between gap-1">
+                <span className="text-[10px] uppercase font-bold text-blue-500 group-hover:text-blue-600 transition-colors block truncate">
+                  Customers
+                </span>
+                <ChevronRight className="w-3 h-3 text-blue-300 group-hover:text-blue-600 group-hover:translate-x-0.5 transition-all shrink-0" />
+              </div>
               <span className="text-sm font-bold text-blue-700">
                 {todayMetrics.customerCount}
               </span>
-            </div>
-            <div className="p-2 px-3 bg-purple-50/60 border border-purple-100 rounded-lg min-w-[90px]">
-              <span className="text-[10px] uppercase font-bold text-purple-500 block truncate">
-                Dealers
-              </span>
+            </Link>
+
+            <Link
+              to={isSalesmanPortal ? "/salesman/shops" : "/admin/dealer-orders"}
+              className="p-2 px-3 bg-purple-50/60 border border-purple-100 rounded-lg min-w-[90px] block hover:border-purple-300 hover:bg-purple-100/70 hover:shadow-xs transition-all group cursor-pointer"
+              title="View Dealer Orders"
+            >
+              <div className="flex items-center justify-between gap-1">
+                <span className="text-[10px] uppercase font-bold text-purple-500 group-hover:text-purple-600 transition-colors block truncate">
+                  Dealers
+                </span>
+                <ChevronRight className="w-3 h-3 text-purple-300 group-hover:text-purple-600 group-hover:translate-x-0.5 transition-all shrink-0" />
+              </div>
               <span className="text-sm font-bold text-purple-700">
                 {todayMetrics.dealerCount}
               </span>
-            </div>
-            <div className="p-2 px-3 bg-emerald-50/60 border border-emerald-100 rounded-lg min-w-[100px]">
-              <span className="text-[10px] uppercase font-bold text-emerald-600 block truncate">
-                Today&apos;s Value
-              </span>
+            </Link>
+
+            <Link
+              to={isSalesmanPortal ? "/salesman/dashboard" : "/admin/reports/sales"}
+              className="p-2 px-3 bg-emerald-50/60 border border-emerald-100 rounded-lg min-w-[100px] block hover:border-emerald-300 hover:bg-emerald-100/70 hover:shadow-xs transition-all group cursor-pointer"
+              title="View Sales Report & Revenue Analytics"
+            >
+              <div className="flex items-center justify-between gap-1">
+                <span className="text-[10px] uppercase font-bold text-emerald-600 group-hover:text-emerald-700 transition-colors block truncate">
+                  Today&apos;s Value
+                </span>
+                <ChevronRight className="w-3 h-3 text-emerald-400 group-hover:text-emerald-700 group-hover:translate-x-0.5 transition-all shrink-0" />
+              </div>
               <span className="text-sm font-bold text-emerald-700 truncate block">
                 OMR {todayMetrics.totalRevenue.toFixed(3)}
               </span>
-            </div>
+            </Link>
           </div>
         </div>
 
