@@ -1,4 +1,4 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from "@tanstack/react-query";
 import { CategoryService } from "../../application/services/category.service";
 import { CreateCategoryDTO, UpdateCategoryDTO } from "../../domain/types";
 
@@ -12,6 +12,8 @@ export function useCategories() {
   return useQuery({
     queryKey: CATEGORY_KEYS.all,
     queryFn: () => CategoryService.getAllCategories(),
+    staleTime: 1000 * 60 * 5,
+    placeholderData: keepPreviousData,
   });
 }
 
@@ -19,6 +21,8 @@ export function useCategoryTree() {
   return useQuery({
     queryKey: CATEGORY_KEYS.tree,
     queryFn: () => CategoryService.getCategoryTree(),
+    staleTime: 1000 * 60 * 5,
+    placeholderData: keepPreviousData,
   });
 }
 

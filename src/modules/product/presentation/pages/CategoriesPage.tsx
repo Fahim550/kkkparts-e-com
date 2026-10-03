@@ -27,7 +27,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { CategorySchema } from "../../domain/schemas";
 import { z } from "zod";
-import { Loader2, Plus, Edit, Trash2, Upload, ImageIcon, X } from "lucide-react";
+import { Loader2, Plus, Edit, Trash2, Upload, ImageIcon, X, RefreshCw } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { uploadProductImage } from "@/lib/image-upload";
@@ -36,7 +36,7 @@ import { toast } from "sonner";
 type CategoryFormData = z.infer<typeof CategorySchema>;
 
 export default function CategoriesPage() {
-  const { data: categories, isLoading } = useCategories();
+  const { data: categories, isLoading, isError, refetch } = useCategories();
   const createCategory = useCreateCategory();
   const updateCategory = useUpdateCategory();
   const deleteCategory = useDeleteCategory();
@@ -118,13 +118,6 @@ export default function CategoriesPage() {
     const generated = name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
     setValue("slug", generated);
   };
-
-  if (isLoading)
-    return (
-      <div className="flex justify-center p-8">
-        <Loader2 className="animate-spin w-8 h-8" />
-      </div>
-    );
 
   return (
     <div className="space-y-6">
@@ -267,54 +260,82 @@ export default function CategoriesPage() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {categories?.map((category) => (
-              <TableRow key={category.id}>
-                <TableCell>
-                  <div className="w-10 h-10 rounded-md border bg-muted/30 flex items-center justify-center overflow-hidden shrink-0">
-                    {category.image_url ? (
-                      <img
-                        src={category.image_url}
-                        alt={category.name}
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      <ImageIcon className="w-4 h-4 text-muted-foreground/40" />
-                    )}
-                  </div>
-                </TableCell>
-                <TableCell className="font-medium">{category.name}</TableCell>
-                <TableCell>{category.slug}</TableCell>
-                <TableCell>
-                  {category.parent_id
-                    ? categories.find((c) => c.id === category.parent_id)?.name
-                    : "—"}
-                </TableCell>
-                <TableCell>
-                  <span
-                    className={`px-2 py-1 rounded-full text-xs ${category.is_active ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"}`}
-                  >
-                    {category.is_active ? "Active" : "Inactive"}
-                  </span>
-                </TableCell>
-                <TableCell className="text-right">
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => handleEdit(category)}
-                  >
-                    <Edit className="w-4 h-4 text-blue-500" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => handleDelete(category.id)}
-                  >
-                    <Trash2 className="w-4 h-4 text-red-500" />
+            {isLoading ? (
+              Array.from({ length: 5 }).map((_, i) => (
+                <TableRow key={`skeleton-${i}`} className="animate-pulse">
+                  <TableCell>
+                    <div className="w-10 h-10 rounded-md bg-muted/70" />
+                  </TableCell>
+                  <TableCell><div className="h-4 w-32 bg-muted/60 rounded" /></TableCell>
+                  <TableCell><div className="h-4 w-28 bg-muted/50 rounded" /></TableCell>
+                  <TableCell><div className="h-4 w-24 bg-muted/50 rounded" /></TableCell>
+                  <TableCell><div className="h-5 w-16 bg-muted/60 rounded-full" /></TableCell>
+                  <TableCell className="text-right">
+                    <div className="h-8 w-16 bg-muted/60 rounded ml-auto" />
+                  </TableCell>
+                </TableRow>
+              ))
+            ) : isError ? (
+              <TableRow>
+                <TableCell colSpan={6} className="text-center py-8">
+                  <p className="text-sm text-destructive font-medium mb-3">
+                    Failed to load categories. Please check your network.
+                  </p>
+                  <Button variant="outline" size="sm" onClick={() => refetch()}>
+                    <RefreshCw className="w-3.5 h-3.5 mr-2" /> Try Again
                   </Button>
                 </TableCell>
               </TableRow>
-            ))}
-            {(!categories || categories.length === 0) && (
+            ) : (
+              categories?.map((category) => (
+                <TableRow key={category.id}>
+                  <TableCell>
+                    <div className="w-10 h-10 rounded-md border bg-muted/30 flex items-center justify-center overflow-hidden shrink-0">
+                      {category.image_url ? (
+                        <img
+                          src={category.image_url}
+                          alt={category.name}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <ImageIcon className="w-4 h-4 text-muted-foreground/40" />
+                      )}
+                    </div>
+                  </TableCell>
+                  <TableCell className="font-medium">{category.name}</TableCell>
+                  <TableCell>{category.slug}</TableCell>
+                  <TableCell>
+                    {category.parent_id
+                      ? categories.find((c) => c.id === category.parent_id)?.name
+                      : "—"}
+                  </TableCell>
+                  <TableCell>
+                    <span
+                      className={`px-2 py-1 rounded-full text-xs ${category.is_active ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"}`}
+                    >
+                      {category.is_active ? "Active" : "Inactive"}
+                    </span>
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => handleEdit(category)}
+                    >
+                      <Edit className="w-4 h-4 text-blue-500" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => handleDelete(category.id)}
+                    >
+                      <Trash2 className="w-4 h-4 text-red-500" />
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
+            {!isLoading && !isError && (!categories || categories.length === 0) && (
               <TableRow>
                 <TableCell
                   colSpan={6}

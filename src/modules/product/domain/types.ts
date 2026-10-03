@@ -23,7 +23,7 @@ export type AttributeWithValues = Attribute & {
 };
 
 export type ProductVariationWithDetails = ProductVariation & {
-  attributes: (VariationAttribute & {
+  attributes?: (VariationAttribute & {
     attribute_value: AttributeValue & { attribute: Attribute };
   })[];
 };
@@ -33,7 +33,7 @@ export type ProductTemplateWithDetails = Product & {
   category: Category;
   base_uom: UOM;
   variations: ProductVariationWithDetails[];
-  product_attributes: (ProductAttribute & { attribute: Attribute })[];
+  product_attributes?: (ProductAttribute & { attribute: Attribute })[];
 };
 
 // DTOs (Data Transfer Objects) for Create/Update operations

@@ -27,14 +27,14 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { BrandSchema } from "../../domain/schemas";
 import { z } from "zod";
-import { Loader2, Plus, Edit, Trash2 } from "lucide-react";
+import { Loader2, Plus, Edit, Trash2, RefreshCw } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 
 type BrandFormData = z.infer<typeof BrandSchema>;
 
 export default function BrandsPage() {
-  const { data: brands, isLoading } = useBrands();
+  const { data: brands, isLoading, isError, refetch } = useBrands();
   const createBrand = useCreateBrand();
   const updateBrand = useUpdateBrand();
   const deleteBrand = useDeleteBrand();
@@ -86,13 +86,6 @@ export default function BrandsPage() {
       setEditingBrand(null);
     }
   };
-
-  if (isLoading)
-    return (
-      <div className="flex justify-center p-8">
-        <Loader2 className="animate-spin w-8 h-8" />
-      </div>
-    );
 
   return (
     <div className="space-y-6">
@@ -160,36 +153,60 @@ export default function BrandsPage() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {brands?.map((brand) => (
-              <TableRow key={brand.id}>
-                <TableCell className="font-medium">{brand.name}</TableCell>
-                <TableCell>{brand.description}</TableCell>
-                <TableCell>
-                  <span
-                    className={`px-2 py-1 rounded-full text-xs ${brand.is_active ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"}`}
-                  >
-                    {brand.is_active ? "Active" : "Inactive"}
-                  </span>
-                </TableCell>
-                <TableCell className="text-right">
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => handleEdit(brand)}
-                  >
-                    <Edit className="w-4 h-4 text-blue-500" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => handleDelete(brand.id)}
-                  >
-                    <Trash2 className="w-4 h-4 text-red-500" />
+            {isLoading ? (
+              Array.from({ length: 5 }).map((_, i) => (
+                <TableRow key={`skeleton-${i}`} className="animate-pulse">
+                  <TableCell><div className="h-4 w-28 bg-muted/60 rounded" /></TableCell>
+                  <TableCell><div className="h-4 w-48 bg-muted/50 rounded" /></TableCell>
+                  <TableCell><div className="h-5 w-16 bg-muted/60 rounded-full" /></TableCell>
+                  <TableCell className="text-right">
+                    <div className="h-8 w-16 bg-muted/60 rounded ml-auto" />
+                  </TableCell>
+                </TableRow>
+              ))
+            ) : isError ? (
+              <TableRow>
+                <TableCell colSpan={4} className="text-center py-8">
+                  <p className="text-sm text-destructive font-medium mb-3">
+                    Failed to load brands. Please check your network.
+                  </p>
+                  <Button variant="outline" size="sm" onClick={() => refetch()}>
+                    <RefreshCw className="w-3.5 h-3.5 mr-2" /> Try Again
                   </Button>
                 </TableCell>
               </TableRow>
-            ))}
-            {(!brands || brands.length === 0) && (
+            ) : (
+              brands?.map((brand) => (
+                <TableRow key={brand.id}>
+                  <TableCell className="font-medium">{brand.name}</TableCell>
+                  <TableCell>{brand.description || "—"}</TableCell>
+                  <TableCell>
+                    <span
+                      className={`px-2 py-1 rounded-full text-xs ${brand.is_active ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"}`}
+                    >
+                      {brand.is_active ? "Active" : "Inactive"}
+                    </span>
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => handleEdit(brand)}
+                    >
+                      <Edit className="w-4 h-4 text-blue-500" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => handleDelete(brand.id)}
+                    >
+                      <Trash2 className="w-4 h-4 text-red-500" />
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
+            {!isLoading && !isError && (!brands || brands.length === 0) && (
               <TableRow>
                 <TableCell
                   colSpan={4}

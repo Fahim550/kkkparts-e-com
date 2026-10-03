@@ -1,4 +1,4 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from "@tanstack/react-query";
 import { UomService } from "../../application/services/uom.service";
 import { CreateUOMDTO, UpdateUOMDTO } from "../../domain/types";
 
@@ -11,6 +11,8 @@ export function useUOMs() {
   return useQuery({
     queryKey: UOM_KEYS.all,
     queryFn: () => UomService.getAllUOMs(),
+    staleTime: 1000 * 60 * 5,
+    placeholderData: keepPreviousData,
   });
 }
 

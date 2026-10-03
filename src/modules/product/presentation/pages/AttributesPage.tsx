@@ -33,7 +33,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { AttributeSchema } from "../../domain/schemas";
 import { z } from "zod";
-import { Loader2, Plus, Edit, Trash2, Tag as TagIcon } from "lucide-react";
+import { Loader2, Plus, Edit, Trash2, Tag as TagIcon, RefreshCw } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -47,7 +47,7 @@ import { Badge } from "@/components/ui/badge";
 type AttributeFormData = z.infer<typeof AttributeSchema>;
 
 export default function AttributesPage() {
-  const { data: attributes, isLoading } = useAttributesWithValues();
+  const { data: attributes, isLoading, isError, refetch } = useAttributesWithValues();
   const createAttribute = useCreateAttribute();
   const updateAttribute = useUpdateAttribute();
   const deleteAttribute = useDeleteAttribute();
@@ -114,13 +114,6 @@ export default function AttributesPage() {
       await deleteValue.mutateAsync(valueId);
     }
   };
-
-  if (isLoading)
-    return (
-      <div className="flex justify-center p-8">
-        <Loader2 className="animate-spin w-8 h-8" />
-      </div>
-    );
 
   return (
     <div className="space-y-6">
@@ -209,105 +202,129 @@ export default function AttributesPage() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {attributes?.map((attr: AttributeWithValues) => (
-              <TableRow key={attr.id}>
-                <TableCell className="font-medium">{attr.name}</TableCell>
-                <TableCell className="capitalize">
-                  {attr.display_type}
-                </TableCell>
-                <TableCell>
-                  <div className="flex flex-wrap gap-1">
-                    {attr.values.map((val) => (
-                      <Badge key={val.id} variant="secondary" className="pr-1">
-                        {val.value}
-                        <button
-                          onClick={() => handleDeleteValue(val.id)}
-                          className="ml-1 hover:bg-destructive/20 rounded-full p-0.5 transition-colors"
-                        >
-                          <X className="w-3 h-3" />
-                        </button>
-                      </Badge>
-                    ))}
-                    <Dialog
-                      open={valueDialogOpen && activeAttrId === attr.id}
-                      onOpenChange={(open) => {
-                        setValueDialogOpen(open);
-                        if (open) setActiveAttrId(attr.id);
-                        else {
-                          setActiveAttrId(null);
-                          setNewValue("");
-                        }
-                      }}
-                    >
-                      <DialogTrigger asChild>
-                        <Badge
-                          variant="outline"
-                          className="cursor-pointer hover:bg-secondary border-dashed"
-                        >
-                          <Plus className="w-3 h-3 mr-1" /> Add Value
-                        </Badge>
-                      </DialogTrigger>
-                      <DialogContent>
-                        <DialogHeader>
-                          <DialogTitle>Add values to "{attr.name}"</DialogTitle>
-                        </DialogHeader>
-                        <div className="flex items-center space-x-2">
-                          <Input
-                            value={newValue}
-                            onChange={(e) => setNewValue(e.target.value)}
-                            placeholder="e.g. Red, XL, 15-inch"
-                            onKeyDown={(e) => {
-                              if (e.key === "Enter") {
-                                e.preventDefault();
-                                handleAddValue();
-                              }
-                            }}
-                          />
-                          <Button
-                            onClick={handleAddValue}
-                            disabled={!newValue.trim() || createValue.isPending}
-                          >
-                            {createValue.isPending ? (
-                              <Loader2 className="w-4 h-4 animate-spin" />
-                            ) : (
-                              "Add"
-                            )}
-                          </Button>
-                        </div>
-                        <div className="mt-4 flex flex-wrap gap-2">
-                          {attr.values.map((val) => (
-                            <Badge
-                              key={val.id}
-                              variant="secondary"
-                              className="px-2 py-1"
-                            >
-                              {val.value}
-                            </Badge>
-                          ))}
-                        </div>
-                      </DialogContent>
-                    </Dialog>
-                  </div>
-                </TableCell>
-                <TableCell className="text-right">
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => handleEdit(attr)}
-                  >
-                    <Edit className="w-4 h-4 text-blue-500" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => handleDelete(attr.id)}
-                  >
-                    <Trash2 className="w-4 h-4 text-red-500" />
+            {isLoading ? (
+              Array.from({ length: 5 }).map((_, i) => (
+                <TableRow key={`skeleton-${i}`} className="animate-pulse">
+                  <TableCell><div className="h-4 w-28 bg-muted/60 rounded" /></TableCell>
+                  <TableCell><div className="h-4 w-20 bg-muted/50 rounded" /></TableCell>
+                  <TableCell><div className="h-5 w-48 bg-muted/60 rounded-full" /></TableCell>
+                  <TableCell className="text-right">
+                    <div className="h-8 w-16 bg-muted/60 rounded ml-auto" />
+                  </TableCell>
+                </TableRow>
+              ))
+            ) : isError ? (
+              <TableRow>
+                <TableCell colSpan={4} className="text-center py-8">
+                  <p className="text-sm text-destructive font-medium mb-3">
+                    Failed to load attributes. Please check your network.
+                  </p>
+                  <Button variant="outline" size="sm" onClick={() => refetch()}>
+                    <RefreshCw className="w-3.5 h-3.5 mr-2" /> Try Again
                   </Button>
                 </TableCell>
               </TableRow>
-            ))}
-            {(!attributes || attributes.length === 0) && (
+            ) : (
+              attributes?.map((attr: AttributeWithValues) => (
+                <TableRow key={attr.id}>
+                  <TableCell className="font-medium">{attr.name}</TableCell>
+                  <TableCell className="capitalize">
+                    {attr.display_type}
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex flex-wrap gap-1">
+                      {attr.values.map((val) => (
+                        <Badge key={val.id} variant="secondary" className="pr-1">
+                          {val.value}
+                          <button
+                            onClick={() => handleDeleteValue(val.id)}
+                            className="ml-1 hover:bg-destructive/20 rounded-full p-0.5 transition-colors"
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                        </Badge>
+                      ))}
+                      <Dialog
+                        open={valueDialogOpen && activeAttrId === attr.id}
+                        onOpenChange={(open) => {
+                          setValueDialogOpen(open);
+                          if (open) setActiveAttrId(attr.id);
+                          else {
+                            setActiveAttrId(null);
+                            setNewValue("");
+                          }
+                        }}
+                      >
+                        <DialogTrigger asChild>
+                          <Badge
+                            variant="outline"
+                            className="cursor-pointer hover:bg-secondary border-dashed"
+                          >
+                            <Plus className="w-3 h-3 mr-1" /> Add Value
+                          </Badge>
+                        </DialogTrigger>
+                        <DialogContent>
+                          <DialogHeader>
+                            <DialogTitle>Add values to "{attr.name}"</DialogTitle>
+                          </DialogHeader>
+                          <div className="flex items-center space-x-2">
+                            <Input
+                              value={newValue}
+                              onChange={(e) => setNewValue(e.target.value)}
+                              placeholder="e.g. Red, XL, 15-inch"
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter") {
+                                  e.preventDefault();
+                                  handleAddValue();
+                                }
+                              }}
+                            />
+                            <Button
+                              onClick={handleAddValue}
+                              disabled={!newValue.trim() || createValue.isPending}
+                            >
+                              {createValue.isPending ? (
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                              ) : (
+                                "Add"
+                              )}
+                            </Button>
+                          </div>
+                          <div className="mt-4 flex flex-wrap gap-2">
+                            {attr.values.map((val) => (
+                              <Badge
+                                key={val.id}
+                                variant="secondary"
+                                className="px-2 py-1"
+                              >
+                                {val.value}
+                              </Badge>
+                            ))}
+                          </div>
+                        </DialogContent>
+                      </Dialog>
+                    </div>
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => handleEdit(attr)}
+                    >
+                      <Edit className="w-4 h-4 text-blue-500" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => handleDelete(attr.id)}
+                    >
+                      <Trash2 className="w-4 h-4 text-red-500" />
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
+            {!isLoading && !isError && (!attributes || attributes.length === 0) && (
               <TableRow>
                 <TableCell
                   colSpan={4}

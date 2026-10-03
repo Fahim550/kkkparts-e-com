@@ -1,4 +1,4 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from "@tanstack/react-query";
 import { ProductService } from "../../application/services/product.service";
 import {
   CreateProductDTO,
@@ -16,6 +16,8 @@ export function useProductTemplates() {
   return useQuery({
     queryKey: PRODUCT_KEYS.templates,
     queryFn: () => ProductService.getAllProductTemplates(),
+    staleTime: 1000 * 60 * 5,
+    placeholderData: keepPreviousData,
   });
 }
 

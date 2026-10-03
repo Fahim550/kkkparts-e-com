@@ -15,12 +15,12 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Loader2, Plus, Edit, Trash2, Box, ImageIcon, X } from "lucide-react";
+import { Loader2, Plus, Edit, Trash2, Box, ImageIcon, X, RefreshCw } from "lucide-react";
 import ProductFormModal from "./ProductFormModal";
 
 export default function ProductsPage() {
   const [searchParams, setSearchParams] = useSearchParams();
-  const { data: products, isLoading } = useProductTemplates();
+  const { data: products, isLoading, isError, refetch } = useProductTemplates();
   const deleteProduct = useDeleteProductTemplate();
 
   const [isOpen, setIsOpen] = useState(false);
@@ -63,13 +63,6 @@ export default function ProductsPage() {
       setEditingProduct(null);
     }
   };
-
-  if (isLoading)
-    return (
-      <div className="flex justify-center p-8">
-        <Loader2 className="animate-spin w-8 h-8" />
-      </div>
-    );
 
   return (
     <div className="space-y-6">
@@ -129,63 +122,94 @@ export default function ProductsPage() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filteredProducts.map((product) => (
-              <TableRow key={product.id}>
-                <TableCell>
-                  <div className="w-10 h-10 rounded-md border bg-muted/30 flex items-center justify-center overflow-hidden shrink-0">
-                    {product.image_url ? (
-                      <img
-                        src={product.image_url}
-                        alt={product.name}
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      <ImageIcon className="w-4 h-4 text-muted-foreground/40" />
-                    )}
-                  </div>
-                </TableCell>
-                <TableCell className="font-mono text-sm">{product.item_code}</TableCell>
-                <TableCell className="font-medium">{product.name}</TableCell>
-                <TableCell>{product.category?.name}</TableCell>
-                <TableCell>{product.brand?.name || "—"}</TableCell>
-                <TableCell className="font-semibold text-blue-600">
-                  {(product as any).price != null ? Number((product as any).price).toFixed(2) : "0.00"}
-                </TableCell>
-                <TableCell>
-                  <div className="flex items-center gap-1 text-sm">
-                    <Box className="w-4 h-4 text-muted-foreground" />
-                    {product.variations?.length || 0}
-                  </div>
-                </TableCell>
-                <TableCell>
-                  <span
-                    className={`px-2 py-1 rounded-full text-xs ${product.is_active ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"}`}
-                  >
-                    {product.is_active ? "Active" : "Inactive"}
-                  </span>
-                </TableCell>
-                <TableCell className="text-right">
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => handleEdit(product)}
-                  >
-                    <Edit className="w-4 h-4 text-blue-500" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => handleDelete(product.id)}
-                  >
-                    <Trash2 className="w-4 h-4 text-red-500" />
+            {isLoading ? (
+              Array.from({ length: 6 }).map((_, i) => (
+                <TableRow key={`skeleton-${i}`} className="animate-pulse">
+                  <TableCell>
+                    <div className="w-10 h-10 rounded-md bg-muted/70" />
+                  </TableCell>
+                  <TableCell><div className="h-4 w-20 bg-muted/60 rounded" /></TableCell>
+                  <TableCell><div className="h-4 w-36 bg-muted/60 rounded" /></TableCell>
+                  <TableCell><div className="h-4 w-24 bg-muted/50 rounded" /></TableCell>
+                  <TableCell><div className="h-4 w-16 bg-muted/50 rounded" /></TableCell>
+                  <TableCell><div className="h-4 w-14 bg-muted/60 rounded" /></TableCell>
+                  <TableCell><div className="h-4 w-10 bg-muted/50 rounded" /></TableCell>
+                  <TableCell><div className="h-5 w-14 bg-muted/60 rounded-full" /></TableCell>
+                  <TableCell className="text-right">
+                    <div className="h-8 w-16 bg-muted/60 rounded ml-auto" />
+                  </TableCell>
+                </TableRow>
+              ))
+            ) : isError ? (
+              <TableRow>
+                <TableCell colSpan={9} className="text-center py-8">
+                  <p className="text-sm text-destructive font-medium mb-3">
+                    Failed to load products. Please check your network.
+                  </p>
+                  <Button variant="outline" size="sm" onClick={() => refetch()}>
+                    <RefreshCw className="w-3.5 h-3.5 mr-2" /> Try Again
                   </Button>
                 </TableCell>
               </TableRow>
-            ))}
-            {filteredProducts.length === 0 && (
+            ) : (
+              filteredProducts.map((product) => (
+                <TableRow key={product.id}>
+                  <TableCell>
+                    <div className="w-10 h-10 rounded-md border bg-muted/30 flex items-center justify-center overflow-hidden shrink-0">
+                      {product.image_url ? (
+                        <img
+                          src={product.image_url}
+                          alt={product.name}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <ImageIcon className="w-4 h-4 text-muted-foreground/40" />
+                      )}
+                    </div>
+                  </TableCell>
+                  <TableCell className="font-mono text-sm">{product.item_code}</TableCell>
+                  <TableCell className="font-medium">{product.name}</TableCell>
+                  <TableCell>{product.category?.name}</TableCell>
+                  <TableCell>{product.brand?.name || "—"}</TableCell>
+                  <TableCell className="font-semibold text-blue-600">
+                    {(product as any).price != null ? Number((product as any).price).toFixed(2) : "0.00"}
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-1 text-sm">
+                      <Box className="w-4 h-4 text-muted-foreground" />
+                      {product.variations?.length || 0}
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <span
+                      className={`px-2 py-1 rounded-full text-xs ${product.is_active ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"}`}
+                    >
+                      {product.is_active ? "Active" : "Inactive"}
+                    </span>
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => handleEdit(product)}
+                    >
+                      <Edit className="w-4 h-4 text-blue-500" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => handleDelete(product.id)}
+                    >
+                      <Trash2 className="w-4 h-4 text-red-500" />
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
+            {!isLoading && !isError && filteredProducts.length === 0 && (
               <TableRow>
                 <TableCell
-                  colSpan={8}
+                  colSpan={9}
                   className="text-center py-8 text-muted-foreground"
                 >
                   No products found.

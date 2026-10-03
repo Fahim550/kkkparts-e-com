@@ -27,13 +27,13 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { UOMSchema } from "../../domain/schemas";
 import { z } from "zod";
-import { Loader2, Plus, Edit, Trash2 } from "lucide-react";
+import { Loader2, Plus, Edit, Trash2, RefreshCw } from "lucide-react";
 import { Label } from "@/components/ui/label";
 
 type UOMFormData = z.infer<typeof UOMSchema>;
 
 export default function UOMsPage() {
-  const { data: uoms, isLoading } = useUOMs();
+  const { data: uoms, isLoading, isError, refetch } = useUOMs();
   const createUOM = useCreateUOM();
   const updateUOM = useUpdateUOM();
   const deleteUOM = useDeleteUOM();
@@ -82,13 +82,6 @@ export default function UOMsPage() {
       setEditingUOM(null);
     }
   };
-
-  if (isLoading)
-    return (
-      <div className="flex justify-center p-8">
-        <Loader2 className="animate-spin w-8 h-8" />
-      </div>
-    );
 
   return (
     <div className="space-y-6">
@@ -152,29 +145,52 @@ export default function UOMsPage() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {uoms?.map((uom) => (
-              <TableRow key={uom.id}>
-                <TableCell className="font-medium">{uom.name}</TableCell>
-                <TableCell>{uom.abbreviation}</TableCell>
-                <TableCell className="text-right">
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => handleEdit(uom)}
-                  >
-                    <Edit className="w-4 h-4 text-blue-500" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => handleDelete(uom.id)}
-                  >
-                    <Trash2 className="w-4 h-4 text-red-500" />
+            {isLoading ? (
+              Array.from({ length: 5 }).map((_, i) => (
+                <TableRow key={`skeleton-${i}`} className="animate-pulse">
+                  <TableCell><div className="h-4 w-32 bg-muted/60 rounded" /></TableCell>
+                  <TableCell><div className="h-4 w-16 bg-muted/50 rounded" /></TableCell>
+                  <TableCell className="text-right">
+                    <div className="h-8 w-16 bg-muted/60 rounded ml-auto" />
+                  </TableCell>
+                </TableRow>
+              ))
+            ) : isError ? (
+              <TableRow>
+                <TableCell colSpan={3} className="text-center py-8">
+                  <p className="text-sm text-destructive font-medium mb-3">
+                    Failed to load units of measure. Please check your network.
+                  </p>
+                  <Button variant="outline" size="sm" onClick={() => refetch()}>
+                    <RefreshCw className="w-3.5 h-3.5 mr-2" /> Try Again
                   </Button>
                 </TableCell>
               </TableRow>
-            ))}
-            {(!uoms || uoms.length === 0) && (
+            ) : (
+              uoms?.map((uom) => (
+                <TableRow key={uom.id}>
+                  <TableCell className="font-medium">{uom.name}</TableCell>
+                  <TableCell>{uom.abbreviation}</TableCell>
+                  <TableCell className="text-right">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => handleEdit(uom)}
+                    >
+                      <Edit className="w-4 h-4 text-blue-500" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => handleDelete(uom.id)}
+                    >
+                      <Trash2 className="w-4 h-4 text-red-500" />
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
+            {!isLoading && !isError && (!uoms || uoms.length === 0) && (
               <TableRow>
                 <TableCell
                   colSpan={3}

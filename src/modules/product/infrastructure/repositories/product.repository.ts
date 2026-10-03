@@ -19,29 +19,31 @@ export class ProductRepository {
         brand:brands(*),
         category:categories(*),
         base_uom:units_of_measure(*),
-        product_attributes(
-          *,
-          attribute:attributes(*)
-        ),
         variations:product_variations(
-          *,
-          attributes:variation_attributes(
-            *,
-            attribute_value:attribute_values(
-              *,
-              attribute:attributes(*)
-            )
-          )
+          id,
+          product_id,
+          sku,
+          barcode,
+          weight,
+          is_active
         )
       `,
       )
       .order("created_at", { ascending: false });
 
-    if (error) throw error;
+    if (error) {
+      console.warn("ProductRepository.getAllTemplates query error, falling back:", error);
+      const { data: fallback, error: fbErr } = await supabase
+        .from("products")
+        .select("*, brand:brands(*), category:categories(*)")
+        .order("created_at", { ascending: false });
+      if (fbErr) throw fbErr;
+      return (fallback || []) as unknown as ProductTemplateWithDetails[];
+    }
 
     // The cast is necessary because Supabase's generated types don't inherently deeply nest properly with all the custom joins,
     // but we know at runtime this matches ProductTemplateWithDetails.
-    return data as unknown as ProductTemplateWithDetails[];
+    return (data || []) as unknown as ProductTemplateWithDetails[];
   }
 
   static async getTemplateById(

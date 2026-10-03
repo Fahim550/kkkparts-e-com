@@ -57,13 +57,91 @@ import {
 } from "lucide-react";
 import React, { Component, Suspense, useEffect, useRef, useState } from "react";
 import { Link, Outlet, useLocation } from "react-router-dom";
+import { useQueryClient } from "@tanstack/react-query";
+import { ProductService } from "@/modules/product/application/services/product.service";
+import { CategoryService } from "@/modules/product/application/services/category.service";
+import { BrandService } from "@/modules/product/application/services/brand.service";
+import { UomService } from "@/modules/product/application/services/uom.service";
+import { AttributeService } from "@/modules/product/application/services/attribute.service";
 
-// Localized content loader for the inner page area to keep the sidebar & header persistent
+// High-speed route prefetch helper to eliminate navigation loading delays
+const prefetchCatalogRoute = (path: string, queryClient: any) => {
+  switch (path) {
+    case "/admin/products":
+      import("@/modules/product/presentation/pages/ProductsPage");
+      queryClient.prefetchQuery({
+        queryKey: ["products", "templates"],
+        queryFn: () => ProductService.getAllProductTemplates(),
+        staleTime: 1000 * 60 * 5,
+      });
+      break;
+    case "/admin/categories":
+      import("@/modules/product/presentation/pages/CategoriesPage");
+      queryClient.prefetchQuery({
+        queryKey: ["categories"],
+        queryFn: () => CategoryService.getAllCategories(),
+        staleTime: 1000 * 60 * 5,
+      });
+      break;
+    case "/admin/brands":
+      import("@/modules/product/presentation/pages/BrandsPage");
+      queryClient.prefetchQuery({
+        queryKey: ["brands"],
+        queryFn: () => BrandService.getAllBrands(),
+        staleTime: 1000 * 60 * 5,
+      });
+      break;
+    case "/admin/uoms":
+      import("@/modules/product/presentation/pages/UOMsPage");
+      queryClient.prefetchQuery({
+        queryKey: ["uoms"],
+        queryFn: () => UomService.getAllUOMs(),
+        staleTime: 1000 * 60 * 5,
+      });
+      break;
+    case "/admin/attributes":
+      import("@/modules/product/presentation/pages/AttributesPage");
+      queryClient.prefetchQuery({
+        queryKey: ["attributes", "with-values"],
+        queryFn: () => AttributeService.getAllAttributesWithValues(),
+        staleTime: 1000 * 60 * 5,
+      });
+      break;
+  }
+};
+
+// Localized skeleton content loader for inner page area to keep sidebar & header stable
 const AdminContentLoader = () => (
-  <div className="flex h-[50vh] w-full items-center justify-center">
-    <div className="flex flex-col items-center gap-2">
-      <Loader2 className="w-8 h-8 animate-spin text-primary" />
-      <span className="text-xs text-muted-foreground font-medium">Loading section...</span>
+  <div className="space-y-6 animate-pulse p-2">
+    <div className="flex justify-between items-center">
+      <div className="space-y-2">
+        <div className="h-7 w-48 bg-muted/80 rounded-md" />
+        <div className="h-4 w-32 bg-muted/50 rounded" />
+      </div>
+      <div className="h-9 w-28 bg-muted/80 rounded-md" />
+    </div>
+    <div className="h-10 max-w-sm bg-muted/50 rounded-md" />
+    <div className="border rounded-md overflow-hidden bg-card">
+      <div className="h-11 bg-muted/40 border-b flex items-center px-4 gap-4">
+        <div className="h-4 w-12 bg-muted rounded" />
+        <div className="h-4 w-24 bg-muted rounded" />
+        <div className="h-4 w-40 bg-muted rounded" />
+        <div className="h-4 w-28 bg-muted rounded" />
+        <div className="h-4 w-20 bg-muted rounded" />
+        <div className="h-4 w-16 bg-muted rounded ml-auto" />
+      </div>
+      <div className="divide-y divide-border/60">
+        {[1, 2, 3, 4, 5, 6].map((i) => (
+          <div key={i} className="h-14 flex items-center px-4 gap-4">
+            <div className="w-10 h-10 bg-muted/70 rounded-md shrink-0" />
+            <div className="h-4 w-24 bg-muted/70 rounded" />
+            <div className="h-4 w-44 bg-muted/70 rounded" />
+            <div className="h-4 w-28 bg-muted/70 rounded" />
+            <div className="h-4 w-20 bg-muted/70 rounded" />
+            <div className="h-4 w-16 bg-muted/70 rounded ml-auto" />
+          </div>
+        ))}
+      </div>
     </div>
   </div>
 );
@@ -268,6 +346,7 @@ const AdminLayout = () => {
   const location = useLocation();
   const prevPathnameRef = useRef(location.pathname);
   const userPrefCollapsedRef = useRef(false);
+  const queryClient = useQueryClient();
 
   const [collapsed, setCollapsed] = useState(() => {
     return isAutoCollapseRoute(window.location.pathname);
@@ -279,6 +358,18 @@ const AdminLayout = () => {
   const s = Array.isArray(settings) ? settings[0] || {} : settings || {};
   const logoUrl = s?.logo_url || "/logo.png";
   const siteName = s?.site_name || "Admin";
+
+  // Preload catalog chunks and prefetch query data in background after layout mounts
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      prefetchCatalogRoute("/admin/products", queryClient);
+      prefetchCatalogRoute("/admin/categories", queryClient);
+      prefetchCatalogRoute("/admin/brands", queryClient);
+      prefetchCatalogRoute("/admin/uoms", queryClient);
+      prefetchCatalogRoute("/admin/attributes", queryClient);
+    }, 700);
+    return () => clearTimeout(timer);
+  }, [queryClient]);
 
   // Filter categories based on user roles
   const visibleCategories = navCategories
@@ -432,6 +523,8 @@ const AdminLayout = () => {
                       <Link
                         key={item.path}
                         to={item.path}
+                        onMouseEnter={() => prefetchCatalogRoute(item.path, queryClient)}
+                        onFocus={() => prefetchCatalogRoute(item.path, queryClient)}
                         onClick={() => isMobile && setMobileOpen(false)}
                         className={`group relative flex items-center ${
                           isCollapsed
