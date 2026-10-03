@@ -24,7 +24,8 @@ import {
 } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
 
-const STORAGE_KEY = "admin_read_orders";
+const STORAGE_READ_IDS_KEY = "admin_read_orders";
+const STORAGE_LAST_READ_TIME_KEY = "admin_notifications_last_read_time";
 
 // Soft chime sound using Web Audio API
 const playChime = () => {
@@ -71,26 +72,44 @@ export const AdminOrderNotification = () => {
   const [open, setOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<"new" | "today" | "all">("new");
 
-  // Read orders tracking
+  // Read orders tracking (individual dismissed IDs)
   const [readOrderIds, setReadOrderIds] = useState<Set<string>>(() => {
     try {
-      const stored = localStorage.getItem(STORAGE_KEY);
+      const stored = localStorage.getItem(STORAGE_READ_IDS_KEY);
       return stored ? new Set(JSON.parse(stored)) : new Set();
     } catch {
       return new Set();
     }
   });
 
+  // Timestamp of last time user checked/cleared notifications
+  const [lastReadTime, setLastReadTime] = useState<number>(() => {
+    try {
+      const stored = localStorage.getItem(STORAGE_LAST_READ_TIME_KEY);
+      if (stored) {
+        const parsed = Number(stored);
+        if (!isNaN(parsed) && parsed > 0) return parsed;
+      }
+      // On first load or reset, initialize to current time so old historical orders
+      // never permanently pollute the notification count with "9+"!
+      const now = Date.now();
+      localStorage.setItem(STORAGE_LAST_READ_TIME_KEY, String(now));
+      return now;
+    } catch {
+      return Date.now();
+    }
+  });
+
   const prevOrderCountRef = useRef<number>(orders.length);
   const isFirstRender = useRef(true);
 
-  // Mark order as read in state & localStorage
+  // Mark individual order as read in state & localStorage
   const markAsRead = (id: string) => {
     setReadOrderIds((prev) => {
       const updated = new Set(prev);
       updated.add(id);
       try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(Array.from(updated)));
+        localStorage.setItem(STORAGE_READ_IDS_KEY, JSON.stringify(Array.from(updated)));
       } catch (e) {
         console.error("Failed to save read orders", e);
       }
@@ -98,15 +117,28 @@ export const AdminOrderNotification = () => {
     });
   };
 
-  const markAllAsRead = () => {
+  // Mark all orders as read (totally finishes all unread notifications)
+  const markAllAsRead = (showToast = true) => {
+    const now = Date.now();
+    setLastReadTime(now);
     const allIds = orders.map((o) => o.id);
-    const updated = new Set(allIds);
-    setReadOrderIds(updated);
+    setReadOrderIds((prev) => {
+      const updated = new Set([...prev, ...allIds]);
+      try {
+        localStorage.setItem(STORAGE_READ_IDS_KEY, JSON.stringify(Array.from(updated)));
+      } catch (e) {
+        console.error("Failed to save read orders", e);
+      }
+      return updated;
+    });
+
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(allIds));
-      toast.success("All order notifications marked as read");
+      localStorage.setItem(STORAGE_LAST_READ_TIME_KEY, String(now));
+      if (showToast) {
+        toast.success("All order notifications marked as read");
+      }
     } catch (e) {
-      console.error("Failed to save read orders", e);
+      console.error("Failed to save last read time", e);
     }
   };
 
@@ -195,10 +227,20 @@ export const AdminOrderNotification = () => {
     });
   }, [orders]);
 
-  // Unread orders
+  // Only real, new incoming orders created after lastReadTime and not yet marked as read
   const unreadOrders = useMemo(() => {
-    return orders.filter((o) => !readOrderIds.has(o.id));
-  }, [orders, readOrderIds]);
+    return orders.filter((o) => {
+      if (readOrderIds.has(o.id)) return false;
+
+      const orderTime = new Date(o.created_at || 0).getTime();
+      if (orderTime <= lastReadTime) return false;
+
+      const st = (o.status || "").toLowerCase();
+      if (["cancelled", "void", "draft"].includes(st)) return false;
+
+      return true;
+    });
+  }, [orders, readOrderIds, lastReadTime]);
 
   const unreadCount = unreadOrders.length;
 
@@ -221,8 +263,26 @@ export const AdminOrderNotification = () => {
     }
   };
 
+  const handleOpenChange = (isOpen: boolean) => {
+    setOpen(isOpen);
+    if (isOpen) {
+      if (unreadCount > 0) {
+        setActiveTab("new");
+      } else if (todayOrders.length > 0) {
+        setActiveTab("today");
+      } else {
+        setActiveTab("all");
+      }
+    } else {
+      // When closing the popover after reviewing, totally finish unread badge
+      if (unreadCount > 0) {
+        markAllAsRead(false);
+      }
+    }
+  };
+
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    <Popover open={open} onOpenChange={handleOpenChange}>
       <PopoverTrigger asChild>
         <button
           type="button"
@@ -231,21 +291,19 @@ export const AdminOrderNotification = () => {
           title={
             unreadCount > 0
               ? `${unreadCount} new order${unreadCount > 1 ? "s" : ""}`
-              : "Order Notifications"
+              : "Order Notifications (All caught up)"
           }
         >
           <Bell className="h-4 w-4" />
 
           {/* Active Ping & Badge for Unread Orders */}
           {unreadCount > 0 && (
-            <>
-              <span className="absolute -top-0.5 -right-0.5 flex h-4 w-4">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-4 w-4 bg-red-500 text-white text-[9px] font-bold items-center justify-center shadow-xs">
-                  {unreadCount > 9 ? "9+" : unreadCount}
-                </span>
+            <span className="absolute -top-1 -right-1 flex h-4 min-w-[16px]">
+              <span className="animate-ping absolute inset-0 rounded-full bg-red-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-4 min-w-[16px] px-1 bg-red-600 text-white text-[9px] font-bold items-center justify-center shadow-xs">
+                {unreadCount > 9 ? "9+" : unreadCount}
               </span>
-            </>
+            </span>
           )}
         </button>
       </PopoverTrigger>
@@ -279,14 +337,23 @@ export const AdminOrderNotification = () => {
             </div>
           </div>
 
-          {unreadCount > 0 && (
+          {unreadCount > 0 ? (
             <button
-              onClick={markAllAsRead}
-              className="text-[11px] text-blue-300 hover:text-white flex items-center gap-1 font-medium transition"
+              onClick={() => markAllAsRead(true)}
+              className="text-xs bg-blue-600 hover:bg-blue-500 text-white px-2.5 py-1 rounded-md flex items-center gap-1 font-semibold transition shadow-xs cursor-pointer"
               title="Mark all as read"
             >
               <Check className="w-3.5 h-3.5" />
               Mark all read
+            </button>
+          ) : (
+            <button
+              onClick={() => markAllAsRead(true)}
+              className="text-[11px] text-slate-400 hover:text-white flex items-center gap-1 font-medium transition cursor-pointer"
+              title="Clear notification history"
+            >
+              <Check className="w-3 h-3" />
+              Clear all
             </button>
           )}
         </div>
@@ -329,7 +396,9 @@ export const AdminOrderNotification = () => {
         <div className="max-h-[340px] overflow-y-auto divide-y divide-gray-100">
           {displayList.length > 0 ? (
             displayList.map((order) => {
-              const isUnread = !readOrderIds.has(order.id);
+              const isUnread =
+                !readOrderIds.has(order.id) &&
+                new Date(order.created_at || 0).getTime() > lastReadTime;
               const isDealer = order.customer_group === "Dealer";
               const isPos = order.type === "pos_receipt";
 
@@ -338,7 +407,7 @@ export const AdminOrderNotification = () => {
                   key={order.id}
                   onClick={() => handleOrderClick(order)}
                   className={`p-3 px-4 flex items-start gap-3 hover:bg-slate-50 cursor-pointer transition relative group ${
-                    isUnread ? "bg-blue-50/40" : "bg-white"
+                    isUnread ? "bg-blue-50/50" : "bg-white"
                   }`}
                 >
                   {/* Status Indicator Icon */}
@@ -396,9 +465,19 @@ export const AdminOrderNotification = () => {
                     </div>
                   </div>
 
-                  {/* Unread dot */}
+                  {/* Mark as read button / unread dot */}
                   {isUnread && (
-                    <span className="w-2 h-2 rounded-full bg-blue-600 shrink-0 self-center" />
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        markAsRead(order.id);
+                      }}
+                      className="p-1 rounded-full text-blue-600 hover:bg-blue-100 hover:text-blue-800 transition shrink-0 self-center"
+                      title="Mark this order as read"
+                    >
+                      <Check className="w-3.5 h-3.5" />
+                    </button>
                   )}
                 </div>
               );
@@ -414,8 +493,18 @@ export const AdminOrderNotification = () => {
                   : "No recent orders"}
               </p>
               <p className="text-[11px] text-gray-400 mt-0.5">
-                New incoming orders will trigger instant notification
+                {activeTab === "new"
+                  ? "You're all caught up! New incoming orders will alert you in real-time."
+                  : "New orders will appear here automatically."}
               </p>
+              {activeTab === "new" && todayOrders.length > 0 && (
+                <button
+                  onClick={() => setActiveTab("today")}
+                  className="mt-3 text-xs font-semibold text-blue-600 hover:text-blue-800 hover:underline inline-flex items-center gap-1"
+                >
+                  View Today&apos;s Orders ({todayOrders.length}) →
+                </button>
+              )}
             </div>
           )}
         </div>
