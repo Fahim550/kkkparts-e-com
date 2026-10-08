@@ -98,8 +98,10 @@ const OrdersManager = () => {
       );
     }
 
-    if (statusFilter !== "all") {
-      result = result.filter((o) => o.status === statusFilter);
+    if (statusFilter === "all") {
+      result = result.filter((o) => (o.status || "").toLowerCase() !== "delivered");
+    } else {
+      result = result.filter((o) => (o.status || "").toLowerCase() === statusFilter.toLowerCase());
     }
     if (salesmanFilter !== "all") {
       result = result.filter((o) => o.salesman_name === salesmanFilter);
@@ -134,9 +136,11 @@ const OrdersManager = () => {
       );
     }
 
-    const counts: Record<string, number> = { all: base.length };
+    const counts: Record<string, number> = {
+      all: base.filter((o) => (o.status || "").toLowerCase() !== "delivered").length,
+    };
     statuses.forEach((s) => {
-      counts[s] = base.filter((o) => o.status === s).length;
+      counts[s] = base.filter((o) => (o.status || "").toLowerCase() === s.toLowerCase()).length;
     });
     return counts;
   }, [orders, channelFilter]);
@@ -182,7 +186,7 @@ const OrdersManager = () => {
             Customer Orders
           </h1>
           <p className="font-body text-sm text-muted-foreground mt-1">
-            {statusCounts["all"]} total orders
+            {statusCounts["all"]} active orders · {statusCounts["delivered"] || 0} delivered
           </p>
         </div>
         <AddOrderDialog />
@@ -242,11 +246,15 @@ const OrdersManager = () => {
               onClick={() => setStatusFilter(s)}
               className={`px-4 py-2 rounded-md font-body text-sm font-medium transition-colors ${
                 statusFilter === s
-                  ? "bg-primary text-primary-foreground"
+                  ? s === "delivered"
+                    ? "bg-emerald-600 text-white font-semibold"
+                    : "bg-primary text-primary-foreground"
+                  : s === "delivered"
+                  ? "bg-emerald-50 text-emerald-800 border border-emerald-200 hover:bg-emerald-100 font-semibold"
                   : "bg-card border border-border text-muted-foreground hover:text-foreground hover:border-primary/30"
               }`}
             >
-              {s === "all" ? "All" : s.charAt(0).toUpperCase() + s.slice(1)}
+              {s === "all" ? "All Orders" : s.charAt(0).toUpperCase() + s.slice(1)}
               <span className="ml-1.5 text-xs opacity-70">
                 ({statusCounts[s] || 0})
               </span>
@@ -274,7 +282,23 @@ const OrdersManager = () => {
       </div>
 
       <div className="space-y-4">
-        {filtered.map((order) => {
+        {filtered.length === 0 ? (
+          <div className="bg-card border border-border p-12 rounded-lg text-center">
+            <p className="text-base font-bold text-foreground">
+              {statusFilter === "delivered"
+                ? "No delivered orders found"
+                : statusFilter === "all"
+                ? "No active orders found"
+                : `No orders with status "${statusFilter}"`}
+            </p>
+            <p className="text-xs text-muted-foreground mt-1">
+              {statusFilter === "all"
+                ? "Delivered orders have been moved to the Delivered Orders tab."
+                : "Try selecting a different status filter or channel."}
+            </p>
+          </div>
+        ) : (
+          filtered.map((order) => {
           const items = (order.items as any[]) || [];
           const isField =
             order.order_source === "field_marketing" ||
@@ -434,7 +458,8 @@ const OrdersManager = () => {
               </div>
             </div>
           );
-        })}
+        })
+      )}
       </div>
 
       {/* Modern In-App Confirmation Dialog for Delete */}

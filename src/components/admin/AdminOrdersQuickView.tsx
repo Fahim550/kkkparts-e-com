@@ -1,5 +1,11 @@
 import { EditOrderDialog } from "@/components/admin/EditOrderDialog";
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
   Activity,
   ArrowRight,
   CheckCircle2,
@@ -8,6 +14,7 @@ import {
   Clock,
   Edit,
   Eye,
+  MoreVertical,
   Search,
   ShoppingCart,
   Store,
@@ -71,11 +78,14 @@ export const AdminOrdersQuickView = ({
     }
   });
 
-  const [activeTab, setActiveTab] = useState<"today" | "field" | "customer" | "dealer" | "session" | "all">("today");
+  const [activeTab, setActiveTab] = useState<
+    "today" | "field" | "customer" | "dealer" | "session" | "delivered" | "all"
+  >("today");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedSalesman, setSelectedSalesman] = useState<string>("all");
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState<number>(DEFAULT_PAGE_SIZE);
+  const [editingOrder, setEditingOrder] = useState<DashboardOrder | null>(null);
 
   // Available unique salesmen in current orders list
   const availableSalesmen = useMemo(() => {
@@ -103,6 +113,8 @@ export const AdminOrdersQuickView = ({
     const d = new Date(dateStr);
     return d.getTime() >= sessionStartTime.getTime() - 60000;
   };
+
+  const isDelivered = (status?: string) => (status || "").toLowerCase() === "delivered";
 
   // Metrics for Today & Channels
   const todayMetrics = useMemo(() => {
@@ -140,6 +152,54 @@ export const AdminOrdersQuickView = ({
     };
   }, [orders]);
 
+  // Tab metrics: Active vs Delivered counts
+  const tabCounts = useMemo(() => {
+    let todayActive = 0;
+    let fieldActive = 0;
+    let customerActive = 0;
+    let dealerActive = 0;
+    let sessionActive = 0;
+    let allActive = 0;
+    let deliveredCount = 0;
+
+    orders.forEach((o) => {
+      const deliv = isDelivered(o.status);
+      if (deliv) {
+        deliveredCount++;
+      } else {
+        allActive++;
+        const isField =
+          o.order_source === "field_marketing" ||
+          o.order_number?.startsWith("SO-FLD-") ||
+          Boolean(o.salesman_name);
+        if (isField) fieldActive++;
+
+        if (isToday(o.created_at)) {
+          todayActive++;
+          if (o.customer_group === "Dealer") {
+            dealerActive++;
+          } else {
+            customerActive++;
+          }
+        }
+
+        if (isSession(o.created_at)) {
+          sessionActive++;
+        }
+      }
+    });
+
+    return {
+      todayActive,
+      fieldActive,
+      customerActive,
+      dealerActive,
+      sessionActive,
+      allActive,
+      deliveredCount,
+    };
+  }, [orders, sessionStartTime]);
+
   // Session count
   const sessionOrdersCount = useMemo(() => {
     return orders.filter((o) => isSession(o.created_at)).length;
@@ -148,23 +208,32 @@ export const AdminOrdersQuickView = ({
   // Filtered orders list based on active tab and search
   const filteredOrders = useMemo(() => {
     return orders.filter((o) => {
+      const isDeliv = isDelivered(o.status);
+
       // 1. Tab filter
-      if (activeTab === "today") {
-        if (!isToday(o.created_at)) return false;
-      } else if (activeTab === "field") {
-        const isField =
-          o.order_source === "field_marketing" ||
-          o.order_number?.startsWith("SO-FLD-") ||
-          Boolean(o.salesman_name);
-        if (!isField) return false;
-      } else if (activeTab === "customer") {
-        if (!isToday(o.created_at) || o.customer_group === "Dealer") return false;
-      } else if (activeTab === "dealer") {
-        if (!isToday(o.created_at) || o.customer_group !== "Dealer") return false;
-      } else if (activeTab === "session") {
-        if (!isSession(o.created_at)) return false;
+      if (activeTab === "delivered") {
+        if (!isDeliv) return false;
+      } else {
+        // Exclude delivered orders from all regular / active tabs to simplify the table
+        if (isDeliv) return false;
+
+        if (activeTab === "today") {
+          if (!isToday(o.created_at)) return false;
+        } else if (activeTab === "field") {
+          const isField =
+            o.order_source === "field_marketing" ||
+            o.order_number?.startsWith("SO-FLD-") ||
+            Boolean(o.salesman_name);
+          if (!isField) return false;
+        } else if (activeTab === "customer") {
+          if (!isToday(o.created_at) || o.customer_group === "Dealer") return false;
+        } else if (activeTab === "dealer") {
+          if (!isToday(o.created_at) || o.customer_group !== "Dealer") return false;
+        } else if (activeTab === "session") {
+          if (!isSession(o.created_at)) return false;
+        }
+        // "all" shows all non-delivered orders
       }
-      // "all" shows all orders
 
       // 2. Salesman filter
       if (selectedSalesman !== "all") {
@@ -198,7 +267,9 @@ export const AdminOrdersQuickView = ({
   }, [filteredOrders, validCurrentPage, pageSize]);
 
   // When tab or search changes, reset page to 1
-  const handleTabChange = (tab: "today" | "field" | "customer" | "dealer" | "session" | "all") => {
+  const handleTabChange = (
+    tab: "today" | "field" | "customer" | "dealer" | "session" | "delivered" | "all"
+  ) => {
     setActiveTab(tab);
     setCurrentPage(1);
   };
@@ -411,164 +482,247 @@ export const AdminOrdersQuickView = ({
           </div>
         </div>
 
-        {/* Filter Tabs & Search Row */}
-        <div className="mt-3.5 flex flex-col md:flex-row md:items-center justify-between gap-2.5 pt-3 border-t border-gray-100">
-          {/* Tabs */}
-          <div className="flex items-center gap-1 bg-slate-100/90 p-1 rounded-lg flex-wrap">
-            <button
-              onClick={() => handleTabChange("today")}
-              className={`px-2.5 py-1 text-xs rounded-md transition-all ${
-                activeTab === "today"
-                  ? "bg-white text-gray-900 shadow-2xs font-semibold"
-                  : "text-gray-600 hover:text-gray-900 font-medium"
-              }`}
-            >
-              Today&apos;s Orders
-              <span
-                className={`ml-1.5 px-1.5 py-0.2 rounded-full text-[10px] ${
+        {/* Filter Section: 2 Full-Width Tabs Rows + Dedicated Search Row */}
+        <div className="mt-3.5 pt-3 border-t border-gray-100 space-y-2">
+          {/* Unified Filter Tabs Card (2 Full-Width Rows) */}
+          <div className="w-full p-1.5 bg-slate-100/80 rounded-xl border border-slate-200/70 space-y-1.5 shadow-2xs">
+            {/* Row 1: Daily & Channel Tabs (4 columns taking 100% full width) */}
+            <div className="w-full grid grid-cols-2 sm:grid-cols-4 gap-1.5">
+              <button
+                onClick={() => handleTabChange("today")}
+                title="Today's Orders"
+                className={`w-full flex items-center justify-between gap-1.5 px-2.5 sm:px-3 py-2 text-xs rounded-lg transition-all ${
                   activeTab === "today"
-                    ? "bg-blue-100 text-blue-800 font-bold"
-                    : "bg-gray-200/70 text-gray-600"
+                    ? "bg-blue-600 text-white shadow-xs font-semibold ring-2 ring-blue-600/20"
+                    : "bg-white text-gray-700 hover:text-gray-900 hover:bg-slate-50 border border-gray-200/70 font-medium shadow-2xs"
                 }`}
               >
-                {todayMetrics.count}
-              </span>
-            </button>
-            <button
-              onClick={() => handleTabChange("field")}
-              className={`px-2.5 py-1 text-xs rounded-md transition-all flex items-center gap-1 ${
-                activeTab === "field"
-                  ? "bg-emerald-600 text-white shadow-2xs font-semibold"
-                  : "text-emerald-700 hover:text-emerald-900 font-medium"
-              }`}
-            >
-              <Store className="w-3.5 h-3.5" />
-              <span>Field Salesman</span>
-              <span
-                className={`ml-1 px-1.5 py-0.2 rounded-full text-[10px] ${
+                <div className="flex items-center gap-1.5 min-w-0">
+                  <Clock className="w-3.5 h-3.5 shrink-0 opacity-80" />
+                  <span className="font-semibold whitespace-nowrap">Today&apos;s Orders</span>
+                </div>
+                <span
+                  className={`px-1.5 py-0.5 rounded-full text-[11px] font-bold shrink-0 min-w-[20px] text-center ${
+                    activeTab === "today"
+                      ? "bg-white/20 text-white"
+                      : "bg-blue-100 text-blue-800"
+                  }`}
+                >
+                  {tabCounts.todayActive}
+                </span>
+              </button>
+
+              <button
+                onClick={() => handleTabChange("field")}
+                title="Field Salesman Orders"
+                className={`w-full flex items-center justify-between gap-1.5 px-2.5 sm:px-3 py-2 text-xs rounded-lg transition-all ${
                   activeTab === "field"
-                    ? "bg-white/20 text-white font-bold"
-                    : "bg-emerald-100 text-emerald-800"
+                    ? "bg-emerald-600 text-white shadow-xs font-semibold ring-2 ring-emerald-600/20"
+                    : "bg-white text-gray-700 hover:text-emerald-800 hover:bg-slate-50 border border-gray-200/70 font-medium shadow-2xs"
                 }`}
               >
-                {todayMetrics.fieldCount}
-              </span>
-            </button>
-            <button
-              onClick={() => handleTabChange("customer")}
-              className={`px-2.5 py-1 text-xs rounded-md transition-all ${
-                activeTab === "customer"
-                  ? "bg-white text-blue-700 shadow-2xs font-semibold"
-                  : "text-gray-600 hover:text-blue-600 font-medium"
-              }`}
-            >
-              Customers Today
-              <span
-                className={`ml-1.5 px-1.5 py-0.2 rounded-full text-[10px] ${
+                <div className="flex items-center gap-1.5 min-w-0">
+                  <Store className="w-3.5 h-3.5 shrink-0 opacity-80" />
+                  <span className="font-semibold whitespace-nowrap">Field Salesman</span>
+                </div>
+                <span
+                  className={`px-1.5 py-0.5 rounded-full text-[11px] font-bold shrink-0 min-w-[20px] text-center ${
+                    activeTab === "field"
+                      ? "bg-white/20 text-white"
+                      : "bg-emerald-100 text-emerald-800"
+                  }`}
+                >
+                  {tabCounts.fieldActive}
+                </span>
+              </button>
+
+              <button
+                onClick={() => handleTabChange("customer")}
+                title="Customers Today"
+                className={`w-full flex items-center justify-between gap-1.5 px-2.5 sm:px-3 py-2 text-xs rounded-lg transition-all ${
                   activeTab === "customer"
-                    ? "bg-blue-100 text-blue-800 font-bold"
-                    : "bg-gray-200/70 text-gray-600"
+                    ? "bg-blue-600 text-white shadow-xs font-semibold ring-2 ring-blue-600/20"
+                    : "bg-white text-gray-700 hover:text-blue-700 hover:bg-slate-50 border border-gray-200/70 font-medium shadow-2xs"
                 }`}
               >
-                {todayMetrics.customerCount}
-              </span>
-            </button>
-            <button
-              onClick={() => handleTabChange("dealer")}
-              className={`px-2.5 py-1 text-xs rounded-md transition-all ${
-                activeTab === "dealer"
-                  ? "bg-white text-purple-700 shadow-2xs font-semibold"
-                  : "text-gray-600 hover:text-purple-600 font-medium"
-              }`}
-            >
-              Dealers Today
-              <span
-                className={`ml-1.5 px-1.5 py-0.2 rounded-full text-[10px] ${
+                <div className="flex items-center gap-1.5 min-w-0">
+                  <User className="w-3.5 h-3.5 shrink-0 opacity-80" />
+                  <span className="font-semibold whitespace-nowrap">Customers Today</span>
+                </div>
+                <span
+                  className={`px-1.5 py-0.5 rounded-full text-[11px] font-bold shrink-0 min-w-[20px] text-center ${
+                    activeTab === "customer"
+                      ? "bg-white/20 text-white"
+                      : "bg-blue-100 text-blue-800"
+                  }`}
+                >
+                  {tabCounts.customerActive}
+                </span>
+              </button>
+
+              <button
+                onClick={() => handleTabChange("dealer")}
+                title="Dealers Today"
+                className={`w-full flex items-center justify-between gap-1.5 px-2.5 sm:px-3 py-2 text-xs rounded-lg transition-all ${
                   activeTab === "dealer"
-                    ? "bg-purple-100 text-purple-800 font-bold"
-                    : "bg-gray-200/70 text-gray-600"
+                    ? "bg-purple-600 text-white shadow-xs font-semibold ring-2 ring-purple-600/20"
+                    : "bg-white text-gray-700 hover:text-purple-700 hover:bg-slate-50 border border-gray-200/70 font-medium shadow-2xs"
                 }`}
               >
-                {todayMetrics.dealerCount}
-              </span>
-            </button>
-            <button
-              onClick={() => handleTabChange("session")}
-              className={`px-2.5 py-1 text-xs rounded-md transition-all ${
-                activeTab === "session"
-                  ? "bg-white text-emerald-700 shadow-2xs font-semibold"
-                  : "text-gray-600 hover:text-emerald-600 font-medium"
-              }`}
-            >
-              This Session
-              <span
-                className={`ml-1.5 px-1.5 py-0.2 rounded-full text-[10px] ${
+                <div className="flex items-center gap-1.5 min-w-0">
+                  <Store className="w-3.5 h-3.5 shrink-0 opacity-80" />
+                  <span className="font-semibold whitespace-nowrap">Dealers Today</span>
+                </div>
+                <span
+                  className={`px-1.5 py-0.5 rounded-full text-[11px] font-bold shrink-0 min-w-[20px] text-center ${
+                    activeTab === "dealer"
+                      ? "bg-white/20 text-white"
+                      : "bg-purple-100 text-purple-800"
+                  }`}
+                >
+                  {tabCounts.dealerActive}
+                </span>
+              </button>
+            </div>
+
+            {/* Row 2: Status & Session Tabs (3 columns taking 100% full width) */}
+            <div className="w-full grid grid-cols-1 sm:grid-cols-3 gap-1.5">
+              <button
+                onClick={() => handleTabChange("session")}
+                title="This Session"
+                className={`w-full flex items-center justify-between gap-1.5 px-2.5 sm:px-3 py-2 text-xs rounded-lg transition-all ${
                   activeTab === "session"
-                    ? "bg-emerald-100 text-emerald-800 font-bold"
-                    : "bg-gray-200/70 text-gray-600"
+                    ? "bg-teal-600 text-white shadow-xs font-semibold ring-2 ring-teal-600/20"
+                    : "bg-white text-gray-700 hover:text-teal-700 hover:bg-slate-50 border border-gray-200/70 font-medium shadow-2xs"
                 }`}
               >
-                {sessionOrdersCount}
-              </span>
-            </button>
-            <button
-              onClick={() => handleTabChange("all")}
-              className={`px-2.5 py-1 text-xs rounded-md transition-all ${
-                activeTab === "all"
-                  ? "bg-white text-gray-900 shadow-2xs font-semibold"
-                  : "text-gray-500 hover:text-gray-800 font-medium"
-              }`}
-            >
-              All History
-              <span
-                className={`ml-1 px-1.5 py-0.2 rounded-full text-[10px] ${
+                <div className="flex items-center gap-1.5 min-w-0">
+                  <Activity className="w-3.5 h-3.5 shrink-0 opacity-80" />
+                  <span className="font-semibold whitespace-nowrap">This Session</span>
+                </div>
+                <span
+                  className={`px-1.5 py-0.5 rounded-full text-[11px] font-bold shrink-0 min-w-[20px] text-center ${
+                    activeTab === "session"
+                      ? "bg-white/20 text-white"
+                      : "bg-teal-100 text-teal-800"
+                  }`}
+                >
+                  {tabCounts.sessionActive}
+                </span>
+              </button>
+
+              <button
+                onClick={() => handleTabChange("delivered")}
+                title="Delivered Orders"
+                className={`w-full flex items-center justify-between gap-1.5 px-2.5 sm:px-3 py-2 text-xs rounded-lg transition-all ${
+                  activeTab === "delivered"
+                    ? "bg-emerald-600 text-white shadow-xs font-semibold ring-2 ring-emerald-600/20"
+                    : "bg-white text-emerald-800 hover:bg-emerald-50 border border-emerald-200/80 font-medium shadow-2xs"
+                }`}
+              >
+                <div className="flex items-center gap-1.5 min-w-0">
+                  <CheckCircle2
+                    className={`w-3.5 h-3.5 shrink-0 ${
+                      activeTab === "delivered" ? "text-white" : "text-emerald-600"
+                    }`}
+                  />
+                  <span className="font-semibold whitespace-nowrap">Delivered Orders</span>
+                </div>
+                <span
+                  className={`px-1.5 py-0.5 rounded-full text-[11px] font-bold shrink-0 min-w-[20px] text-center ${
+                    activeTab === "delivered"
+                      ? "bg-white/20 text-white"
+                      : "bg-emerald-100 text-emerald-800 font-bold"
+                  }`}
+                >
+                  {tabCounts.deliveredCount}
+                </span>
+              </button>
+
+              <button
+                onClick={() => handleTabChange("all")}
+                title="All Orders"
+                className={`w-full flex items-center justify-between gap-1.5 px-2.5 sm:px-3 py-2 text-xs rounded-lg transition-all ${
                   activeTab === "all"
-                    ? "bg-slate-200 text-gray-800 font-bold"
-                    : "bg-gray-200/70 text-gray-600"
+                    ? "bg-slate-900 text-white shadow-xs font-semibold ring-2 ring-slate-900/20"
+                    : "bg-white text-gray-700 hover:text-gray-900 hover:bg-slate-50 border border-gray-200/70 font-medium shadow-2xs"
                 }`}
               >
-                {orders.length}
-              </span>
-            </button>
+                <div className="flex items-center gap-1.5 min-w-0">
+                  <ShoppingCart className="w-3.5 h-3.5 shrink-0 opacity-80" />
+                  <span className="font-semibold whitespace-nowrap">All Orders</span>
+                </div>
+                <span
+                  className={`px-1.5 py-0.5 rounded-full text-[11px] font-bold shrink-0 min-w-[20px] text-center ${
+                    activeTab === "all"
+                      ? "bg-white/20 text-white"
+                      : "bg-slate-100 text-slate-700 border border-slate-200"
+                  }`}
+                >
+                  {tabCounts.allActive}
+                </span>
+              </button>
+            </div>
           </div>
 
-          {/* Quick Search & Salesman Filter */}
-          <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
-            {availableSalesmen.length > 0 && !isSalesmanPortal && (
-              <div className="relative sm:w-40 shrink-0">
-                <select
-                  value={selectedSalesman}
-                  onChange={(e) => {
-                    setSelectedSalesman(e.target.value);
+          {/* Row 2: Search Bar & Sales Rep in a dedicated full row */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pt-1">
+            <div className="flex items-center gap-2 flex-1 max-w-2xl">
+              <div className="relative flex-1">
+                <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => handleSearchChange(e.target.value)}
+                  placeholder="Search orders by number, customer, phone, email, salesman..."
+                  className="w-full pl-9 pr-8 py-2 text-xs bg-slate-50 border border-gray-200 rounded-lg text-gray-900 placeholder:text-gray-400 focus:outline-none focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition font-medium"
+                />
+                {searchQuery && (
+                  <button
+                    onClick={() => handleSearchChange("")}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 text-xs w-4 h-4 flex items-center justify-center rounded-full hover:bg-gray-200"
+                    title="Clear search"
+                  >
+                    ×
+                  </button>
+                )}
+              </div>
+
+              {availableSalesmen.length > 0 && !isSalesmanPortal && (
+                <div className="relative sm:w-44 shrink-0">
+                  <select
+                    value={selectedSalesman}
+                    onChange={(e) => {
+                      setSelectedSalesman(e.target.value);
+                      setCurrentPage(1);
+                    }}
+                    className="w-full px-3 py-2 text-xs bg-slate-50 border border-gray-200 rounded-lg text-gray-900 focus:outline-none focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition font-medium"
+                  >
+                    <option value="all">👤 All Sales Reps</option>
+                    {availableSalesmen.map((name) => (
+                      <option key={name} value={name}>
+                        👤 {name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+            </div>
+
+            <div className="flex items-center gap-2 shrink-0 self-end sm:self-auto text-xs text-gray-500">
+              <span className="font-medium">
+                Showing <strong className="text-gray-900 font-bold">{filteredOrders.length}</strong> orders
+              </span>
+              {(searchQuery || selectedSalesman !== "all") && (
+                <button
+                  onClick={() => {
+                    setSearchQuery("");
+                    setSelectedSalesman("all");
                     setCurrentPage(1);
                   }}
-                  className="w-full px-2.5 py-1.5 text-xs bg-slate-50 border border-gray-200 rounded-lg text-gray-900 focus:outline-none focus:bg-white focus:border-blue-500 transition font-medium"
+                  className="text-[11px] font-semibold text-rose-600 hover:text-rose-700 bg-rose-50 hover:bg-rose-100 px-2 py-1 rounded transition border border-rose-200/60"
                 >
-                  <option value="all">All Sales Reps</option>
-                  {availableSalesmen.map((name) => (
-                    <option key={name} value={name}>
-                      👤 {name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            )}
-
-            <div className="relative sm:w-52 shrink-0">
-              <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" />
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => handleSearchChange(e.target.value)}
-                placeholder="Search orders, rep..."
-                className="w-full pl-8 pr-3 py-1.5 text-xs bg-slate-50 border border-gray-200 rounded-lg text-gray-900 placeholder:text-gray-400 focus:outline-none focus:bg-white focus:border-blue-500 transition"
-              />
-              {searchQuery && (
-                <button
-                  onClick={() => handleSearchChange("")}
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 text-xs"
-                >
-                  ×
+                  Clear Filters
                 </button>
               )}
             </div>
@@ -588,7 +742,7 @@ export const AdminOrdersQuickView = ({
               <th className="py-2.5 px-3 w-[80px]">Items</th>
               <th className="py-2.5 px-3 w-[120px] text-right">Total</th>
               <th className="py-2.5 px-3 w-[100px] text-center">Status</th>
-              <th className="py-2.5 px-4 w-[80px] text-right">Action</th>
+              <th className="py-2.5 px-3 w-[60px] text-center">Action</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100 text-xs">
@@ -602,7 +756,7 @@ export const AdminOrdersQuickView = ({
                   <td className="py-3 px-3"><div className="h-4 bg-gray-200 rounded w-12" /></td>
                   <td className="py-3 px-3 text-right"><div className="h-4 bg-gray-200 rounded w-16 ml-auto" /></td>
                   <td className="py-3 px-3"><div className="h-5 bg-gray-200 rounded-full w-16 mx-auto" /></td>
-                  <td className="py-3 px-4 text-right"><div className="h-6 bg-gray-200 rounded w-10 ml-auto" /></td>
+                  <td className="py-3 px-3 text-center"><div className="h-6 w-6 bg-gray-200 rounded-md mx-auto" /></td>
                 </tr>
               ))
             ) : paginatedOrders.length > 0 ? (
@@ -725,29 +879,36 @@ export const AdminOrdersQuickView = ({
                       </span>
                     </td>
 
-                    {/* Actions: Edit and View */}
-                    <td className="py-3 px-4 text-right whitespace-nowrap">
-                      <div className="flex items-center justify-end gap-1.5">
-                        <EditOrderDialog
-                          order={order}
-                          trigger={
-                            <button
-                              className="inline-flex items-center gap-0.5 px-2 py-1 rounded text-xs font-semibold text-slate-600 bg-slate-50 hover:bg-slate-100 hover:text-blue-600 border border-slate-200 transition"
-                              title="Edit Order"
+                    {/* Actions: 3-dot dropdown menu */}
+                    <td className="py-3 px-3 text-center whitespace-nowrap">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <button
+                            className="p-1.5 rounded-lg text-slate-400 hover:text-slate-800 hover:bg-slate-100 transition inline-flex items-center justify-center cursor-pointer"
+                            title="Order actions"
+                          >
+                            <MoreVertical className="w-4 h-4" />
+                          </button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-36 bg-white shadow-md border border-gray-200 rounded-lg p-1 z-50">
+                          <DropdownMenuItem asChild>
+                            <Link
+                              to={orderLink}
+                              className="flex items-center gap-2 px-2.5 py-1.5 text-xs text-gray-700 hover:bg-slate-100 rounded cursor-pointer w-full"
                             >
-                              <Edit className="w-3 h-3" />
-                              <span>Edit</span>
-                            </button>
-                          }
-                        />
-                        <Link
-                          to={orderLink}
-                          className="inline-flex items-center gap-0.5 px-2 py-1 rounded text-xs font-semibold text-blue-600 bg-blue-50 hover:bg-blue-100 border border-blue-200 transition"
-                        >
-                          <Eye className="w-3 h-3" />
-                          <span>View</span>
-                        </Link>
-                      </div>
+                              <Eye className="w-3.5 h-3.5 text-blue-600" />
+                              <span>View Order</span>
+                            </Link>
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() => setEditingOrder(order)}
+                            className="flex items-center gap-2 px-2.5 py-1.5 text-xs text-gray-700 hover:bg-slate-100 rounded cursor-pointer"
+                          >
+                            <Edit className="w-3.5 h-3.5 text-slate-600" />
+                            <span>Edit Order</span>
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </td>
                   </tr>
                 );
@@ -761,14 +922,18 @@ export const AdminOrdersQuickView = ({
                     </div>
                     <p className="text-xs font-bold text-gray-800">
                       {activeTab === "today"
-                        ? "No orders received today yet"
+                        ? "No active orders received today yet"
                         : activeTab === "session"
-                        ? "No orders received in this session yet"
+                        ? "No active orders received in this session yet"
+                        : activeTab === "delivered"
+                        ? "No delivered orders found"
                         : "No matching orders found"}
                     </p>
                     <p className="text-[11px] text-gray-500 mt-0.5 mb-3 leading-relaxed">
                       {activeTab === "today"
-                        ? "Incoming orders placed today will appear here in real-time."
+                        ? "Incoming open orders placed today will appear here in real-time."
+                        : activeTab === "delivered"
+                        ? "Orders marked as delivered will appear here."
                         : "Try selecting a different filter tab or checking order history."}
                     </p>
                     <div className="flex items-center gap-2">
@@ -890,6 +1055,17 @@ export const AdminOrdersQuickView = ({
           </div>
         )}
       </div>
+
+      {/* Controlled Edit Order Modal for 3-dot action */}
+      {editingOrder && (
+        <EditOrderDialog
+          order={editingOrder}
+          open={!!editingOrder}
+          onOpenChange={(isOpen) => {
+            if (!isOpen) setEditingOrder(null);
+          }}
+        />
+      )}
     </div>
   );
 };

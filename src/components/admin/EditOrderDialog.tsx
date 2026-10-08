@@ -49,14 +49,20 @@ interface EditOrderDialogProps {
   order: any;
   trigger?: React.ReactNode;
   onOrderUpdated?: (order: any) => void;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }
 
 export const EditOrderDialog: React.FC<EditOrderDialogProps> = ({
   order,
   trigger,
   onOrderUpdated,
+  open: controlledOpen,
+  onOpenChange: controlledOnOpenChange,
 }) => {
-  const [open, setOpen] = useState(false);
+  const [internalOpen, setInternalOpen] = useState(false);
+  const open = controlledOpen !== undefined ? controlledOpen : internalOpen;
+  const setOpen = controlledOnOpenChange || setInternalOpen;
   const { user, isAdmin } = useAdminAuth();
   const { customers = [] } = useCustomers();
   const { data: customerDueMap = {} } = useCustomerDues();
@@ -262,19 +268,11 @@ export const EditOrderDialog: React.FC<EditOrderDialogProps> = ({
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        {trigger || (
-          <Button
-            variant="outline"
-            size="sm"
-            className="text-xs h-8 px-2.5 gap-1 text-slate-700 bg-white hover:bg-slate-50 hover:text-blue-600"
-            title="Edit Order Items & Quantities"
-          >
-            <Edit className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">Edit</span>
-          </Button>
-        )}
-      </DialogTrigger>
+      {trigger && (
+        <DialogTrigger asChild>
+          {trigger}
+        </DialogTrigger>
+      )}
 
       <DialogContent className="max-w-3xl max-h-[92vh] overflow-y-auto font-body p-4 sm:p-6">
         <DialogHeader className="border-b border-gray-100 pb-3">

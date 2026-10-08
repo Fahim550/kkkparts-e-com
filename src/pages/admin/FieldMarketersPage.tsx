@@ -354,7 +354,9 @@ const FieldMarketersPage = () => {
     if (!selectedSalesman) return [];
     let orders = getSalesmanOrders(selectedSalesman, selectedSalesmanCustomerIds);
 
-    if (orderStatusFilter !== "all") {
+    if (orderStatusFilter === "all") {
+      orders = orders.filter((o: any) => (o.status || "").toLowerCase() !== "delivered");
+    } else {
       orders = orders.filter((o: any) => (o.status || "").toLowerCase() === orderStatusFilter.toLowerCase());
     }
 
@@ -636,7 +638,7 @@ const FieldMarketersPage = () => {
                       : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50"
                   }`}
                 >
-                  All ({sm.totalOrders})
+                  All Orders ({Math.max(0, sm.totalOrders - sm.deliveredCount)})
                 </button>
                 {statuses.map((s) => (
                   <button
@@ -644,11 +646,15 @@ const FieldMarketersPage = () => {
                     onClick={() => setOrderStatusFilter(s)}
                     className={`px-2.5 py-1.5 text-xs font-semibold rounded-lg border uppercase tracking-wider transition-all ${
                       orderStatusFilter === s
-                        ? "bg-blue-600 text-white border-blue-600"
+                        ? s === "delivered"
+                          ? "bg-emerald-600 text-white border-emerald-600"
+                          : "bg-blue-600 text-white border-blue-600"
+                        : s === "delivered"
+                        ? "bg-emerald-50 text-emerald-800 border-emerald-200 hover:bg-emerald-100 font-semibold"
                         : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50"
                     }`}
                   >
-                    {s}
+                    {s} {s === "delivered" ? `(${sm.deliveredCount})` : ""}
                   </button>
                 ))}
               </div>
@@ -662,9 +668,19 @@ const FieldMarketersPage = () => {
             <div className="w-12 h-12 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center mx-auto mb-3">
               <ShoppingCart className="w-6 h-6" />
             </div>
-            <h3 className="text-base font-bold text-slate-800">No Orders Found</h3>
+            <h3 className="text-base font-bold text-slate-800">
+              {orderStatusFilter === "delivered"
+                ? "No Delivered Orders Found"
+                : orderStatusFilter === "all"
+                ? "No Active Orders Found"
+                : "No Orders Found"}
+            </h3>
             <p className="text-xs text-slate-500 mt-1 max-w-sm mx-auto">
-              {orderSearch ? "No orders match your search criteria." : "This field marketer has no orders in this category yet."}
+              {orderSearch
+                ? "No orders match your search criteria."
+                : orderStatusFilter === "all"
+                ? "Delivered orders have been moved to the Delivered Orders tab."
+                : "This field marketer has no orders in this category yet."}
             </p>
           </div>
         ) : (
