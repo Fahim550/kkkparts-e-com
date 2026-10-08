@@ -1,8 +1,7 @@
+import DirhamIcon from "@/components/DirhamIcon";
 import Footer from "@/components/Footer";
 import Navbar from "@/components/Navbar";
-import OfferProductCard from "@/components/OfferProductCard";
 import ProductCard from "@/components/ProductCard";
-import DirhamIcon from "@/components/DirhamIcon";
 import { useAuth } from "@/context/AuthContext";
 import { useLanguage } from "@/context/LanguageContext";
 import { useActiveCategories } from "@/hooks/useCategories";
@@ -304,19 +303,21 @@ const Index = () => {
       <Navbar />
 
       {/* Top Banners Section */}
-      <section className="pt-28 lg:pt-30 bg-background relative">
+      <section className="pt-22 sm:pt-24 lg:pt-30 bg-background relative">
         <div className="w-full px-0 lg:px-0">
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:h-[550px] xl:h-[750px]">
-            {/* Main Slider (Left) */}
+          <div
+            className={
+              promoBanners.length > 0
+                ? "grid grid-cols-1 lg:grid-cols-3 gap-4"
+                : "w-full"
+            }
+          >
+            {/* Main Slider */}
             <div
-              className={`group relative w-full h-[400px] lg:h-full overflow-hidden ${promoBanners.length > 0 ? "lg:col-span-2" : "lg:col-span-3"}`}
+              className={`group relative w-full overflow-hidden ${
+                promoBanners.length > 0 ? "lg:col-span-2" : "w-full"
+              } aspect-[3/2] sm:aspect-[16/10] md:aspect-[16/9] max-w-[1500px] mx-auto`}
             >
-              {/* Unconditionally render the preloaded fallback image to ensure instant LCP */}
-              {/* <div className="absolute inset-0">
-                <img src={heroImage} alt="Premium Auto Parts" fetchPriority="high" decoding="sync" className="w-full h-full object-cover" />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent md:bg-gradient-to-r md:from-black/80 md:via-black/40 md:to-transparent" />
-              </div> */}
-
               {heroBanners.length > 0 ? (
                 <>
                   <AnimatePresence initial={false} custom={direction}>
@@ -329,46 +330,78 @@ const Index = () => {
                       exit="exit"
                       className="absolute inset-0"
                     >
-                      <img
-                        src={heroBanners[currentBanner].image_url}
-                        alt={heroBanners[currentBanner].title}
-                        decoding="async"
-                        className="w-full h-full object-cover"
-                      />
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent md:bg-gradient-to-r md:from-black/90 md:via-black/40 md:to-transparent" />
+                      {heroBanners[currentBanner].link_url &&
+                      !(
+                        heroBanners[currentBanner].title?.trim() ||
+                        heroBanners[currentBanner].subtitle?.trim()
+                      ) ? (
+                        <Link
+                          to={heroBanners[currentBanner].link_url!}
+                          className="block w-full h-full cursor-pointer"
+                        >
+                          <img
+                            src={heroBanners[currentBanner].image_url}
+                            alt={
+                              heroBanners[currentBanner].title?.trim() ||
+                              "Banner"
+                            }
+                            decoding="async"
+                            className="w-full h-full object-cover sm:object-cover"
+                          />
+                        </Link>
+                      ) : (
+                        <>
+                          <img
+                            src={heroBanners[currentBanner].image_url}
+                            alt={
+                              heroBanners[currentBanner].title?.trim() ||
+                              "Banner"
+                            }
+                            decoding="async"
+                            className="w-full h-full object-cover sm:object-cover"
+                          />
+                          {(heroBanners[currentBanner].title?.trim() ||
+                            heroBanners[currentBanner].subtitle?.trim()) && (
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent md:bg-gradient-to-r md:from-black/90 md:via-black/40 md:to-transparent" />
+                          )}
+                        </>
+                      )}
                     </motion.div>
                   </AnimatePresence>
 
-                  <div className="absolute inset-0 p-5 md:p-16 flex flex-col justify-center z-10 text-primary-foreground pointer-events-none">
-                    <motion.div
-                      initial={{ opacity: 0, y: 30 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ duration: 0.8 }}
-                      className="container mx-auto px-2 lg:px-12 pointer-events-auto"
-                    >
-                      <div className="p-6 md:p-10 max-w-2xl inline-block">
-                        {heroBanners[currentBanner].title && (
-                          <h1 className="heading-display text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-black leading-tight mb-4 text-white drop-shadow-[0_4px_20px_rgba(0,0,0,0.8)]">
-                            {heroBanners[currentBanner].title}
-                          </h1>
-                        )}
-                        {heroBanners[currentBanner].subtitle && (
-                          <p className="text-gray-100 font-body text-base sm:text-xl mb-8 drop-shadow-[0_2px_10px_rgba(0,0,0,0.8)] font-medium">
-                            {heroBanners[currentBanner].subtitle}
-                          </p>
-                        )}
-                        {heroBanners[currentBanner].link_url && (
-                          <Link
-                            to={heroBanners[currentBanner].link_url!}
-                            className="inline-flex items-center gap-3 bg-neon text-accent-foreground px-8 py-4 font-body text-[15px] font-bold tracking-widest uppercase hover:bg-white hover:text-black hover:scale-105 transition-all duration-300 rounded-full shadow-[0_10px_30px_rgba(var(--neon-rgb),0.5)]"
-                          >
-                            {t("hero.shop_now")}{" "}
-                            <ArrowRight className="w-5 h-5" />
-                          </Link>
-                        )}
-                      </div>
-                    </motion.div>
-                  </div>
+                  {(heroBanners[currentBanner].title?.trim() ||
+                    heroBanners[currentBanner].subtitle?.trim()) && (
+                    <div className="absolute inset-0 p-5 md:p-16 flex flex-col justify-center z-10 text-primary-foreground pointer-events-none">
+                      <motion.div
+                        initial={{ opacity: 0, y: 30 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.8 }}
+                        className="container mx-auto px-2 lg:px-12 pointer-events-auto"
+                      >
+                        <div className="p-6 md:p-10 max-w-2xl inline-block">
+                          {heroBanners[currentBanner].title?.trim() && (
+                            <h1 className="heading-display text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-black leading-tight mb-4 text-white drop-shadow-[0_4px_20px_rgba(0,0,0,0.8)]">
+                              {heroBanners[currentBanner].title}
+                            </h1>
+                          )}
+                          {heroBanners[currentBanner].subtitle?.trim() && (
+                            <p className="text-gray-100 font-body text-base sm:text-xl mb-8 drop-shadow-[0_2px_10px_rgba(0,0,0,0.8)] font-medium">
+                              {heroBanners[currentBanner].subtitle}
+                            </p>
+                          )}
+                          {heroBanners[currentBanner].link_url && (
+                            <Link
+                              to={heroBanners[currentBanner].link_url!}
+                              className="inline-flex items-center gap-3 bg-neon text-accent-foreground px-8 py-4 font-body text-[15px] font-bold tracking-widest uppercase hover:bg-white hover:text-black hover:scale-105 transition-all duration-300 rounded-full shadow-[0_10px_30px_rgba(var(--neon-rgb),0.5)]"
+                            >
+                              {t("hero.shop_now")}{" "}
+                              <ArrowRight className="w-5 h-5" />
+                            </Link>
+                          )}
+                        </div>
+                      </motion.div>
+                    </div>
+                  )}
 
                   {heroBanners.length > 1 && (
                     <>
@@ -471,7 +504,7 @@ const Index = () => {
       </section>
 
       {/* Vehicle Finder Overlapping Widget */}
-      <section className="relative z-30 -mt-10 mb-4 px-4 sm:px-6 flex justify-center">
+      <section className="relative z-30 -mt-6 sm:-mt-8 mb-4 px-4 sm:px-6 flex justify-center">
         <motion.div
           ref={searchContainerRef}
           initial={{ opacity: 0, y: 20 }}

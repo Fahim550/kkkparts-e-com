@@ -116,7 +116,7 @@ const Navbar = () => {
 
       {/* Main Navbar */}
       <nav
-        className={`bg-background/90 backdrop-blur-lg border-b border-border/50 transition-all duration-300 py-3.5 ${isScrolled ? "shadow-md" : "shadow-sm"}`}
+        className={`bg-background/90 backdrop-blur-lg border-b border-border/50 transition-all duration-300 py-2 ${isScrolled ? "shadow-md" : "shadow-sm"}`}
       >
         <div className="container mx-auto px-4 lg:px-8">
           <div className="flex items-center justify-between">
