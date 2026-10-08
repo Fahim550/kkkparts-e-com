@@ -2,22 +2,32 @@ import { useEffect, useRef } from "react";
 import { useLocation } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 
+let trackingSupported: boolean | null = null;
+
 const getVisitorId = () => {
-  let vid = localStorage.getItem("v_id");
-  if (!vid) {
-    vid = `v_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-    localStorage.setItem("v_id", vid);
+  try {
+    let vid = localStorage.getItem("v_id");
+    if (!vid) {
+      vid = `v_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+      localStorage.setItem("v_id", vid);
+    }
+    return vid;
+  } catch {
+    return `v_${Date.now()}`;
   }
-  return vid;
 };
 
 const getSessionId = () => {
-  let sid = sessionStorage.getItem("v_session");
-  if (!sid) {
-    sid = `s_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-    sessionStorage.setItem("v_session", sid);
+  try {
+    let sid = sessionStorage.getItem("v_session");
+    if (!sid) {
+      sid = `s_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+      sessionStorage.setItem("v_session", sid);
+    }
+    return sid;
+  } catch {
+    return `s_${Date.now()}`;
   }
-  return sid;
 };
 
 const getDeviceType = () => {
@@ -54,6 +64,8 @@ export const useVisitorTracking = () => {
   const heartbeatRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
+    if (trackingSupported === false) return;
+
     const sessionId = getSessionId();
     const visitorId = getVisitorId();
 
@@ -75,13 +87,22 @@ export const useVisitorTracking = () => {
       };
 
       try {
-        await (supabase.from("visitor_sessions") as any).upsert(payload, {
+        const { error } = await (supabase.from("visitor_sessions") as any).upsert(payload, {
           onConflict: "session_id",
         });
-      } catch {}
+        if (error) {
+          trackingSupported = false;
+          return;
+        }
+        trackingSupported = true;
+      } catch {
+        trackingSupported = false;
+        return;
+      }
 
-      // Heartbeat every 60s to keep online status
+      // Heartbeat every 60s to keep online status if supported
       heartbeatRef.current = setInterval(async () => {
+        if (!trackingSupported) return;
         try {
           await (supabase.from("visitor_sessions") as any)
             .update({
@@ -97,25 +118,9 @@ export const useVisitorTracking = () => {
 
     // Mark offline on page unload
     const handleUnload = () => {
+      if (!trackingSupported) return;
       const url = `${import.meta.env.VITE_SUPABASE_URL}/rest/v1/visitor_sessions?session_id=eq.${sessionId}`;
-      navigator.sendBeacon?.(url); // best effort
-      // Also try fetch with keepalive
-      try {
-        fetch(url, {
-          method: "PATCH",
-          headers: {
-            "Content-Type": "application/json",
-            apikey: import.meta.env.VITE_SUPABASE_ANON_KEY,
-            Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
-            Prefer: "return=minimal",
-          },
-          body: JSON.stringify({
-            is_online: false,
-            exit_page: location.pathname,
-          }),
-          keepalive: true,
-        });
-      } catch {}
+      navigator.sendBeacon?.(url);
     };
 
     window.addEventListener("beforeunload", handleUnload);
@@ -128,22 +133,25 @@ export const useVisitorTracking = () => {
 
   // Track page views on route change
   useEffect(() => {
+    if (trackingSupported === false) return;
+    if (location.pathname.startsWith("/admin")) return;
+
     const sessionId = getSessionId();
     const visitorId = getVisitorId();
 
-    // Skip admin pages
-    if (location.pathname.startsWith("/admin")) return;
-
     const trackPage = async () => {
       try {
-        await (supabase.from("page_views") as any).insert({
+        const { error } = await (supabase.from("page_views") as any).insert({
           session_id: sessionId,
           visitor_id: visitorId,
           page_url: location.pathname,
           page_title: document.title,
         });
+        if (error) {
+          trackingSupported = false;
+          return;
+        }
 
-        // Update exit page & last_active
         await (supabase.from("visitor_sessions") as any)
           .update({
             exit_page: location.pathname,
@@ -151,7 +159,9 @@ export const useVisitorTracking = () => {
             is_online: true,
           })
           .eq("session_id", sessionId);
-      } catch {}
+      } catch {
+        trackingSupported = false;
+      }
     };
 
     trackPage();

@@ -15,7 +15,7 @@ export const ProtectedAdminRoute: React.FC<ProtectedAdminRouteProps> = ({
 }) => {
   const { user, loading, isStaff, isAdmin, hasAnyRole, isSalesman } = useAdminAuth();
 
-  if (loading) {
+  if (loading && !user) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
@@ -28,7 +28,7 @@ export const ProtectedAdminRoute: React.FC<ProtectedAdminRouteProps> = ({
     );
   }
 
-  if (!user) {
+  if (!user && !loading) {
     return <Navigate to="/admin/login" replace />;
   }
 

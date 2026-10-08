@@ -283,7 +283,6 @@ const Index = () => {
                       <img
                         src={heroBanners[currentBanner].image_url}
                         alt={heroBanners[currentBanner].title}
-                        fetchPriority="low"
                         decoding="async"
                         className="w-full h-full object-cover"
                       />

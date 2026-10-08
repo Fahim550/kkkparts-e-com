@@ -26,7 +26,6 @@ export const supabase = createClient<Database>(
       persistSession: true,
       autoRefreshToken: true,
       detectSessionInUrl: true,
-      lock: async (_name, _acquireTimeout, fn) => await fn(),
     },
   },
 );

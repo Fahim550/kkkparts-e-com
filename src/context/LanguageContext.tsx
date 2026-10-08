@@ -32,14 +32,18 @@ export const LanguageProvider = ({ children }: { children: ReactNode }) => {
   });
 
   useEffect(() => {
-    const stored = localStorage.getItem("visitor_language");
-    if (!stored && settings) {
-      setLanguageState(defaultLang);
-    }
-  }, [defaultLang]);
+    try {
+      const stored = localStorage.getItem("visitor_language") as Language | null;
+      if (stored && (stored === "en" || stored === "ar")) {
+        setLanguageState(stored);
+      }
+    } catch {}
+  }, []);
 
   const setLanguage = (lang: Language) => {
-    localStorage.setItem("visitor_language", lang);
+    try {
+      localStorage.setItem("visitor_language", lang);
+    } catch {}
     setLanguageState(lang);
   };
   const isRTL = false;

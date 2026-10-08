@@ -36,6 +36,26 @@ const AdminAuthContext = createContext<AdminAuthContextType | undefined>(
   undefined,
 );
 
+// Cache roles in storage for instant zero-lag authentication state
+const getCachedRoles = (userId?: string): string[] => {
+  if (!userId) return [];
+  try {
+    const raw = localStorage.getItem(`admin_roles_${userId}`);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+};
+
+const setCachedRoles = (userId: string, roles: string[]) => {
+  try {
+    localStorage.setItem(`admin_roles_${userId}`, JSON.stringify(roles));
+  } catch {}
+};
+
+// In-flight deduplication to avoid duplicate network fetches
+const inFlightRolePromises = new Map<string, Promise<string[]>>();
+
 export const AdminAuthProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
@@ -45,95 +65,131 @@ export const AdminAuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const [loading, setLoading] = useState(true);
   const [rolesLoading, setRolesLoading] = useState(false);
 
-  const fetchUserRoles = useCallback(async (userId: string, userObj?: User | null): Promise<string[]> => {
-    try {
-      const rolesFound = new Set<string>();
+  const fetchUserRoles = useCallback(
+    async (userId: string, userObj?: User | null): Promise<string[]> => {
+      if (!userId) return [];
 
-      // 0. Check auth metadata if available
-      const metaRole =
-        userObj?.user_metadata?.role ||
-        userObj?.app_metadata?.role ||
-        userObj?.user_metadata?.role_name;
-      if (metaRole) {
-        const lower = String(metaRole).toLowerCase();
-        if (lower === "admin") rolesFound.add("Admin");
-        else if (lower === "sales" || lower === "salesman") rolesFound.add("Salesman");
-        else if (lower === "cashier") rolesFound.add("Cashier");
-        else if (lower === "accountant") rolesFound.add("Accountant");
-        else if (lower === "warehousemanager") rolesFound.add("WarehouseManager");
-        else rolesFound.add(String(metaRole));
+      // Check if already in flight for this user
+      if (inFlightRolePromises.has(userId)) {
+        return inFlightRolePromises.get(userId)!;
       }
 
-      // 1. Fetch from erp_user_roles and erp_roles
-      try {
-        const { data: erpRolesData } = await supabase
-          .from("erp_user_roles")
-          .select("role_id, erp_roles(name)")
-          .eq("user_id", userId);
+      const promise = (async () => {
+        try {
+          const rolesFound = new Set<string>();
 
-        if (erpRolesData && erpRolesData.length > 0) {
-          for (const item of erpRolesData as any[]) {
-            const roleName = item.erp_roles?.name;
-            if (roleName) {
-              rolesFound.add(roleName);
+          // 0. Check auth metadata if available
+          const metaRole =
+            userObj?.user_metadata?.role ||
+            userObj?.app_metadata?.role ||
+            userObj?.user_metadata?.role_name;
+          if (metaRole) {
+            const lower = String(metaRole).toLowerCase();
+            if (lower === "admin") rolesFound.add("Admin");
+            else if (lower === "sales" || lower === "salesman")
+              rolesFound.add("Salesman");
+            else if (lower === "cashier") rolesFound.add("Cashier");
+            else if (lower === "accountant") rolesFound.add("Accountant");
+            else if (lower === "warehousemanager")
+              rolesFound.add("WarehouseManager");
+            else rolesFound.add(String(metaRole));
+          }
+
+          // 1. Fetch from erp_user_roles and erp_roles
+          try {
+            const { data: erpRolesData } = await supabase
+              .from("erp_user_roles")
+              .select("role_id, erp_roles(name)")
+              .eq("user_id", userId);
+
+            if (erpRolesData && erpRolesData.length > 0) {
+              for (const item of erpRolesData as any[]) {
+                const roleName = item.erp_roles?.name;
+                if (roleName) {
+                  rolesFound.add(roleName);
+                }
+              }
+            }
+          } catch (err) {
+            console.warn("Could not query erp_user_roles directly, trying RPC:", err);
+          }
+
+          // FAST EXIT: If we already found roles from erp_user_roles or metadata, skip heavy RPC fallbacks!
+          const hasAdminOrRoles =
+            rolesFound.has("Admin") ||
+            rolesFound.has("admin") ||
+            rolesFound.size > 0;
+
+          if (!hasAdminOrRoles) {
+            // 2. Check RPC has_role for Admin and Sales if not found yet
+            try {
+              const { data: isAdminRpc } = await supabase.rpc("has_role", {
+                role_name: "Admin",
+              });
+              if (isAdminRpc) rolesFound.add("Admin");
+            } catch {
+              // ignore
+            }
+
+            if (!rolesFound.has("Sales") && !rolesFound.has("Salesman")) {
+              try {
+                const { data: isSalesRpc } = await supabase.rpc("has_role", {
+                  role_name: "Sales",
+                });
+                if (isSalesRpc) rolesFound.add("Salesman");
+              } catch {}
+              try {
+                const { data: isSalesmanRpc } = await supabase.rpc("has_role", {
+                  role_name: "Salesman",
+                });
+                if (isSalesmanRpc) rolesFound.add("Salesman");
+              } catch {}
+            }
+
+            // 3. Check erp_users table (if user exists here, ensure they have at least staff access)
+            if (rolesFound.size === 0) {
+              try {
+                const { data: erpUser } = await supabase
+                  .from("erp_users")
+                  .select("id, is_active")
+                  .eq("id", userId)
+                  .maybeSingle();
+
+                if (erpUser && erpUser.is_active !== false) {
+                  rolesFound.add("Salesman");
+                }
+              } catch {
+                // ignore
+              }
             }
           }
+
+          // Normalize synonymous roles (Sales and Salesman, admin and Admin)
+          if (rolesFound.has("Sales") || rolesFound.has("sales")) {
+            rolesFound.add("Salesman");
+          }
+          if (rolesFound.has("admin")) {
+            rolesFound.add("Admin");
+          }
+
+          const resolved = Array.from(rolesFound);
+          if (resolved.length > 0) {
+            setCachedRoles(userId, resolved);
+          }
+          return resolved;
+        } catch (e) {
+          console.error("Error fetching user roles:", e);
+          return getCachedRoles(userId);
+        } finally {
+          inFlightRolePromises.delete(userId);
         }
-      } catch (err) {
-        console.warn("Could not query erp_user_roles directly, trying RPC:", err);
-      }
+      })();
 
-      // 2. Check RPC has_role for Admin and Sales if not found yet
-      if (!rolesFound.has("Admin") && !rolesFound.has("admin")) {
-        try {
-          const { data: isAdminRpc } = await supabase.rpc("has_role", { role_name: "Admin" });
-          if (isAdminRpc) rolesFound.add("Admin");
-        } catch {
-          // ignore
-        }
-      }
-
-      if (!rolesFound.has("Sales") && !rolesFound.has("Salesman")) {
-        try {
-          const { data: isSalesRpc } = await supabase.rpc("has_role", { role_name: "Sales" });
-          if (isSalesRpc) rolesFound.add("Salesman");
-        } catch {}
-        try {
-          const { data: isSalesmanRpc } = await supabase.rpc("has_role", { role_name: "Salesman" });
-          if (isSalesmanRpc) rolesFound.add("Salesman");
-        } catch {}
-      }
-
-      // 3. Check erp_users table (if user exists here, ensure they have at least staff access)
-      try {
-        const { data: erpUser } = await supabase
-          .from("erp_users")
-          .select("id, is_active")
-          .eq("id", userId)
-          .maybeSingle();
-
-        if (erpUser && erpUser.is_active !== false && rolesFound.size === 0) {
-          // User is registered in ERP staff table, default to Salesman / Staff
-          rolesFound.add("Salesman");
-        }
-      } catch {
-        // ignore
-      }
-
-      // Normalize synonymous roles (Sales and Salesman)
-      if (rolesFound.has("Sales") || rolesFound.has("sales")) {
-        rolesFound.add("Salesman");
-      }
-      if (rolesFound.has("admin")) {
-        rolesFound.add("Admin");
-      }
-
-      return Array.from(rolesFound);
-    } catch (e) {
-      console.error("Error fetching user roles:", e);
-      return [];
-    }
-  }, []);
+      inFlightRolePromises.set(userId, promise);
+      return promise;
+    },
+    [],
+  );
 
   const refreshRoles = useCallback(async () => {
     if (user?.id) {
@@ -152,47 +208,63 @@ export const AdminAuthProvider: React.FC<{ children: React.ReactNode }> = ({
     const timeout = setTimeout(() => {
       setLoading(false);
       setRolesLoading(false);
-    }, 5000);
+    }, 2500);
 
-    // Set up auth listener FIRST
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (_event, session) => {
+    let isMounted = true;
+
+    // Handle session resolution helper
+    const handleSession = async (session: Session | null) => {
+      if (!isMounted) return;
       setSession(session);
       setUser(session?.user ?? null);
+
       if (session?.user) {
+        // Hydrate from cache immediately to prevent loading flicker
+        const cached = getCachedRoles(session.user.id);
+        if (cached.length > 0 && isMounted) {
+          setUserRoles(cached);
+          setLoading(false);
+        }
+
+        // Verify and refresh roles
         setRolesLoading(true);
         const roles = await fetchUserRoles(session.user.id, session.user);
-        setUserRoles(roles);
-        setRolesLoading(false);
-        setLoading(false);
-      } else {
-        setUserRoles([]);
-        setRolesLoading(false);
-        setLoading(false);
-      }
-    });
-
-    // Then check existing session
-    supabase.auth
-      .getSession()
-      .then(async ({ data: { session } }) => {
-        setSession(session);
-        setUser(session?.user ?? null);
-        if (session?.user) {
-          setRolesLoading(true);
-          const roles = await fetchUserRoles(session.user.id, session.user);
+        if (isMounted) {
           setUserRoles(roles);
           setRolesLoading(false);
+          setLoading(false);
         }
-        setLoading(false);
+      } else {
+        if (isMounted) {
+          setUserRoles([]);
+          setRolesLoading(false);
+          setLoading(false);
+        }
+      }
+    };
+
+    // Set up auth listener
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      handleSession(session);
+    });
+
+    // Also check initial session once
+    supabase.auth
+      .getSession()
+      .then(({ data: { session } }) => {
+        handleSession(session);
       })
       .catch(() => {
-        setLoading(false);
-        setRolesLoading(false);
+        if (isMounted) {
+          setLoading(false);
+          setRolesLoading(false);
+        }
       });
 
     return () => {
+      isMounted = false;
       clearTimeout(timeout);
       subscription.unsubscribe();
     };
@@ -312,11 +384,16 @@ export const AdminAuthProvider: React.FC<{ children: React.ReactNode }> = ({
   }, []);
 
   const signOut = useCallback(async () => {
+    if (user?.id) {
+      try {
+        localStorage.removeItem(`admin_roles_${user.id}`);
+      } catch {}
+    }
     await supabase.auth.signOut();
     setUser(null);
     setSession(null);
     setUserRoles([]);
-  }, []);
+  }, [user]);
 
   return (
     <AdminAuthContext.Provider

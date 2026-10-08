@@ -37,55 +37,84 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const fetchProfile = async (userId: string) => {
+  const fetchProfile = async (userId: string, userObj?: User | null) => {
+    // If user is a staff/admin, they are not a dealer - skip unnecessary query
+    const email = userObj?.email || "";
+    if (email.endsWith("@staff.local") || email.endsWith("@kkkparts.com") || userObj?.user_metadata?.role === "Admin") {
+      setProfile(null);
+      return;
+    }
+
     try {
+      // Check cache first
+      const cached = sessionStorage.getItem(`dealer_profile_${userId}`);
+      if (cached) {
+        setProfile(JSON.parse(cached));
+      }
+
       const { data, error } = await supabase
         .from("dealers")
         .select("*")
         .eq("id", userId)
         .maybeSingle();
+
       if (!error && data) {
-        setProfile({ ...data, role: "dealer" });
+        const fullProfile = { ...data, role: "dealer" };
+        setProfile(fullProfile);
+        try {
+          sessionStorage.setItem(`dealer_profile_${userId}`, JSON.stringify(fullProfile));
+        } catch {}
       } else {
         setProfile(null);
       }
     } catch (e) {
       console.error("Error fetching profile", e);
+      setProfile(null);
     }
   };
 
   useEffect(() => {
+    let isMounted = true;
+
     try {
       if (!supabase || !supabase.auth) {
         console.error("Supabase client is not initialized.");
         setLoading(false);
         return;
       }
-      supabase.auth.getSession().then(({ data: { session } }) => {
+
+      const handleAuthSession = async (session: Session | null) => {
+        if (!isMounted) return;
         setSession(session);
         setUser(session?.user ?? null);
+
         if (session?.user) {
-          fetchProfile(session.user.id).finally(() => setLoading(false));
+          await fetchProfile(session.user.id, session.user);
+          if (isMounted) setLoading(false);
         } else {
-          setProfile(null);
-          setLoading(false);
+          if (isMounted) {
+            setProfile(null);
+            setLoading(false);
+          }
         }
-      });
+      };
 
       const {
         data: { subscription },
       } = supabase.auth.onAuthStateChange((_event, session) => {
-        setSession(session);
-        setUser(session?.user ?? null);
-        if (session?.user) {
-          fetchProfile(session.user.id).finally(() => setLoading(false));
-        } else {
-          setProfile(null);
-          setLoading(false);
-        }
+        handleAuthSession(session);
       });
 
-      return () => subscription.unsubscribe();
+      supabase.auth.getSession().then(({ data: { session } }) => {
+        handleAuthSession(session);
+      }).catch(() => {
+        if (isMounted) setLoading(false);
+      });
+
+      return () => {
+        isMounted = false;
+        subscription.unsubscribe();
+      };
     } catch (error) {
       console.error("AuthContext Error:", error);
       setLoading(false);

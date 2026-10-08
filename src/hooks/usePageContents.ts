@@ -17,19 +17,24 @@ export const usePageContent = (slug: string) =>
   useQuery({
     queryKey: ["page-content", slug],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("page_contents")
-        .select("*")
-        .eq("page_slug", slug)
-        .eq("is_active", true)
-        .maybeSingle();
-      if (error) {
-        console.warn(`Error fetching page content for ${slug}:`, error);
+      try {
+        const { data, error } = await supabase
+          .from("page_contents")
+          .select("*")
+          .eq("page_slug", slug)
+          .eq("is_active", true)
+          .maybeSingle();
+        if (error) {
+          return null;
+        }
+        return data as PageContent | null;
+      } catch {
         return null;
       }
-      return data as PageContent | null;
     },
     enabled: !!slug,
+    retry: false,
+    staleTime: 1000 * 60 * 30,
   });
 
 export const useAllPageContents = () =>

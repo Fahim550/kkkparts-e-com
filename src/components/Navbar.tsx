@@ -32,9 +32,13 @@ const Navbar = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const { data: settings } = useSettings();
   const { user, signOut } = useAuth();
-  const [isCustomer, setIsCustomer] = useState(
-    () => localStorage.getItem("role") === "customer",
-  );
+  const [isCustomer, setIsCustomer] = useState(() => {
+    try {
+      return localStorage.getItem("role") === "customer";
+    } catch {
+      return false;
+    }
+  });
 
   const navigate = useNavigate();
   const location = useLocation();

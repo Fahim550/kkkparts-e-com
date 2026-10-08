@@ -29,23 +29,23 @@ const AdminLoginPage = () => {
   const logoUrl = s?.logo_url || "/logo.png";
 
   useEffect(() => {
-    // Only check once both auth and roles have finished loading
-    if (authLoading || rolesLoading) return;
-    if (user) {
-      if (isAdmin || isStaff) {
-        const isSalesmanOnly = userRoles.some((r) => ["sales", "salesman"].includes(r.toLowerCase())) && !isAdmin;
-        const isCashierOnly = userRoles.some((r) => r.toLowerCase() === "cashier") && !isAdmin && !isSalesmanOnly;
-        if (isSalesmanOnly) {
-          navigate("/salesman/dashboard", { replace: true });
-        } else if (isCashierOnly) {
-          navigate("/admin/pos", { replace: true });
-        } else {
-          navigate("/admin", { replace: true });
-        }
-      } else if (!isSignUp && userRoles.length === 0) {
-        toast.error("You do not have staff or admin privileges.");
-        supabase.auth.signOut();
+    if (user && (isAdmin || isStaff)) {
+      const isSalesmanOnly = userRoles.some((r) => ["sales", "salesman"].includes(r.toLowerCase())) && !isAdmin;
+      const isCashierOnly = userRoles.some((r) => r.toLowerCase() === "cashier") && !isAdmin && !isSalesmanOnly;
+      if (isSalesmanOnly) {
+        navigate("/salesman/dashboard", { replace: true });
+      } else if (isCashierOnly) {
+        navigate("/admin/pos", { replace: true });
+      } else {
+        navigate("/admin", { replace: true });
       }
+      return;
+    }
+
+    // Only reject once both auth and roles have definitively finished loading
+    if (!authLoading && !rolesLoading && user && !isSignUp && userRoles.length === 0) {
+      toast.error("You do not have staff or admin privileges.");
+      supabase.auth.signOut();
     }
   }, [user, authLoading, rolesLoading, isAdmin, isStaff, userRoles, navigate, isSignUp]);
 
@@ -96,9 +96,20 @@ const AdminLoginPage = () => {
           // Input is a mobile number or phone ID
           const cleanPhone = authEmail.replace(/\s+/g, "").replace(/-/g, "");
           res = await signIn(`${cleanPhone}@staff.local`, password);
+          if (res.error && !cleanPhone.startsWith("+")) {
+            // Try with Oman country code prefix (e.g. +96879458035)
+            const withCode = cleanPhone.startsWith("968") ? `+${cleanPhone}` : `+968${cleanPhone}`;
+            const retryRes = await signIn(`${withCode}@staff.local`, password);
+            if (!retryRes.error) {
+              res = retryRes;
+            }
+          }
           if (res.error) {
             // Try dealer format fallback
-            res = await signIn(`${cleanPhone}@dealer.local`, password);
+            const dealerRes = await signIn(`${cleanPhone}@dealer.local`, password);
+            if (!dealerRes.error) {
+              res = dealerRes;
+            }
           }
         } else {
           res = await signIn(authEmail, password);
@@ -109,7 +120,7 @@ const AdminLoginPage = () => {
           return;
         }
 
-        const userRolesList = res.roles || [];
+        const userRolesList = (res.roles && res.roles.length > 0) ? res.roles : userRoles;
         const hasStaffRole = userRolesList.some((r) =>
           [
             "admin",
