@@ -669,7 +669,7 @@ const Index = () => {
             </Link>
           </div>
 
-          <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8 gap-2.5 sm:gap-3 md:gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3.5 sm:gap-4 md:gap-5">
             {dbCategories.map((cat) => (
               <div
                 key={cat.id}
@@ -677,21 +677,36 @@ const Index = () => {
               >
                 <Link
                   to={`/parts?category=${cat.slug}`}
-                  className="flex flex-col items-center w-full bg-white p-2.5 md:p-3 rounded-xl md:rounded-2xl border border-gray-100 shadow-[0_4px_15px_rgba(0,0,0,0.03)] hover:shadow-[0_15px_30px_rgba(0,0,0,0.08)] hover:-translate-y-1.5 hover:border-neon/30 transition-all duration-500 h-full"
+                  className="group flex flex-col w-full h-full bg-white rounded-xl overflow-hidden shadow-[0_4px_15px_rgba(0,0,0,0.08)] hover:shadow-[0_12px_28px_rgba(0,0,0,0.15)] hover:-translate-y-1 transition-all duration-300 border border-border/40"
                 >
-                  <div className="w-full aspect-square flex items-center justify-center mb-2.5 sm:mb-3 relative overflow-hidden rounded-lg md:rounded-xl bg-gray-50 group-hover:bg-gray-100/50 transition-colors">
+                  {/* Top Image Showcase - exactly like ProductCard */}
+                  <div className="relative aspect-square w-full overflow-hidden bg-background">
                     <img
                       src={getCategoryImage(cat.slug, cat.image_url)}
                       alt={cat.name}
-                      width="250"
-                      height="250"
-                      className="w-[85%] h-[85%] object-contain relative z-10 group-hover:scale-110 transition-transform duration-700 ease-out mix-blend-multiply"
+                      width="400"
+                      height="400"
+                      decoding="async"
+                      className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                       loading="lazy"
                     />
                   </div>
-                  <h3 className="font-heading font-extrabold text-[11px] sm:text-[13px] md:text-[15px] text-gray-800 group-hover:text-neon transition-colors text-center tracking-wider px-1 leading-tight line-clamp-2 h-[2.5em] flex items-center justify-center uppercase">
-                    {cat.name}
-                  </h3>
+
+                  {/* Distinct Name Bar Plate - covers full height and uniform across all cards */}
+                  <div className="flex-1 w-full px-3 sm:px-4 py-2.5 sm:py-3 bg-slate-900 group-hover:bg-slate-950 transition-colors duration-300 flex items-center justify-between gap-2 relative border-t border-slate-800 min-h-[58px] sm:min-h-[66px]">
+                    {/* Top neon accent line on hover */}
+                    <div className="absolute top-0 left-0 right-0 h-[2px] bg-transparent group-hover:bg-neon transition-colors duration-300" />
+
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-heading font-extrabold text-[11px] sm:text-[13px] md:text-[14px] text-white tracking-wider uppercase leading-tight line-clamp-2 h-[2.5em] flex items-center group-hover:text-blue-400 transition-colors">
+                        {cat.name}
+                      </h3>
+                    </div>
+
+                    <div className="w-6 h-6 sm:w-7 sm:h-7 rounded-full bg-white/10 group-hover:bg-neon text-white flex items-center justify-center shrink-0 transition-all duration-300 shadow-sm group-hover:scale-105">
+                      <ArrowRight className="w-3 h-3 sm:w-3.5 sm:h-3.5 group-hover:translate-x-0.5 transition-transform duration-300" />
+                    </div>
+                  </div>
                 </Link>
               </div>
             ))}
