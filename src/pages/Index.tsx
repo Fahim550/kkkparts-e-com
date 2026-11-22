@@ -163,70 +163,10 @@ const Index = () => {
 
   const [visibleNewCount, setVisibleNewCount] = useState(4);
   const loadMoreRef = useRef<HTMLDivElement>(null);
-  const categoryScrollRef1 = useRef<HTMLDivElement>(null);
-  const categoryScrollRef2 = useRef<HTMLDivElement>(null);
 
   const [emblaRef] = useEmblaCarousel({ loop: true, align: "start" }, [
     Autoplay({ delay: 3000, stopOnInteraction: false }),
   ]);
-
-  // Auto-scroll logic for categories (Continuous Smooth Slide)
-  useEffect(() => {
-    if (dbCategories.length === 0) return;
-
-    let animationFrameId1: number;
-    let animationFrameId2: number;
-    let lastTime1 = 0;
-    let lastTime2 = 0;
-
-    const scrollCategory = (
-      ref: React.RefObject<HTMLDivElement>,
-      direction: 1 | -1,
-      timestamp: number,
-      lastTimeRef: { current: number }
-    ) => {
-      if (!ref.current) return;
-      
-      if (!lastTimeRef.current) lastTimeRef.current = timestamp;
-      const deltaTime = timestamp - lastTimeRef.current;
-
-      // Scroll 1 pixel every 25ms (approx 40 pixels per second)
-      if (deltaTime > 25) {
-        const { scrollLeft, scrollWidth, clientWidth } = ref.current;
-        let newScrollLeft = scrollLeft + direction;
-
-        if (direction === 1 && scrollLeft >= scrollWidth - clientWidth - 1) {
-          newScrollLeft = 0;
-        } else if (direction === -1 && scrollLeft <= 1) {
-          newScrollLeft = scrollWidth - clientWidth;
-        }
-
-        ref.current.scrollLeft = newScrollLeft;
-        lastTimeRef.current = timestamp;
-      }
-    };
-
-    const lastTimeRef1 = { current: 0 };
-    const lastTimeRef2 = { current: 0 };
-
-    const loop1 = (timestamp: number) => {
-      scrollCategory(categoryScrollRef1, 1, timestamp, lastTimeRef1);
-      animationFrameId1 = requestAnimationFrame(loop1);
-    };
-
-    const loop2 = (timestamp: number) => {
-      scrollCategory(categoryScrollRef2, -1, timestamp, lastTimeRef2);
-      animationFrameId2 = requestAnimationFrame(loop2);
-    };
-
-    animationFrameId1 = requestAnimationFrame(loop1);
-    animationFrameId2 = requestAnimationFrame(loop2);
-
-    return () => {
-      cancelAnimationFrame(animationFrameId1);
-      cancelAnimationFrame(animationFrameId2);
-    };
-  }, [dbCategories.length]);
 
   // Lazy loading for new products
   useEffect(() => {
@@ -248,10 +188,6 @@ const Index = () => {
 
   const heroBanners = banners.filter((b) => b.position === "hero");
   const promoBanners = banners.filter((b) => b.position === "promo");
-
-  const midCategory = Math.ceil(dbCategories.length / 2);
-  const categoryRow1 = dbCategories.slice(0, midCategory);
-  const categoryRow2 = dbCategories.slice(midCategory);
 
   const nextBanner = useCallback(() => {
     if (heroBanners.length > 1) {
@@ -733,76 +669,32 @@ const Index = () => {
             </Link>
           </div>
 
-          <div className="flex flex-col gap-2 md:gap-3">
-            {/* First Row */}
-            <div
-              ref={categoryScrollRef1}
-              className="overflow-x-auto hide-scrollbar pb-1 w-full"
-            >
-              <div className="flex gap-3 md:gap-5 w-max px-2 pt-2">
-                {categoryRow1.map((cat, i) => (
-                  <div
-                    key={cat.id}
-                    className="w-[110px] sm:w-[130px] md:w-[160px] lg:w-[180px] shrink-0 group cursor-pointer"
-                  >
-                      <Link
-                        to={`/parts?category=${cat.slug}`}
-                        className="flex flex-col items-center w-full bg-white p-2.5 md:p-3 rounded-xl md:rounded-2xl border border-gray-100 shadow-[0_4px_15px_rgba(0,0,0,0.03)] hover:shadow-[0_15px_30px_rgba(0,0,0,0.08)] hover:-translate-y-1.5 hover:border-neon/30 transition-all duration-500"
-                      >
-                        <div className="w-full aspect-square flex items-center justify-center mb-3 relative overflow-hidden rounded-lg md:rounded-xl bg-gray-50 group-hover:bg-gray-100/50 transition-colors">
-                        <img
-                          src={getCategoryImage(cat.slug, cat.image_url)}
-                          alt={cat.name}
-                          width="250"
-                          height="250"
-                          className="w-[85%] h-[85%] object-contain relative z-10 group-hover:scale-110 transition-transform duration-700 ease-out mix-blend-multiply"
-                          loading="lazy"
-                        />
-                      </div>
-                      <h3 className="font-heading font-extrabold text-[11px] sm:text-[13px] md:text-[15px] text-gray-800 group-hover:text-neon transition-colors text-center tracking-wider px-1 leading-tight line-clamp-2 h-[2.5em] flex items-center justify-center">
-                        {cat.name}
-                      </h3>
-                    </Link>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Second Row */}
-            {categoryRow2.length > 0 && (
+          <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8 gap-2.5 sm:gap-3 md:gap-4">
+            {dbCategories.map((cat) => (
               <div
-                ref={categoryScrollRef2}
-                className="overflow-x-auto hide-scrollbar pb-4 w-full"
+                key={cat.id}
+                className="group cursor-pointer"
               >
-                <div className="flex gap-3 md:gap-5 w-max px-2 pt-2">
-                  {categoryRow2.map((cat, i) => (
-                    <div
-                      key={cat.id}
-                      className="w-[110px] sm:w-[130px] md:w-[160px] lg:w-[180px] shrink-0 group cursor-pointer"
-                    >
-                      <Link
-                        to={`/parts?category=${cat.slug}`}
-                        className="flex flex-col items-center w-full bg-white p-2.5 md:p-3 rounded-xl md:rounded-2xl border border-gray-100 shadow-[0_4px_15px_rgba(0,0,0,0.03)] hover:shadow-[0_15px_30px_rgba(0,0,0,0.08)] hover:-translate-y-1.5 hover:border-neon/30 transition-all duration-500"
-                      >
-                        <div className="w-full aspect-square flex items-center justify-center mb-3 relative overflow-hidden rounded-lg md:rounded-xl bg-gray-50 group-hover:bg-gray-100/50 transition-colors">
-                          <img
-                            src={getCategoryImage(cat.slug, cat.image_url)}
-                            alt={cat.name}
-                            width="250"
-                            height="250"
-                            className="w-[85%] h-[85%] object-contain relative z-10 group-hover:scale-110 transition-transform duration-700 ease-out mix-blend-multiply"
-                            loading="lazy"
-                          />
-                        </div>
-                        <h3 className="font-heading font-extrabold text-[11px] sm:text-[13px] md:text-[15px] text-gray-800 group-hover:text-neon transition-colors text-center tracking-wider px-1 leading-tight line-clamp-2 h-[2.5em] flex items-center justify-center">
-                          {cat.name}
-                        </h3>
-                      </Link>
-                    </div>
-                  ))}
-                </div>
+                <Link
+                  to={`/parts?category=${cat.slug}`}
+                  className="flex flex-col items-center w-full bg-white p-2.5 md:p-3 rounded-xl md:rounded-2xl border border-gray-100 shadow-[0_4px_15px_rgba(0,0,0,0.03)] hover:shadow-[0_15px_30px_rgba(0,0,0,0.08)] hover:-translate-y-1.5 hover:border-neon/30 transition-all duration-500 h-full"
+                >
+                  <div className="w-full aspect-square flex items-center justify-center mb-2.5 sm:mb-3 relative overflow-hidden rounded-lg md:rounded-xl bg-gray-50 group-hover:bg-gray-100/50 transition-colors">
+                    <img
+                      src={getCategoryImage(cat.slug, cat.image_url)}
+                      alt={cat.name}
+                      width="250"
+                      height="250"
+                      className="w-[85%] h-[85%] object-contain relative z-10 group-hover:scale-110 transition-transform duration-700 ease-out mix-blend-multiply"
+                      loading="lazy"
+                    />
+                  </div>
+                  <h3 className="font-heading font-extrabold text-[11px] sm:text-[13px] md:text-[15px] text-gray-800 group-hover:text-neon transition-colors text-center tracking-wider px-1 leading-tight line-clamp-2 h-[2.5em] flex items-center justify-center uppercase">
+                    {cat.name}
+                  </h3>
+                </Link>
               </div>
-            )}
+            ))}
           </div>
         </div>
       </section>
