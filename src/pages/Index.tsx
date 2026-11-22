@@ -1,105 +1,33 @@
-import DirhamIcon from "@/components/DirhamIcon";
-import Footer from "@/components/Footer";
+import { useState, useRef, useEffect } from "react";
+import { Link } from "react-router-dom";
+import { ChevronRight, Loader2 } from "lucide-react";
 import Navbar from "@/components/Navbar";
+import Footer from "@/components/Footer";
 import ProductCard from "@/components/ProductCard";
+import HomeHero from "@/components/home/HomeHero";
+import HomeSearch from "@/components/home/HomeSearch";
+import HomeCategories from "@/components/home/HomeCategories";
+import HomeWhyChooseUs from "@/components/home/HomeWhyChooseUs";
+import HomeReviews from "@/components/home/HomeReviews";
 import { useAuth } from "@/context/AuthContext";
 import { useLanguage } from "@/context/LanguageContext";
+import { useActiveProducts, useActiveBanners } from "@/hooks/useDatabase";
 import { useActiveCategories } from "@/hooks/useCategories";
-import { useActiveBanners, useActiveProducts } from "@/hooks/useDatabase";
-import { usePageContent } from "@/hooks/usePageContents";
-import Autoplay from "embla-carousel-autoplay";
-import useEmblaCarousel from "embla-carousel-react";
-import { AnimatePresence, motion } from "framer-motion";
-import {
-  ArrowRight,
-  ChevronLeft,
-  ChevronRight,
-  Loader2,
-  RefreshCw,
-  Search,
-  Shield,
-  Star,
-  Truck,
-  X,
-  Zap,
-} from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
 
-// Use an optimized, highly compressed external image for the fallback hero instead of a 520KB local asset to boost LCP
-const heroImage =
+const fallbackImage =
   "https://images.unsplash.com/photo-1492144534655-ae79c964c9d7?auto=format&fit=crop&w=800&q=80";
-const fallbackImage = heroImage;
-
-// Automotive Brands
-// Dynamically generated from active products
-
-const reviews = [
-  {
-    name: "Khalid A.",
-    text: "Authentic auto parts, fast shipping. Best car accessories store in Oman!",
-    rating: 5,
-  },
-  {
-    name: "Fatima R.",
-    text: "Got my brake pads in 2 days. Perfect fit and 100% genuine.",
-    rating: 5,
-  },
-  {
-    name: "Mohammed S.",
-    text: "Great selection of brands. My car is running smoothly now.",
-    rating: 5,
-  },
-];
 
 const Index = () => {
   const { data: dbProducts = [], isLoading: productsLoading } =
     useActiveProducts();
-  const { data: dbCategories = [], isLoading: categoriesLoading } =
-    useActiveCategories();
-  const { data: banners = [], isLoading: bannersLoading } = useActiveBanners();
-  const { data: filterSettingsPage } = usePageContent("filter-settings");
-  const filterSettings = filterSettingsPage?.content
-    ? JSON.parse(filterSettingsPage.content)
-    : {
-        years: [2024, 2023, 2022, 2021, 2020, 2019, 2018, 2017, 2016, 2015],
-        models: ["Sedan", "SUV", "Truck", "Sports"],
-      };
+  const { data: dbCategories = [] } = useActiveCategories();
+  const { data: banners = [] } = useActiveBanners();
   const { t } = useLanguage();
-  const navigate = useNavigate();
   const { user, profile } = useAuth();
   const isDealer = !!user && profile?.role === "dealer" && profile?.is_approved;
 
-  const [currentBanner, setCurrentBanner] = useState(0);
-  const [direction, setDirection] = useState(1);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [isSearchOpen, setIsSearchOpen] = useState(false);
-  const searchContainerRef = useRef<HTMLDivElement>(null);
-
-  // Close search dropdown on click outside or Escape
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (
-        searchContainerRef.current &&
-        !searchContainerRef.current.contains(event.target as Node)
-      ) {
-        setIsSearchOpen(false);
-      }
-    };
-
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        setIsSearchOpen(false);
-      }
-    };
-
-    document.addEventListener("mousedown", handleClickOutside);
-    document.addEventListener("keydown", handleKeyDown);
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-      document.removeEventListener("keydown", handleKeyDown);
-    };
-  }, []);
+  const [visibleNewCount, setVisibleNewCount] = useState(4);
+  const loadMoreRef = useRef<HTMLDivElement>(null);
 
   const products = dbProducts.map((p: any) => {
     const imageUrl = p.image_url || p.image || fallbackImage;
@@ -130,43 +58,12 @@ const Index = () => {
     };
   });
 
-  const searchResults = useMemo(() => {
-    const q = searchQuery.trim().toLowerCase();
-    if (!q) return [];
-    const searchTerms = q.split(/\s+/).filter(Boolean);
-    return products.filter((p) => {
-      const name = (p.name || "").toLowerCase();
-      const brand = (p.brand || "").toLowerCase();
-      const cat = (p.categoryName || p.category || "").toLowerCase();
-      const code = (p.itemCode || "").toLowerCase();
-      const desc = (p.description || "").toLowerCase();
-      const combined = `${name} ${brand} ${cat} ${code} ${desc}`;
-      return searchTerms.every((term) => combined.includes(term));
-    });
-  }, [products, searchQuery]);
-  const dynamicBrands = Array.from(
-    new Set(products.map((p) => (p.brand || "").trim().toUpperCase())),
-  )
-    .filter(Boolean)
-    .sort();
   const trendingFiltered = products.filter((p) => p.isTrending);
-  const trendingProducts = trendingFiltered.length > 0 ? trendingFiltered : products;
+  const trendingProducts =
+    trendingFiltered.length > 0 ? trendingFiltered : products;
 
   const newFiltered = products.filter((p) => p.isNew);
   const newProducts = newFiltered.length > 0 ? newFiltered : products;
-
-  const offerProducts = products.filter(
-    (p) => p.isOffer || (p.originalPrice != null && Number(p.originalPrice) > Number(p.price)),
-  );
-  const [email, setEmail] = useState("");
-  const isLoading = productsLoading || categoriesLoading || bannersLoading;
-
-  const [visibleNewCount, setVisibleNewCount] = useState(4);
-  const loadMoreRef = useRef<HTMLDivElement>(null);
-
-  const [emblaRef] = useEmblaCarousel({ loop: true, align: "start" }, [
-    Autoplay({ delay: 3000, stopOnInteraction: false }),
-  ]);
 
   // Lazy loading for new products
   useEffect(() => {
@@ -186,576 +83,18 @@ const Index = () => {
     return () => observer.disconnect();
   }, [visibleNewCount, newProducts.length]);
 
-  const heroBanners = banners.filter((b) => b.position === "hero");
-  const promoBanners = banners.filter((b) => b.position === "promo");
-
-  const nextBanner = useCallback(() => {
-    if (heroBanners.length > 1) {
-      setDirection(1);
-      setCurrentBanner((prev) => (prev + 1) % heroBanners.length);
-    }
-  }, [heroBanners.length]);
-
-  const prevBanner = useCallback(() => {
-    if (heroBanners.length > 1) {
-      setDirection(-1);
-      setCurrentBanner(
-        (prev) => (prev - 1 + heroBanners.length) % heroBanners.length,
-      );
-    }
-  }, [heroBanners.length]);
-
-  const slideVariants = {
-    initial: (dir: number) => ({
-      x: dir > 0 ? "100%" : "-100%",
-    }),
-    animate: {
-      x: 0,
-      transition: { duration: 0.8, ease: "easeInOut" },
-    },
-    exit: (dir: number) => ({
-      x: dir > 0 ? "-100%" : "100%",
-      transition: { duration: 0.8, ease: "easeInOut" },
-    }),
-  };
-
-  useEffect(() => {
-    if (heroBanners.length <= 1) return;
-    const interval = setInterval(nextBanner, 5000);
-    return () => clearInterval(interval);
-  }, [heroBanners.length, nextBanner]);
-
-  const getCategoryImage = (slug: string, imageUrl: string | null) =>
-    imageUrl || fallbackImage;
-
-  const getCategoryCount = (slug: string) =>
-    products.filter((p) => p.category === slug).length;
-
-  // Removed full-page blocking loader to improve LCP
-  // We now let the page render instantly with empty arrays/fallbacks while data loads
-
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
 
-      {/* Top Banners Section */}
-      <section className="pt-22 sm:pt-24 lg:pt-30 bg-background relative">
-        <div className="w-full px-0 lg:px-0">
-          <div
-            className={
-              promoBanners.length > 0
-                ? "grid grid-cols-1 lg:grid-cols-3 gap-4"
-                : "w-full"
-            }
-          >
-            {/* Main Slider */}
-            <div
-              className={`group relative w-full overflow-hidden ${
-                promoBanners.length > 0 ? "lg:col-span-2" : "w-full"
-              } aspect-[3/2] sm:aspect-[16/10] md:aspect-[16/9] max-w-[1500px] mx-auto`}
-            >
-              {heroBanners.length > 0 ? (
-                <>
-                  <AnimatePresence initial={false} custom={direction}>
-                    <motion.div
-                      key={currentBanner}
-                      custom={direction}
-                      variants={slideVariants}
-                      initial="initial"
-                      animate="animate"
-                      exit="exit"
-                      className="absolute inset-0"
-                    >
-                      {heroBanners[currentBanner].link_url &&
-                      !(
-                        heroBanners[currentBanner].title?.trim() ||
-                        heroBanners[currentBanner].subtitle?.trim()
-                      ) ? (
-                        <Link
-                          to={heroBanners[currentBanner].link_url!}
-                          className="block w-full h-full cursor-pointer"
-                        >
-                          <img
-                            src={heroBanners[currentBanner].image_url}
-                            alt={
-                              heroBanners[currentBanner].title?.trim() ||
-                              "Banner"
-                            }
-                            decoding="async"
-                            className="w-full h-full object-cover sm:object-cover"
-                          />
-                        </Link>
-                      ) : (
-                        <>
-                          <img
-                            src={heroBanners[currentBanner].image_url}
-                            alt={
-                              heroBanners[currentBanner].title?.trim() ||
-                              "Banner"
-                            }
-                            decoding="async"
-                            className="w-full h-full object-cover sm:object-cover"
-                          />
-                          {(heroBanners[currentBanner].title?.trim() ||
-                            heroBanners[currentBanner].subtitle?.trim()) && (
-                            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent md:bg-gradient-to-r md:from-black/90 md:via-black/40 md:to-transparent" />
-                          )}
-                        </>
-                      )}
-                    </motion.div>
-                  </AnimatePresence>
+      {/* Hero Slider & Banners */}
+      <HomeHero banners={banners} />
 
-                  {(heroBanners[currentBanner].title?.trim() ||
-                    heroBanners[currentBanner].subtitle?.trim()) && (
-                    <div className="absolute inset-0 p-5 md:p-16 flex flex-col justify-center z-10 text-primary-foreground pointer-events-none">
-                      <motion.div
-                        initial={{ opacity: 0, y: 30 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.8 }}
-                        className="container mx-auto px-2 lg:px-12 pointer-events-auto"
-                      >
-                        <div className="p-6 md:p-10 max-w-2xl inline-block">
-                          {heroBanners[currentBanner].title?.trim() && (
-                            <h1 className="heading-display text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-black leading-tight mb-4 text-white drop-shadow-[0_4px_20px_rgba(0,0,0,0.8)]">
-                              {heroBanners[currentBanner].title}
-                            </h1>
-                          )}
-                          {heroBanners[currentBanner].subtitle?.trim() && (
-                            <p className="text-gray-100 font-body text-base sm:text-xl mb-8 drop-shadow-[0_2px_10px_rgba(0,0,0,0.8)] font-medium">
-                              {heroBanners[currentBanner].subtitle}
-                            </p>
-                          )}
-                          {heroBanners[currentBanner].link_url && (
-                            <Link
-                              to={heroBanners[currentBanner].link_url!}
-                              className="inline-flex items-center gap-3 bg-neon text-accent-foreground px-8 py-4 font-body text-[15px] font-bold tracking-widest uppercase hover:bg-white hover:text-black hover:scale-105 transition-all duration-300 rounded-full shadow-[0_10px_30px_rgba(var(--neon-rgb),0.5)]"
-                            >
-                              {t("hero.shop_now")}{" "}
-                              <ArrowRight className="w-5 h-5" />
-                            </Link>
-                          )}
-                        </div>
-                      </motion.div>
-                    </div>
-                  )}
-
-                  {heroBanners.length > 1 && (
-                    <>
-                      <button
-                        onClick={prevBanner}
-                        aria-label="Previous banner"
-                        className="absolute left-4 top-1/2 -translate-y-1/2 z-20 w-14 h-14 bg-white/10 backdrop-blur-xl rounded-full flex items-center justify-center text-white hover:bg-neon hover:text-black transition-all duration-300 border border-white/20 opacity-0 group-hover:opacity-100 -translate-x-4 group-hover:translate-x-0 shadow-xl"
-                      >
-                        <ChevronLeft className="w-7 h-7 transition-colors" />
-                      </button>
-                      <button
-                        onClick={nextBanner}
-                        aria-label="Next banner"
-                        className="absolute right-4 top-1/2 -translate-y-1/2 z-20 w-14 h-14 bg-white/10 backdrop-blur-xl rounded-full flex items-center justify-center text-white hover:bg-neon hover:text-black transition-all duration-300 border border-white/20 opacity-0 group-hover:opacity-100 translate-x-4 group-hover:translate-x-0 shadow-xl"
-                      >
-                        <ChevronRight className="w-7 h-7 transition-colors" />
-                      </button>
-                      <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-20 flex gap-3">
-                        {heroBanners.map((_, i) => (
-                          <button
-                            key={i}
-                            onClick={() => {
-                              setDirection(i > currentBanner ? 1 : -1);
-                              setCurrentBanner(i);
-                            }}
-                            aria-label={`Go to banner ${i + 1}`}
-                            className={`h-2 rounded-full transition-all duration-300 ${i === currentBanner ? "w-10 bg-neon" : "w-2 bg-white/50 hover:bg-white/80"}`}
-                          />
-                        ))}
-                      </div>
-                    </>
-                  )}
-                </>
-              ) : (
-                <>
-                  <div className="absolute inset-0 p-5 md:p-16 flex flex-col justify-center z-10 text-primary-foreground pointer-events-none">
-                    <motion.div
-                      initial={{ opacity: 0, y: 40 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ duration: 0.8 }}
-                      className="container mx-auto px-2 lg:px-12 pointer-events-auto"
-                    >
-                      <div className="bg-black/40 backdrop-blur-md p-6 md:p-10 rounded-2xl border border-white/10 max-w-xl inline-block shadow-2xl">
-                        <h1 className="heading-display text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold leading-[1.1] mb-3 text-white drop-shadow-xl">
-                          {t("hero.fuel")}
-                          <br />
-                          <span className="text-neon text-glow">
-                            {t("hero.game")}
-                          </span>
-                        </h1>
-                        <p className="text-gray-200 font-body text-base sm:text-lg mb-8 drop-shadow-md">
-                          {t("hero.subtitle")}
-                        </p>
-                        <Link
-                          to="/parts"
-                          className="inline-flex items-center gap-2 bg-neon text-accent-foreground px-8 py-4 font-body text-sm font-bold tracking-widest uppercase hover:bg-neon-glow transition-all duration-300 rounded-md shadow-[0_0_15px_rgba(var(--neon),0.4)]"
-                        >
-                          {t("hero.shop_now")}{" "}
-                          <ArrowRight className="w-5 h-5" />
-                        </Link>
-                      </div>
-                    </motion.div>
-                  </div>
-                </>
-              )}
-            </div>
-
-            {/* Side Promo Banners (Right) */}
-            {promoBanners.length > 0 && (
-              <div className="flex flex-col gap-4 h-full pr-0 lg:pr-4">
-                {promoBanners.slice(0, 2).map((b) => (
-                  <Link
-                    key={b.id}
-                    to={b.link_url || "/parts"}
-                    className="group relative w-full h-[200px] lg:h-[calc(50%-0.5rem)] overflow-hidden block border-l-4 border-transparent hover:border-neon transition-all duration-300"
-                  >
-                    <img
-                      src={b.image_url}
-                      alt={b.title}
-                      loading="lazy"
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/30 to-transparent" />
-                    <div className="absolute bottom-6 left-6 right-6">
-                      <h3 className="font-heading text-xl md:text-2xl font-bold uppercase text-white drop-shadow-lg">
-                        {b.title}
-                      </h3>
-                      {b.subtitle && (
-                        <p className="font-body text-sm text-gray-300 mt-2 drop-shadow-md">
-                          {b.subtitle}
-                        </p>
-                      )}
-                    </div>
-                  </Link>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-      </section>
-
-      {/* Vehicle Finder Overlapping Widget */}
-      <section className="relative z-30 -mt-6 sm:-mt-8 mb-4 px-4 sm:px-6 flex justify-center">
-        <motion.div
-          ref={searchContainerRef}
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.2 }}
-          className="relative w-full max-w-3xl mx-auto"
-        >
-          {/* Main Search Bar Form */}
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              setIsSearchOpen(false);
-              if (searchQuery.trim()) {
-                navigate(
-                  `/parts?search=${encodeURIComponent(searchQuery.trim())}`,
-                );
-              } else {
-                navigate(`/parts`);
-              }
-            }}
-            className="flex items-center w-full bg-card/95 backdrop-blur-xl border-2 border-border/70 hover:border-neon/40 focus-within:border-neon focus-within:ring-4 focus-within:ring-neon/15 rounded-full shadow-[0_15px_35px_rgba(0,0,0,0.08)] hover:shadow-[0_20px_45px_rgba(0,0,0,0.12)] transition-all p-1.5 sm:p-2"
-          >
-            <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-full bg-neon/10 flex items-center justify-center shrink-0 ml-1 text-neon">
-              <Search className="w-5 h-5" />
-            </div>
-
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => {
-                setSearchQuery(e.target.value);
-                setIsSearchOpen(true);
-              }}
-              onFocus={() => {
-                if (searchQuery.trim()) setIsSearchOpen(true);
-              }}
-              placeholder="Search for parts by name, brand, or OEM number..."
-              className="w-full h-11 sm:h-12 pl-3 sm:pl-4 pr-3 bg-transparent text-foreground placeholder:text-muted-foreground/60 focus:outline-none text-sm sm:text-base font-body"
-            />
-
-            {searchQuery && (
-              <button
-                type="button"
-                onClick={() => {
-                  setSearchQuery("");
-                  setIsSearchOpen(false);
-                }}
-                className="p-2 mr-1 text-muted-foreground hover:text-foreground transition-colors shrink-0 rounded-full hover:bg-muted"
-                aria-label="Clear search"
-              >
-                <X className="w-4 h-4 sm:w-5 sm:h-5" />
-              </button>
-            )}
-
-            <button
-              type="submit"
-              aria-label="Search"
-              className="flex items-center justify-center px-5 sm:px-8 h-10 sm:h-12 bg-neon hover:bg-neon-glow text-white transition-all shrink-0 cursor-pointer font-bold tracking-wider sm:tracking-widest uppercase rounded-full shadow-md hover:-translate-y-0.5 text-xs sm:text-sm"
-            >
-              Search
-            </button>
-          </form>
-
-          {/* Instant Product Search Dropdown Results */}
-          <AnimatePresence>
-            {isSearchOpen && searchQuery.trim().length > 0 && (
-              <motion.div
-                initial={{ opacity: 0, y: 10, scale: 0.99 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, y: 8, scale: 0.99 }}
-                transition={{ duration: 0.15 }}
-                className="absolute top-full left-0 right-0 mt-2.5 bg-card/95 backdrop-blur-2xl rounded-2xl shadow-[0_25px_60px_rgba(0,0,0,0.18)] border border-border/80 overflow-hidden z-50 divide-y divide-border/60"
-              >
-                {/* Header bar */}
-                <div className="px-4 py-2.5 bg-muted/30 flex items-center justify-between text-xs text-muted-foreground">
-                  <span>
-                    Matching parts for{" "}
-                    <span className="font-semibold text-foreground">
-                      "{searchQuery.trim()}"
-                    </span>
-                  </span>
-                  <span className="font-medium">
-                    {searchResults.length} result
-                    {searchResults.length === 1 ? "" : "s"}
-                  </span>
-                </div>
-
-                {/* Results list */}
-                {searchResults.length > 0 ? (
-                  <div className="max-h-[380px] overflow-y-auto divide-y divide-border/40">
-                    {searchResults.slice(0, 6).map((product) => {
-                      const activePrice =
-                        isDealer && product.dealerPrice != null
-                          ? Number(product.dealerPrice)
-                          : Number(product.price);
-
-                      return (
-                        <div
-                          key={product.id}
-                          onClick={() => {
-                            setIsSearchOpen(false);
-                            navigate(`/product/${product.id}`);
-                          }}
-                          className="flex items-center gap-3.5 p-3 hover:bg-muted/50 cursor-pointer transition-colors group"
-                        >
-                          <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl bg-white border border-border/60 shrink-0 overflow-hidden flex items-center justify-center p-1 group-hover:border-neon/40 transition-colors shadow-sm">
-                            <img
-                              src={product.image}
-                              alt={product.name}
-                              className="w-full h-full max-w-full max-h-full object-contain group-hover:scale-105 transition-transform"
-                              loading="lazy"
-                            />
-                          </div>
-
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2 mb-0.5">
-                              {product.brand && (
-                                <span className="text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded bg-muted text-muted-foreground">
-                                  {product.brand}
-                                </span>
-                              )}
-                              {product.itemCode && (
-                                <span className="text-[10px] font-mono text-muted-foreground truncate max-w-[110px] sm:max-w-[180px]">
-                                  OEM: {product.itemCode}
-                                </span>
-                              )}
-                            </div>
-                            <h4 className="text-sm font-medium text-foreground group-hover:text-neon transition-colors truncate">
-                              {product.name}
-                            </h4>
-                            <div className="flex items-center gap-2 mt-1">
-                              <span className="text-xs font-semibold text-blue-600 dark:text-blue-400 flex items-center gap-1">
-                                <DirhamIcon />
-                                <span>{activePrice.toFixed(2)}</span>
-                              </span>
-                              {product.originalPrice &&
-                                product.originalPrice > activePrice && (
-                                  <span className="text-[11px] text-muted-foreground line-through">
-                                    {Number(product.originalPrice).toFixed(2)}
-                                  </span>
-                                )}
-                            </div>
-                          </div>
-
-                          <div className="flex flex-col items-end gap-1.5 shrink-0 pl-1 sm:pl-2">
-                            <span
-                              className={`text-[9px] sm:text-[10px] font-medium px-1.5 sm:px-2 py-0.5 rounded-full ${
-                                product.stock > 0
-                                  ? "bg-green-500/10 text-green-600 dark:text-green-400"
-                                  : "bg-red-500/10 text-red-600 dark:text-red-400"
-                              }`}
-                            >
-                              {product.stock > 0 ? "In Stock" : "Out of Stock"}
-                            </span>
-                            <span className="text-muted-foreground group-hover:text-neon group-hover:translate-x-0.5 transition-all text-xs flex items-center gap-0.5">
-                              <span className="hidden sm:inline">View</span>
-                              <ChevronRight className="w-3.5 h-3.5" />
-                            </span>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                ) : (
-                  <div className="p-8 text-center">
-                    <Search className="w-8 h-8 text-muted-foreground/30 mx-auto mb-2" />
-                    <p className="text-sm font-semibold text-foreground">
-                      No matching parts found
-                    </p>
-                    <p className="text-xs text-muted-foreground mt-1 max-w-sm mx-auto">
-                      We couldn't find any parts matching "{searchQuery}". Try
-                      searching by part name, brand, or OEM number.
-                    </p>
-                  </div>
-                )}
-
-                {/* Footer link to full shop */}
-                <div className="p-2.5 bg-muted/20 text-center">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setIsSearchOpen(false);
-                      navigate(
-                        `/parts?search=${encodeURIComponent(
-                          searchQuery.trim(),
-                        )}`,
-                      );
-                    }}
-                    className="w-full py-2 text-xs font-semibold text-neon hover:text-neon-glow hover:bg-neon/10 rounded-lg transition-colors flex items-center justify-center gap-1.5"
-                  >
-                    <span>
-                      {searchResults.length > 0
-                        ? `View all ${searchResults.length} results in parts shop`
-                        : "Browse all parts in catalog"}
-                    </span>
-                    <ArrowRight className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </motion.div>
-      </section>
+      {/* Overlapping Search & Instant Dropdown */}
+      <HomeSearch products={products} isDealer={isDealer} />
 
       {/* Categories Grid */}
-      <section className="py-8 bg-gray-50/50">
-        <div className="container mx-auto px-4 lg:px-8">
-          <div className="flex flex-row items-end justify-between mb-8 gap-2">
-            <div>
-              <span className="text-neon font-body text-[10px] sm:text-xs font-bold tracking-[0.1em] sm:tracking-[0.2em] mb-1 sm:mb-2 flex items-center gap-1.5 sm:gap-2">
-                <div className="w-1.5 h-1.5 rounded-full bg-neon animate-pulse"></div>
-                Top Categories
-              </span>
-              <h2 className="heading-display text-[16px] sm:text-2xl md:text-3xl font-semibold text-gray-900 tracking-tight capitalize">
-                {String(t("categories.title")).toLowerCase()}
-              </h2>
-            </div>
-            <Link
-              to="/parts"
-              className="flex items-center gap-1.5 sm:gap-2 font-body text-[10px] sm:text-xs font-bold tracking-wider sm:tracking-[0.1em] text-gray-900 hover:text-neon transition-all group shrink-0 pb-0.5 sm:pb-0"
-            >
-              {t("categories.all")}{" "}
-              <span className="w-6 h-6 sm:w-8 sm:h-8 rounded-full bg-white border border-gray-200 flex items-center justify-center group-hover:bg-neon group-hover:border-neon group-hover:text-white transition-all shadow-sm">
-                <ChevronRight className="w-3 h-3 sm:w-4 sm:h-4" />
-              </span>
-            </Link>
-          </div>
-
-          <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3.5 sm:gap-4 md:gap-5">
-            {dbCategories.map((cat) => (
-              <div
-                key={cat.id}
-                className="group cursor-pointer"
-              >
-                <Link
-                  to={`/parts?category=${cat.slug}`}
-                  className="group flex flex-col w-full h-full bg-white rounded-xl overflow-hidden shadow-[0_4px_15px_rgba(0,0,0,0.08)] hover:shadow-[0_12px_28px_rgba(0,0,0,0.15)] hover:-translate-y-1 transition-all duration-300 border border-border/40"
-                >
-                  {/* Top Image Showcase - exactly like ProductCard */}
-                  <div className="relative aspect-square w-full overflow-hidden bg-background">
-                    <img
-                      src={getCategoryImage(cat.slug, cat.image_url)}
-                      alt={cat.name}
-                      width="400"
-                      height="400"
-                      decoding="async"
-                      className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-                      loading="lazy"
-                    />
-                  </div>
-
-                  {/* Distinct Name Bar Plate - covers full height and uniform across all cards */}
-                  <div className="flex-1 w-full px-3 sm:px-4 py-2.5 sm:py-3 bg-slate-900 group-hover:bg-slate-950 transition-colors duration-300 flex items-center justify-between gap-2 relative border-t border-slate-800 min-h-[58px] sm:min-h-[66px]">
-                    {/* Top neon accent line on hover */}
-                    <div className="absolute top-0 left-0 right-0 h-[2px] bg-transparent group-hover:bg-neon transition-colors duration-300" />
-
-                    <div className="flex-1 min-w-0">
-                      <h3 className="font-heading font-extrabold text-[11px] sm:text-[13px] md:text-[14px] text-white tracking-wider uppercase leading-tight line-clamp-2 h-[2.5em] flex items-center group-hover:text-blue-400 transition-colors">
-                        {cat.name}
-                      </h3>
-                    </div>
-
-                    <div className="w-6 h-6 sm:w-7 sm:h-7 rounded-full bg-white/10 group-hover:bg-neon text-white flex items-center justify-center shrink-0 transition-all duration-300 shadow-sm group-hover:scale-105">
-                      <ArrowRight className="w-3 h-3 sm:w-3.5 sm:h-3.5 group-hover:translate-x-0.5 transition-transform duration-300" />
-                    </div>
-                  </div>
-                </Link>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Offer Products
-      {offerProducts.length > 0 && (
-        <section className="py-16 bg-background">
-          <div className="container mx-auto px-4 lg:px-8">
-            <div className="flex items-end justify-between mb-8">
-              <div>
-                <span className="text-neon font-body text-sm font-bold tracking-[0.1em] uppercase">
-                  Special Offers
-                </span>
-                <h2 className="heading-display text-xl md:text-2xl font-bold mt-1 text-foreground">
-                  Offer Products
-                </h2>
-              </div>
-              <Link
-                to="/parts"
-                className="flex items-center gap-2 font-body text-sm font-semibold tracking-widers text-foreground hover-neon transition-colors"
-              >
-                {t("trending.view_all")} <ChevronRight className="w-4 h-4" />
-              </Link>
-            </div>
-            <div className="overflow-hidden" ref={emblaRef}>
-              <div className="flex -ml-4">
-                {productsLoading
-                  ? Array.from({ length: 2 }).map((_, i) => (
-                      <div key={i} className="flex-none w-full md:w-1/2 pl-4">
-                        <div className="bg-card border border-border rounded-lg h-[200px] animate-pulse"></div>
-                      </div>
-                    ))
-                  : offerProducts.map((product) => (
-                      <div
-                        key={product.id}
-                        className="flex-none w-full md:w-1/2 pl-4"
-                      >
-                        <OfferProductCard product={product} />
-                      </div>
-                    ))}
-              </div>
-            </div>
-          </div>
-        </section>
-      )}
-      */}
+      <HomeCategories categories={dbCategories} />
 
       {/* Trending Products */}
       <section className="py-8 bg-card">
@@ -785,7 +124,7 @@ const Index = () => {
                   <div
                     key={i}
                     className="bg-card border border-border rounded-lg h-[300px] animate-pulse"
-                  ></div>
+                  />
                 ))
               : trendingProducts
                   .slice(0, 10)
@@ -824,7 +163,7 @@ const Index = () => {
                   <div
                     key={i}
                     className="bg-card border border-border rounded-lg h-[300px] animate-pulse"
-                  ></div>
+                  />
                 ))
               : newProducts
                   .slice(0, visibleNewCount)
@@ -848,109 +187,10 @@ const Index = () => {
       </section>
 
       {/* Why Choose Us */}
-      <section className="py-16 bg-card">
-        <div className="container mx-auto px-4 lg:px-8">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            className="text-center mb-14"
-          >
-            <span className="text-neon font-body text-sm font-bold tracking-[0.2em] uppercase">
-              {t("why.label")}
-            </span>
-            <h2 className="heading-display text-2xl md:text-2xl font-bold mt-2 text-foreground">
-              {t("why.title")}
-            </h2>
-          </motion.div>
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-6">
-            {[
-              {
-                icon: Shield,
-                title: t("why.authentic"),
-                desc: t("why.authentic_desc"),
-              },
-              {
-                icon: Zap,
-                title: t("why.performance"),
-                desc: t("why.performance_desc"),
-              },
-              {
-                icon: Truck,
-                title: t("why.delivery"),
-                desc: t("why.delivery_desc"),
-              },
-              {
-                icon: RefreshCw,
-                title: t("why.returns"),
-                desc: t("why.returns_desc"),
-              },
-            ].map((item, i) => (
-              <motion.div
-                key={item.title}
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: i * 0.1 }}
-                className="text-center p-6 bg-background rounded-lg border border-border hover:border-neon/30 hover:shadow-lg transition-all duration-300"
-              >
-                <div className="w-14 h-14 mx-auto mb-5 bg-neon/10 rounded-full flex items-center justify-center">
-                  <item.icon className="w-6 h-6 text-neon" />
-                </div>
-                <h3 className="font-heading text-md font-bold uppercase tracking-wide mb-2 text-foreground">
-                  {item.title}
-                </h3>
-                <p className="font-body text-sm text-muted-foreground">
-                  {item.desc}
-                </p>
-              </motion.div>
-            ))}
-          </div>
-        </div>
-      </section>
+      <HomeWhyChooseUs />
 
-      {/* Reviews */}
-      <section className="py-16">
-        <div className="container mx-auto px-4 lg:px-8">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            className="text-center mb-14"
-          >
-            <span className="text-neon font-body text-sm font-bold tracking-[0.2rem] uppercase">
-              {t("reviews.label")}
-            </span>
-            <h2 className="heading-display text-2xl md:text-2xl font-bold mt-2 text-foreground">
-              {t("reviews.title")}
-            </h2>
-          </motion.div>
-          <div className="grid md:grid-cols-3 gap-6 max-w-5xl mx-auto">
-            {reviews.map((review, i) => (
-              <motion.div
-                key={i}
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: i * 0.1 }}
-                className="bg-card p-8 border border-border rounded-lg hover:border-neon/20 hover:shadow-md transition-all"
-              >
-                <div className="flex gap-1 mb-4">
-                  {Array.from({ length: review.rating }).map((_, j) => (
-                    <Star key={j} className="w-4 h-4 fill-neon text-neon" />
-                  ))}
-                </div>
-                <p className="font-body text-sm text-muted-foreground mb-4 leading-relaxed">
-                  "{review.text}"
-                </p>
-                <p className="font-heading font-bold text-sm uppercase tracking-wider text-foreground">
-                  {review.name}
-                </p>
-              </motion.div>
-            ))}
-          </div>
-        </div>
-      </section>
+      {/* Customer Reviews */}
+      <HomeReviews />
 
       <Footer />
     </div>
