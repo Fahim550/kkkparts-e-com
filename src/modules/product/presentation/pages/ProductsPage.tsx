@@ -15,8 +15,9 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Loader2, Plus, Edit, Trash2, Box, ImageIcon, X, RefreshCw } from "lucide-react";
+import { Loader2, Plus, Edit, Trash2, Box, ImageIcon, X, RefreshCw, FileSpreadsheet } from "lucide-react";
 import ProductFormModal from "./ProductFormModal";
+import ProductImportModal from "../components/ProductImportModal";
 
 export default function ProductsPage() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -24,6 +25,7 @@ export default function ProductsPage() {
   const deleteProduct = useDeleteProductTemplate();
 
   const [isOpen, setIsOpen] = useState(false);
+  const [isImportOpen, setIsImportOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<ProductTemplateWithDetails | null>(null);
   const [search, setSearch] = useState(() => searchParams.get("search") || "");
 
@@ -71,9 +73,14 @@ export default function ProductsPage() {
           <h1 className="text-2xl font-bold tracking-tight">Products Management</h1>
           <p className="text-sm text-muted-foreground">Manage products and variations</p>
         </div>
-        <Button onClick={() => { setEditingProduct(null); setIsOpen(true); }}>
-          <Plus className="w-4 h-4 mr-2" /> Add Product
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" onClick={() => setIsImportOpen(true)}>
+            <FileSpreadsheet className="w-4 h-4 mr-2 text-green-600" /> Import Excel / CSV
+          </Button>
+          <Button onClick={() => { setEditingProduct(null); setIsOpen(true); }}>
+            <Plus className="w-4 h-4 mr-2" /> Add Product
+          </Button>
+        </div>
       </div>
 
       <div className="flex items-center gap-2 mb-4">
@@ -224,6 +231,12 @@ export default function ProductsPage() {
         isOpen={isOpen} 
         onOpenChange={handleOpenChange} 
         product={editingProduct} 
+      />
+
+      <ProductImportModal
+        isOpen={isImportOpen}
+        onOpenChange={setIsImportOpen}
+        onImportSuccess={() => refetch()}
       />
     </div>
   );
